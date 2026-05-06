@@ -20,7 +20,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 
 static const f32 g_DifficultyWeightsList[5] = {-30.0f, -10.0f, 20.0f, 30.0f, 30.0f};
  

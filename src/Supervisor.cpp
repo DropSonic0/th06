@@ -19,7 +19,9 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL_joystick.h>
+#endif
 #include <SDL_timer.h>
 #include <cstdio>
 #include <cstring>
@@ -466,7 +468,11 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
     //    supervisor->keyboard->Acquire();
     GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DIRECTINPUT_INITIALIZED);
 
+#ifndef __PS3__
     int numSticks = SDL_NumJoysticks();
+#else
+    int numSticks = 0; // Or handle PS3 pads if needed
+#endif
 
     for (int i = 0; i < numSticks; i++)
     {

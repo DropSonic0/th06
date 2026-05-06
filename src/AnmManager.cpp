@@ -14,18 +14,24 @@
 #include <cstring>
 #include <new>
 
+#ifndef __PS3__
 #include <SDL_image.h>
 #include <SDL_rwops.h>
 #include <SDL_surface.h>
+#else
+#include <PSGL/psgl.h>
+#endif
 
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4];
 static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4];
 AnmManager *g_AnmManager;
- 
+
+#ifndef __PS3__
 static const SDL_PixelFormatEnum g_TextureFormatSDLMapping[6] = {SDL_PIXELFORMAT_UNKNOWN,  SDL_PIXELFORMAT_RGBA32,
                                                     SDL_PIXELFORMAT_RGBA5551, SDL_PIXELFORMAT_RGB565,
                                                     SDL_PIXELFORMAT_RGB24,    SDL_PIXELFORMAT_RGBA4444};
+#endif
  
 static const GLenum g_TextureFormatGLFormatMapping[6] = {0, GL_RGBA, GL_RGBA, GL_RGB, GL_RGB, GL_RGBA};
  
@@ -46,6 +52,7 @@ void AnmManager::CreateTextureObject()
     g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
+#ifndef __PS3__
 SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData)
 {
     u8 *data;
@@ -148,6 +155,7 @@ void AnmManager::FlipSurface(SDL_Surface *surface)
 
     delete[] copyBuf;
 }
+#endif
 
 void AnmManager::ReleaseSurfaces(void)
 {
@@ -155,7 +163,12 @@ void AnmManager::ReleaseSurfaces(void)
     {
         if (this->surfaces[idx] != NULL)
         {
+#ifndef __PS3__
             SDL_FreeSurface(this->surfaces[idx]);
+#else
+            // PS3 implementation might need free() or similar if surfaces are raw pixels
+            // free(this->surfaces[idx]);
+#endif
             this->surfaces[idx] = NULL;
         }
     }
@@ -180,7 +193,9 @@ AnmManager::~AnmManager()
         this->dummyTextureHandle = 0;
     }
 
+#ifndef __PS3__
     IMG_Quit();
+#endif
 }
 
 // void AnmManager::ReleaseVertexBuffer()
@@ -194,7 +209,9 @@ AnmManager::~AnmManager()
 
 AnmManager::AnmManager()
 {
+#ifndef __PS3__
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+#endif
 
     this->maybeLoadedSpriteCount = 0;
 
@@ -315,6 +332,7 @@ void AnmManager::SetupVertexBuffer()
 
 ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey)
 {
+#ifndef __PS3__
     u8 *rawTextureData;
     SDL_Surface *textureSurface;
 
@@ -389,10 +407,15 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     }
 
     return ZUN_SUCCESS;
+#else
+    // TODO: Implementation for PS3 (likely using a custom TGA/PNG loader or cellGcm)
+    return ZUN_SUCCESS;
+#endif
 }
 
 ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey)
 {
+#ifndef __PS3__
     SDL_Surface *alphaSurface;
     TextureData *textureDesc;
 
@@ -482,6 +505,9 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
                                g_TextureFormatGLTypeMapping[textureFormat], textureDesc->textureData);
 
     return ZUN_SUCCESS;
+#else
+    return ZUN_SUCCESS;
+#endif
 }
 
 ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat)
@@ -1855,14 +1881,19 @@ void AnmManager::ReleaseSurface(i32 surfaceIdx)
 {
     if (this->surfaces[surfaceIdx] != NULL)
     {
+#ifndef __PS3__
         SDL_FreeSurface(this->surfaces[surfaceIdx]);
+#else
+        // PS3 Implementation
+#endif
         this->surfaces[surfaceIdx] = NULL;
     }
 }
 
 void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32 dstX, i32 dstY)
 {
-    SDL_Surface *srcSurface = this->surfaces[surfaceIdx];
+#ifndef __PS3__
+    SDL_Surface *srcSurface = (SDL_Surface *)this->surfaces[surfaceIdx];
 
     if (srcSurface == NULL)
     {
@@ -1870,6 +1901,7 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
     }
 
     CopySurfaceRectToBackBuffer(surfaceIdx, dstX, dstY, srcX, srcY, srcSurface->w - srcX, srcSurface->h - srcY);
+#endif
     //
     //    IDirect3DSurface8 *destSurface;
     //    if (g_Supervisor.d3dDevice->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &destSurface) != D3D_OK)
@@ -1915,7 +1947,8 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
 void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY, i32 rectLeft, i32 rectTop,
                                              i32 rectWidth, i32 rectHeight)
 {
-    SDL_Surface *srcSurface = this->surfaces[surfaceIdx];
+#ifndef __PS3__
+    SDL_Surface *srcSurface = (SDL_Surface *)this->surfaces[surfaceIdx];
 
     if (srcSurface == NULL)
     {
@@ -1924,6 +1957,7 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
 
     SDL_Rect srcRect{rectLeft, rectTop, rectWidth, rectHeight}, dstRect{dstX, dstY, rectWidth, rectHeight};
     ApplySurfaceToColorBuffer(srcSurface, srcRect, dstRect);
+#endif
     //
     //    IDirect3DSurface8 *D3D_Surface;
     //    if (g_Supervisor.d3dDevice->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &D3D_Surface) != D3D_OK)
@@ -1969,6 +2003,7 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
 
 void AnmManager::TakeScreenshot(i32 textureId, i32 left, i32 top, i32 width, i32 height)
 {
+#ifndef __PS3__
     u8 *backBufferPixels = NULL;
     u8 *dstFormatPixels = NULL;
     SDL_Surface *dstFormatSurface = NULL;
@@ -2045,8 +2080,10 @@ cleanup:
     SDL_FreeSurface(dstFormatSurface);
     delete[] backBufferPixels;
     delete[] dstFormatPixels;
+#endif
 }
 
+#ifndef __PS3__
 // Utter mess that needs to be rewritten
 void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect)
 {
@@ -2121,3 +2158,4 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
 
     originalViewport.Set();
 }
+#endif

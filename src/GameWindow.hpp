@@ -1,6 +1,11 @@
 #pragma once
 
+#ifndef __PS3__
 #include <SDL_video.h>
+#else
+#include <PSGL/psgl.h>
+#include <PSGL/psglu.h>
+#endif
 
 #include "GLFunc.hpp"
 #include "inttypes.hpp"
@@ -61,8 +66,13 @@ struct GameWindow
     static i32 InitD3dRendering();
     static void InitD3dDevice();
 
+#ifndef __PS3__
     SDL_Window *window;
     SDL_GLContext glContext;
+#else
+    PSGLcontext *glContext;
+    PSGLdevice *device;
+#endif
     i32 isAppClosing;
     i32 lastActiveAppValue;
     i32 isAppActive;
@@ -72,12 +82,21 @@ struct GameWindow
     i32 powerOffActive;
     u32 renderBackendIndex;
 
+#ifndef __PS3__
     i32 GAME_WINDOW_WIDTH_REAL = GAME_WINDOW_WIDTH;
     i32 GAME_WINDOW_HEIGHT_REAL = GAME_WINDOW_HEIGHT;
     i32 VIEWPORT_WIDTH = GAME_WINDOW_WIDTH;
     i32 VIEWPORT_OFF_X = 0;
     i32 VIEWPORT_HEIGHT = GAME_WINDOW_HEIGHT;
     i32 VIEWPORT_OFF_Y = 0;
+#else
+    i32 GAME_WINDOW_WIDTH_REAL;
+    i32 GAME_WINDOW_HEIGHT_REAL;
+    i32 VIEWPORT_WIDTH;
+    i32 VIEWPORT_OFF_X;
+    i32 VIEWPORT_HEIGHT;
+    i32 VIEWPORT_OFF_Y;
+#endif
     f32 WIDTH_RESOLUTION_SCALE;
     f32 HEIGHT_RESOLUTION_SCALE;
     void CONFIGURE_VIEW(){

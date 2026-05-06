@@ -1,4 +1,10 @@
+#ifndef __PS3__
 #include <SDL.h>
+#else
+#include <sys/process.h>
+#include <PSGL/psgl.h>
+#include <sysutil/sysutil_common.h>
+#endif
 #include <stdio.h>
 
 #include "AnmManager.hpp"
@@ -20,6 +26,10 @@
 void dlog(std::string msg){
     std::cout<<msg<<std::endl;
 }
+
+#ifdef __PS3__
+SYS_PROCESS_PARAM(1001, 0x100000)
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -92,16 +102,19 @@ restart:
     {
         goto stop;
     }
+#ifndef __PS3__
     if (!g_Supervisor.cfg.windowed)
     {
         SDL_ShowCursor(SDL_DISABLE);
     }
+#endif
 
     g_GameWindow.curFrame = 0;
 
     //dlog("Into loop game event");
     while (true)
     {
+#ifndef __PS3__
         SDL_Event e;
 
         //dlog("Into poolevent loop");
@@ -112,6 +125,9 @@ restart:
                 goto stop;
             }
         }
+#else
+        cellSysutilCheckCallback();
+#endif
 
         //dlog("g_GameWindow.Render");
         renderResult = g_GameWindow.Render();
@@ -171,8 +187,14 @@ stop:
     //         SDL_GL_DeleteContext(ctx);
     // }
 
+#ifndef __PS3__
     SDL_DestroyWindow(g_GameWindow.window);
     SDL_GL_DeleteContext(g_GameWindow.glContext);
+#else
+    psglDestroyContext(g_GameWindow.glContext);
+    psglDestroyDevice(g_GameWindow.device);
+    psglExit();
+#endif
 
     if (renderResult == 2)
     {
@@ -195,17 +217,23 @@ stop:
 
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_OPTION_CHANGED_RESTART);
 
+#ifndef __PS3__
         if (!g_Supervisor.cfg.windowed)
         {
             SDL_ShowCursor(SDL_ENABLE);
         }
+#endif
         goto restart;
     }
 
     FileSystem::WriteDataToFile(TH_CONFIG_FILE, &g_Supervisor.cfg, sizeof(g_Supervisor.cfg));
 
+#ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);
+#endif
     g_GameErrorContext.Flush();
+#ifndef __PS3__
     SDL_Quit();
+#endif
     return 0;
 }

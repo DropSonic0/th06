@@ -8,7 +8,9 @@
 #include "ScreenEffect.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 extern const BombData g_BombData[4] = {
     /* ReimuA  */ {BombData::BombReimuACalc, BombData::BombReimuADraw},
     /* ReimuB  */ {BombData::BombReimuBCalc, BombData::BombReimuBDraw},

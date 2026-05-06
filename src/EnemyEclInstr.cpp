@@ -9,7 +9,9 @@
 #include "Player.hpp"
 #include "Rng.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 namespace EnemyEclInstr
 {
 #define MAX_BOSS_TIME 7200

@@ -11,8 +11,14 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL.h>
 #include <SDL_timer.h>
+#else
+#include <sys/sys_time.h>
+#include <PSGL/psgl.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#endif
 #include <cstring>
 #include <iostream>
 void gamewindowdlog(std::string msg){
@@ -20,6 +26,18 @@ void gamewindowdlog(std::string msg){
 }
 
 GameWindow g_GameWindow;
+
+#ifdef __PS3__
+// Initialize data members that can't be initialized in the struct for old compilers
+void InitGameWindowPS3(int width, int height) {
+    g_GameWindow.GAME_WINDOW_WIDTH_REAL = width;
+    g_GameWindow.GAME_WINDOW_HEIGHT_REAL = height;
+    g_GameWindow.VIEWPORT_WIDTH = width;
+    g_GameWindow.VIEWPORT_OFF_X = 0;
+    g_GameWindow.VIEWPORT_HEIGHT = height;
+    g_GameWindow.VIEWPORT_OFF_Y = 0;
+}
+#endif
 i32 g_TickCountToEffectiveFramerate;
 f64 g_LastFrameTime;
 
@@ -203,7 +221,11 @@ void GameWindow::Present()
     }
 
     //gamewindowdlog("present SDL_GL_SwapWindow");
+#ifndef __PS3__
     SDL_GL_SwapWindow(g_GameWindow.window);
+#else
+    psglSwap();
+#endif
 
     //gamewindowdlog("present finish");
     return;
@@ -211,6 +233,7 @@ void GameWindow::Present()
 
 void GameWindow::CreateGameWindow()
 {
+#ifndef __PS3__
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK);
 
     u32 flags = SDL_WINDOW_OPENGL;
@@ -288,6 +311,31 @@ void GameWindow::CreateGameWindow()
     }
 
     g_Supervisor.gameWindow = g_GameWindow.window;
+#else
+    psglInit();
+
+    PSGLinitOptions options = {
+        PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_PERSISTENT_MEMORY_SIZE,
+        1,
+        true,
+        128 * 1024 * 1024,
+    };
+
+    // psglInitWithExtendedOptions(&options); // Usually just psglInit() is fine for basics
+
+    g_GameWindow.device = psglCreateDeviceAuto(PSGL_DEVICE_FORMAT_X8R8G8B8, PSGL_DEVICE_FORMAT_DEPTH24_STENCIL8, PSGL_DEVICE_ASPECT_RATIO_16_9);
+    g_GameWindow.glContext = psglCreateContext();
+    psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
+    psglResetCurrentContext();
+
+    GLuint width, height;
+    psglGetDeviceDimensions(g_GameWindow.device, &width, &height);
+    InitGameWindowPS3(width, height);
+    g_GameWindow.CONFIGURE_VIEW();
+
+    g_glFuncTable.ResolveFunctions(false);
+    g_GameWindow.renderBackendIndex = 1; // FixedFunctionGL
+#endif
 
     g_GameWindow.lastActiveAppValue = 1;
 }
@@ -426,7 +474,9 @@ i32 GameWindow::InitD3dRendering(void)
     //    present_params.AutoDepthStencilFormat = D3DFMT_D16;
     //    present_params.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 
+#ifndef __PS3__
     SDL_GL_SetSwapInterval(1);
+#endif
     g_Supervisor.vsyncEnabled = 1;
 
     g_Supervisor.lockableBackbuffer = 1;

@@ -1,8 +1,12 @@
 #include "Controller.hpp"
 
+#ifndef __PS3__
 #include <SDL_events.h>
 #include <SDL_keyboard.h>
 #include <SDL_scancode.h>
+#else
+#include <cell/pad.h>
+#endif
 
 #include "GameErrorContext.hpp"
 #include "Supervisor.hpp"
@@ -15,6 +19,7 @@ static u8 *keyboardState;
 
 u16 Controller::GetJoystickCaps(void)
 {
+#ifndef __PS3__
     //    JOYINFOEX pji;
 
     //    pji.dwSize = sizeof(JOYINFOEX);
@@ -27,6 +32,10 @@ u16 Controller::GetJoystickCaps(void)
     //    }
     //
     //    joyGetDevCapsA(0, &g_JoystickCaps, sizeof(g_JoystickCaps));
+#else
+    cellPadInit(7);
+    cellPadOpen(0, CELL_PAD_PORT_TYPE_STANDARD, NULL);
+#endif
     return 0;
 }
 
@@ -37,6 +46,7 @@ u16 Controller::GetJoystickCaps(void)
 
 u16 Controller::GetControllerInput(u16 buttons)
 {
+#ifndef __PS3__
     // NOTE: Those names are like this to get perfect stack frame matching
     // TODO: Give meaningfull names that still match.
     //    JOYINFOEX aa;
@@ -146,6 +156,29 @@ u16 Controller::GetControllerInput(u16 buttons)
         //            TH_BUTTON_UP, JOYSTICK_MIDPOINT(g_JoystickCaps.wYmin, g_JoystickCaps.wYmax) - ab, aa.dwYpos);
         //
     }
+#else
+    CellPadData padData;
+    if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
+    {
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_CROSS) buttons |= TH_BUTTON_SHOOT;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_CIRCLE) buttons |= TH_BUTTON_BOMB;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2] & CELL_PAD_CTRL_R1) buttons |= TH_BUTTON_FOCUS;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_START) buttons |= TH_BUTTON_MENU;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_UP) buttons |= TH_BUTTON_UP;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_DOWN) buttons |= TH_BUTTON_DOWN;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_LEFT) buttons |= TH_BUTTON_LEFT;
+        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_RIGHT) buttons |= TH_BUTTON_RIGHT;
+
+        // Analog stick
+        int stickX = (int)padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] - 128;
+        int stickY = (int)padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] - 128;
+
+        if (stickX > 50) buttons |= TH_BUTTON_RIGHT;
+        if (stickX < -50) buttons |= TH_BUTTON_LEFT;
+        if (stickY > 50) buttons |= TH_BUTTON_DOWN;
+        if (stickY < -50) buttons |= TH_BUTTON_UP;
+    }
+#endif
     //    else
     //    {
     //        // FIXME: Next if not matching.
@@ -262,6 +295,7 @@ u32 Controller::SetButtonFromDirectInputJoystate(u16 *outButtons, i16 controller
     return inputButtons[controllerButtonToTest] & 0x80 ? touhouButton & 0xFFFF : 0;
 }
 
+#ifndef __PS3__
 u32 Controller::SetButtonFromControllerInputs(u16 *outButtons, i16 controllerButtonToTest,
                                               enum TouhouButton touhouButton, SDL_GameController *controller)
 {
@@ -278,12 +312,14 @@ u32 Controller::SetButtonFromControllerInputs(u16 *outButtons, i16 controllerBut
 
     return pressed ? touhouButton & 0xFFFF : 0;
 }
+#endif
 
-static u8 g_ControllerData[SDL_CONTROLLER_BUTTON_MAX];
+static u8 g_ControllerData[TH_CONTROLLER_BUTTON_MAX];
 
 // This is for rebinding keys
 const u8 *Controller::GetControllerState()
 {
+#ifndef __PS3__
     //    JOYINFOEX joyinfoex;
     //    u32 joyButtonBit;
     //    u32 joyButtonIndex;
@@ -306,6 +342,18 @@ const u8 *Controller::GetControllerState()
             }
         }
     }
+#else
+    CellPadData padData;
+    memset(&g_ControllerData, 0, sizeof(g_ControllerData));
+    if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
+    {
+        // This is a bit simplified, but should work for rebinding if needed
+        for (int i = 0; i < 8; i++) {
+            if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & (1 << i)) g_ControllerData[i] = 0x80;
+            if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2] & (1 << i)) g_ControllerData[i+8] = 0x80;
+        }
+    }
+#endif
 
     //
     //    if (g_Supervisor.controller == NULL)
@@ -362,6 +410,7 @@ u16 Controller::GetInput(void)
 {
     u16 buttons = 0;
 
+#ifndef __PS3__
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_UP, SDL_SCANCODE_UP);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_DOWN, SDL_SCANCODE_DOWN);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_LEFT, SDL_SCANCODE_LEFT);
@@ -385,12 +434,14 @@ u16 Controller::GetInput(void)
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_Q, SDL_SCANCODE_Q);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_S, SDL_SCANCODE_S);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_ENTER, SDL_SCANCODE_RETURN);
+#endif
 
     return Controller::GetControllerInput(buttons);
 }
 
 void Controller::ResetKeyboard(void)
 {
+#ifndef __PS3__
     keyboardState = (u8 *)SDL_GetKeyboardState(NULL);
 
     // Ensure IMEs are disabled so they don't interfer with EoSD input
@@ -399,4 +450,5 @@ void Controller::ResetKeyboard(void)
     //   Since I can't test on Windows, it's good to be on the safe side
     SDL_StartTextInput();
     SDL_StopTextInput();
+#endif
 }

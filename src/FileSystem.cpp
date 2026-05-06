@@ -20,6 +20,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdio>
+#elif defined(__PS3__)
+#include <cell/cell_fs.h>
+#include <sys/stat.h>
 #endif
 
 u32 g_LastFileSize = 0;
@@ -62,6 +65,10 @@ void FileSystem::CreateDir(const char *path)
 #ifdef __ANDROID__
     std::string resolvedPath = std::string(GamePaths::GetUserPath()) + std::string(path);
     mkdir(resolvedPath.c_str(),0755);
+#elif defined(__PS3__)
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), path);
+    cellFsMkdir(resolvedPath, 0777);
 #else
 #ifdef _WIN32
     _mkdir(path);
@@ -85,6 +92,9 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
 
     #ifdef __ANDROID__
     std::string resolvedPath = std::string(GamePaths::GetUserPath()) + std::string(filepath);
+    #elif defined(__PS3__)
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
     #else
     char resolvedPath[512];
     GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
@@ -140,6 +150,9 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     {
         #ifdef __ANDROID__
         file = fopen(resolvedPath.c_str(), "rb");
+        #elif defined(__PS3__)
+        utils::DebugPrint2("%s Load ... \n", resolvedPath);
+        file = fopen(resolvedPath, "rb");
         #else
         utils::DebugPrint2("%s Load ... \n", resolvedPath);
         file = fopen(resolvedPath, "rb");
@@ -172,6 +185,11 @@ int FileSystem::WriteDataToFile(const char *path, const void *data, size_t size)
     #ifdef __ANDROID__
     std::string resolvedPath = std::string(GamePaths::GetUserPath()) + std::string(path);
     f = fopen(resolvedPath.c_str(), "wb");
+    #elif defined(__PS3__)
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), path);
+    GamePaths::EnsureParentDir(resolvedPath);
+    f = fopen(resolvedPath, "wb");
     #else
     // Resolve to writable user-data directory on Android.
     char resolvedPath[512];

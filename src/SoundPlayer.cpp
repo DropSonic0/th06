@@ -6,8 +6,19 @@
 #include "utils.hpp"
 #include "GamePaths.hpp"
 
+#include "inttypes.hpp"
+
+#ifndef __PS3__
 #include <SDL.h>
 #include <SDL_timer.h>
+#else
+#include <cell/audio.h>
+#include <sys/ppu_thread.h>
+#include <sys/timer.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_GetTicks64() (sys_time_get_system_time() / 1000)
+#define SDL_Delay(ms) sys_timer_usleep((ms) * 1000)
+#endif
 #include <array>
 #include <cmath>
 #include <cstring>
@@ -53,10 +64,25 @@ SoundPlayer::SoundPlayer()
 {
     // Note: memset of an std::mutex crashes on windows
     //std::memset(this, 0, sizeof(SoundPlayer));
+#ifdef __PS3__
+    sys_mutex_attribute_t attr;
+    sys_mutex_attribute_initialize(attr);
+    sys_mutex_create(&this->soundBufMutex, &attr);
+#endif
 }
+
+#ifdef __PS3__
+static void ps3_audio_thread(uint64_t arg)
+{
+    SoundPlayer *player = (SoundPlayer *)arg;
+    player->BackgroundMusicPlayerThread();
+    sys_ppu_thread_exit(0);
+}
+#endif
 
 ZunResult SoundPlayer::InitializeDSound()
 {
+#ifndef __PS3__
     SDL_AudioSpec desiredAudio;
     SDL_AudioSpec obtainedAudio;
 
@@ -80,6 +106,24 @@ ZunResult SoundPlayer::InitializeDSound()
     }
 
     this->backgroundMusicThreadHandle = std::thread(&SoundPlayer::BackgroundMusicPlayerThread, this);
+#else
+    cellAudioInit();
+    
+    CellAudioPortParam portParam;
+    portParam.resNum = CELL_AUDIO_PORT_2CH;
+    portParam.numChannels = CELL_AUDIO_PORT_2CH;
+    portParam.numBlocks = 8;
+    portParam.attr = 0;
+
+    if (cellAudioPortOpen(&portParam, &this->audioPortNum) != CELL_OK)
+    {
+        goto fail;
+    }
+
+    cellAudioPortStart(this->audioPortNum);
+
+    sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 16384, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
+#endif
 
     GameErrorContext::Log(&g_GameErrorContext, TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
     return ZUN_SUCCESS;
@@ -92,7 +136,12 @@ fail:
 ZunResult SoundPlayer::Release(void)
 {
     this->terminateFlag = true;
+#ifndef __PS3__
     this->backgroundMusicThreadHandle.join();
+#else
+    uint64_t exitCode;
+    sys_ppu_thread_join(this->backgroundMusicThreadHandle, &exitCode);
+#endif
     this->terminateFlag = false;
 
     StopBGM();
@@ -107,13 +156,19 @@ ZunResult SoundPlayer::Release(void)
         }
     }
 
+#ifndef __PS3__
     if (this->audioDev != 0)
     {
         SDL_CloseAudioDevice(this->audioDev);
         this->audioDev = 0;
     }
+#else
+    cellAudioPortStop(this->audioPortNum);
+    cellAudioPortClose(this->audioPortNum);
+    cellAudioQuit();
+#endif
 
-    return ZUN_SUCCESS;
+    return ZunResult::ZUN_SUCCESS;
 }
 
 void SoundPlayer::StopBGM()
@@ -121,7 +176,11 @@ void SoundPlayer::StopBGM()
     if (this->backgroundMusic.srcWav.fileStream != NULL)
     {
         // this->soundBufMutex.lock();
+#ifndef __PS3__
         SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
+#else
+        fclose(this->backgroundMusic.srcWav.fileStream);
+#endif
         this->backgroundMusic.srcWav.fileStream = NULL;
         // this->soundBufMutex.unlock();
 
@@ -140,15 +199,26 @@ void SoundPlayer::FadeOut(f32 seconds)
 
 ZunResult SoundPlayer::LoadWav(const char *path)
 {
+#ifndef __PS3__
     SDL_RWops *fileStream;
+#else
+    FILE *fileStream;
+#endif
     char idBuf[4];
     u32 riffSize;
     u32 wavDataSize;
 
+#ifndef __PS3__
     if (this->audioDev == 0)
     {
         return ZUN_ERROR;
     }
+#else
+    if (this->audioPortNum == 0)
+    {
+        return ZUN_ERROR;
+    }
+#endif
 
     if (g_Supervisor.cfg.playSounds == 0)
     {
@@ -162,6 +232,10 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 #ifdef __ANDROID__
     std::string resolvedPath = std::string(GamePaths::GetUserPath()) + std::string(path);
     fileStream = SDL_RWFromFile(resolvedPath.c_str(), "r");
+#elif defined(__PS3__)
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), path);
+    fileStream = fopen(resolvedPath, "rb");
 #else
     fileStream = SDL_RWFromFile(path, "r");
 #endif
@@ -172,6 +246,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     // Minimum size of RIFF header and chunk info preceeding the sample data
+#ifndef __PS3__
     if (SDL_RWsize(fileStream) < 44)
     {
         goto fail;
@@ -183,8 +258,26 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     riffSize = SDL_ReadLE32(fileStream);
+#else
+    fseek(fileStream, 0, SEEK_END);
+    long fileSize = ftell(fileStream);
+    fseek(fileStream, 0, SEEK_SET);
+    if (fileSize < 44)
+    {
+        goto fail;
+    }
+
+    if (fread(idBuf, 4, 1, fileStream) != 1 || std::strncmp(idBuf, "RIFF", 4) != 0)
+    {
+        goto fail;
+    }
+
+    fread(&riffSize, 4, 1, fileStream);
+    riffSize = utils::Swap32(riffSize);
+#endif
 
     // Same bounds check done earlier on the total filesize
+#ifndef __PS3__
     if (riffSize < 36 || riffSize > SDL_RWsize(fileStream) - 8)
     {
         goto fail;
@@ -194,11 +287,23 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     {
         goto fail;
     }
+#else
+    if (riffSize < 36 || riffSize > fileSize - 8)
+    {
+        goto fail;
+    }
+
+    if (fread(idBuf, 4, 1, fileStream) != 1 || std::strncmp(idBuf, "WAVE", 4) != 0)
+    {
+        goto fail;
+    }
+#endif
 
     // Checks here are quite a bit less flexible than what WAV can represent. EoSD uses 44.1 kHz, stereo, 16-bit PCM
     //   so that's what we handle. We also assume that fmt and data are the only subchunks, which is definitely not
     //   a general guarantee, but it'll work fine with EoSD's WAV files.
 
+#ifndef __PS3__
     if (SDL_RWread(fileStream, idBuf, 4, 1) != 1 || std::strncmp(idBuf, "fmt ", 4) != 0)
     {
         goto fail;
@@ -252,6 +357,48 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     wavDataSize = SDL_ReadLE32(fileStream);
+#else
+    if (fread(idBuf, 4, 1, fileStream) != 1 || std::strncmp(idBuf, "fmt ", 4) != 0)
+    {
+        goto fail;
+    }
+
+    uint32_t fmtSize; fread(&fmtSize, 4, 1, fileStream);
+    fmtSize = utils::Swap32(fmtSize);
+    if (fmtSize != 16) goto fail;
+
+    uint16_t format; fread(&format, 2, 1, fileStream);
+    format = utils::Swap16(format);
+    if (format != 1) goto fail;
+
+    uint16_t channels; fread(&channels, 2, 1, fileStream);
+    channels = utils::Swap16(channels);
+    if (channels != BACKGROUND_MUSIC_WAV_NUM_CHANNELS) goto fail;
+
+    uint32_t sampleRate; fread(&sampleRate, 4, 1, fileStream);
+    sampleRate = utils::Swap32(sampleRate);
+    if (sampleRate != BACKGROUND_MUSIC_WAV_SAMPLE_RATE) goto fail;
+
+    uint32_t byteRate; fread(&byteRate, 4, 1, fileStream);
+    byteRate = utils::Swap32(byteRate);
+    if (byteRate != BACKGROUND_MUSIC_WAV_BYTE_RATE) goto fail;
+
+    uint16_t blockAlign; fread(&blockAlign, 2, 1, fileStream);
+    blockAlign = utils::Swap16(blockAlign);
+    if (blockAlign != BACKGROUND_MUSIC_WAV_BLOCK_ALIGN) goto fail;
+
+    uint16_t bitsPerSample; fread(&bitsPerSample, 2, 1, fileStream);
+    bitsPerSample = utils::Swap16(bitsPerSample);
+    if (bitsPerSample != BACKGROUND_MUSIC_WAV_BITS_PER_SAMPLE) goto fail;
+
+    if (fread(idBuf, 4, 1, fileStream) != 1 || std::strncmp(idBuf, "data", 4) != 0)
+    {
+        goto fail;
+    }
+
+    fread(&wavDataSize, 4, 1, fileStream);
+    wavDataSize = utils::Swap32(wavDataSize);
+#endif
 
     if (wavDataSize > riffSize - 44)
     {
@@ -266,7 +413,11 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     this->backgroundMusic.srcWav.fileStream = fileStream;
+#ifndef __PS3__
     this->backgroundMusic.srcWav.dataStartOffset = SDL_RWtell(fileStream);
+#else
+    this->backgroundMusic.srcWav.dataStartOffset = ftell(fileStream);
+#endif
     this->backgroundMusic.loopStart = 0;
     this->backgroundMusic.loopEnd = this->backgroundMusic.srcWav.samples;
     this->backgroundMusic.fadeoutLen = 0;
@@ -276,7 +427,11 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     return ZUN_SUCCESS;
 
 fail:
+#ifndef __PS3__
     SDL_RWclose(fileStream);
+#else
+    fclose(fileStream);
+#endif
     return ZUN_ERROR;
 }
 
@@ -284,7 +439,11 @@ ZunResult SoundPlayer::LoadPos(const char *path)
 {
     u8 *fileData;
 
+#ifndef __PS3__
     if (this->audioDev == 0 || g_Supervisor.cfg.playSounds == 0 || backgroundMusic.srcWav.fileStream == NULL)
+#else
+    if (this->audioPortNum == 0 || g_Supervisor.cfg.playSounds == 0 || backgroundMusic.srcWav.fileStream == NULL)
+#endif
     {
         return ZUN_ERROR;
     }
@@ -317,7 +476,11 @@ ZunResult SoundPlayer::InitSoundBuffers()
 {
     //soundplayerdlog("init sound buffer");
     //soundplayerdlog("check audioDev");
+#ifndef __PS3__
     if (this->audioDev == 0)
+#else
+    if (this->audioPortNum == 0)
+#endif
     {
         return ZUN_ERROR;
     }
@@ -345,11 +508,13 @@ ZunResult SoundPlayer::InitSoundBuffers()
 ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier)
 {
     //soundplayerdlog("load sound 1");
+#ifndef __PS3__
     SDL_AudioCVT sampleConversionDesc;
     SDL_AudioSpec wavFormat;
-    u8 *wavRawData;
     u8 *wavRawSamples;
     u32 wavRawSampleByteCount;
+#endif
+    u8 *wavRawData;
 
     //soundplayerdlog("load sound 2");
     // soundBufMutex.lock();
@@ -369,6 +534,7 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     }
 
     //soundplayerdlog("load sound 4");
+#ifndef __PS3__
     if (SDL_LoadWAV_RW(SDL_RWFromConstMem(wavRawData, g_LastFileSize), 1, &wavFormat, &wavRawSamples,
                        &wavRawSampleByteCount) == NULL)
     {
@@ -405,6 +571,20 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
 
     //soundplayerdlog("load sound 6");
     SDL_FreeWAV(wavRawSamples);
+#else
+    // Native WAV loading for PS3
+    // EoSD SFX are typically 22050Hz, Mono. 
+    // We need to resample to 44100Hz and handle Endianness.
+    uint32_t rawSampleCount = (g_LastFileSize - 44) / 2;
+    this->soundBuffers[idx].len = rawSampleCount * 2; // 22050 -> 44100
+    this->soundBuffers[idx].samples = new i16[this->soundBuffers[idx].len];
+    i16* rawSamples = (i16*)(wavRawData + 44);
+    for (uint32_t i = 0; i < rawSampleCount; i++) {
+        i16 sample = utils::Swap16(rawSamples[i]);
+        this->soundBuffers[idx].samples[i*2] = sample;
+        this->soundBuffers[idx].samples[i*2 + 1] = sample;
+    }
+#endif
 
     for (u32 i = 0; i < this->soundBuffers[idx].len; i++)
     {
@@ -459,7 +639,11 @@ void SoundPlayer::PlaySounds()
     i32 idx;
     i32 sndBufIdx;
 
+#ifndef __PS3__
     if (this->audioDev == 0 || !g_Supervisor.cfg.playSounds)
+#else
+    if (this->audioPortNum == 0 || !g_Supervisor.cfg.playSounds)
+#endif
     {
         return;
     }
@@ -570,10 +754,18 @@ void SoundPlayer::MixAudio(u32 samples)
 
             for (u32 j = 0; j < samplesToMix; j++)
             {
+#ifndef __PS3__
                 mixBuffer[samplesMixed + j * 2] +=
                     ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
                 mixBuffer[samplesMixed + j * 2 + 1] +=
                     ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
+#else
+                int16_t sample;
+                fread(&sample, 2, 1, this->backgroundMusic.srcWav.fileStream);
+                mixBuffer[samplesMixed + j * 2] += utils::Swap16(sample) * fadeoutMult;
+                fread(&sample, 2, 1, this->backgroundMusic.srcWav.fileStream);
+                mixBuffer[samplesMixed + j * 2 + 1] += utils::Swap16(sample) * fadeoutMult;
+#endif
             }
 
             this->backgroundMusic.pos += samplesToMix;
@@ -584,12 +776,21 @@ void SoundPlayer::MixAudio(u32 samples)
                 if (this->isLooping)
                 {
                     this->backgroundMusic.pos = this->backgroundMusic.loopStart;
+#ifndef __PS3__
                     SDL_RWseek(this->backgroundMusic.srcWav.fileStream,
                                this->backgroundMusic.srcWav.dataStartOffset + this->backgroundMusic.pos * 4, SEEK_SET);
+#else
+                    fseek(this->backgroundMusic.srcWav.fileStream,
+                               this->backgroundMusic.srcWav.dataStartOffset + this->backgroundMusic.pos * 4, SEEK_SET);
+#endif
                 }
                 else
                 {
+#ifndef __PS3__
                     SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
+#else
+                    fclose(this->backgroundMusic.srcWav.fileStream);
+#endif
                     this->backgroundMusic.srcWav.fileStream = NULL;
 
                     break;
@@ -603,7 +804,11 @@ void SoundPlayer::MixAudio(u32 samples)
 
             if (this->backgroundMusic.fadeoutProgress >= this->backgroundMusic.fadeoutLen)
             {
+#ifndef __PS3__
                 SDL_RWclose(this->backgroundMusic.srcWav.fileStream);
+#else
+                fclose(this->backgroundMusic.srcWav.fileStream);
+#endif
                 this->backgroundMusic.srcWav.fileStream = NULL;
             }
         }
@@ -621,6 +826,7 @@ void SoundPlayer::MixAudio(u32 samples)
 
     const int mixDivisor = std::max(8, (int)playingChannels);
 
+#ifndef __PS3__
     for (u32 i = 0; i < samples; i++)
     {
         // Integer division like this doesn't get optimized at all by the compiler. If it becomes
@@ -631,6 +837,14 @@ void SoundPlayer::MixAudio(u32 samples)
     }
 
     SDL_QueueAudio(this->audioDev, finalBuffer.data(), samples * 2);
+#else
+    std::vector<float> floatBuffer(samples);
+    for (u32 i = 0; i < samples; i++)
+    {
+        floatBuffer[i] = (float)mixBuffer[i] / (mixDivisor * 32768.0f);
+    }
+    cellAudioPortWrite(this->audioPortNum, floatBuffer.data(), samples / 2);
+#endif
 }
 
 // EoSD originally just used this function to manage the streaming of the music WAV file.
@@ -638,9 +852,13 @@ void SoundPlayer::MixAudio(u32 samples)
 //   in a thread keeps sound running continuously, even if the main thread runs into lag
 void SoundPlayer::BackgroundMusicPlayerThread()
 {
+#ifndef __PS3__
     SDL_PauseAudioDevice(this->audioDev, 0);
 
     u32 latencyLimit = 14'700; // ~5 frames
+#else
+    u32 latencyLimit = 14'700;
+#endif
     u64 samplesSent = 0;
     u64 startTick = SDL_GetTicks64();
 

@@ -1,6 +1,8 @@
 #include "GameErrorContext.hpp"
 #include "FileSystem.hpp"
+#ifndef __PS3__
 #include <SDL_messagebox.h>
+#endif
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -67,7 +69,9 @@ void GameErrorContext::Flush()
 
         if (m_ShowMessageBox)
         {
+#ifndef __PS3__
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
+#endif
         }
 
         logFile = FileSystem::FopenUTF8("./log.txt", "w");

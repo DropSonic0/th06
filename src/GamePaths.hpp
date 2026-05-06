@@ -22,7 +22,11 @@
 //     → on Android: "bgm/th06_01.wav"   (unchanged — SDL reads from assets)
 // =============================================================================
 
+#ifndef __PS3__
 #include <SDL.h>
+#else
+#include <cell/cell_fs.h>
+#endif
 
 namespace GamePaths
 {

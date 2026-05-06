@@ -12,7 +12,9 @@
 #include "Rng.hpp"
 #include "Stage.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 
 
 static const i32 g_SpellcardScore[64] = {

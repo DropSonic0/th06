@@ -2,11 +2,20 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
+#ifndef __PS3__
 #include <SDL_audio.h>
 #include <SDL_rwops.h>
+#include <thread>
+#else
+#include <cell/audio.h>
+#include <sys/ppu_thread.h>
+#endif
+#ifndef __PS3__
 #include <atomic>
 #include <mutex>
-#include <thread>
+#else
+#include <sys/synchronization.h>
+#endif
 
 enum SoundIdx
 {
@@ -61,7 +70,11 @@ struct SoundData
 
 struct WavData
 {
+#ifndef __PS3__
     SDL_RWops *fileStream;
+#else
+    FILE *fileStream;
+#endif
     u32 dataStartOffset;
     u32 samples;
 };
@@ -98,10 +111,17 @@ struct SoundPlayer
     void MixAudio(u32 samples);
 
     SoundData soundBuffers[128];
+#ifndef __PS3__
     std::mutex soundBufMutex;
     SDL_AudioDeviceID audioDev;
     std::thread backgroundMusicThreadHandle;
     std::atomic_bool terminateFlag;
+#else
+    sys_mutex_t soundBufMutex;
+    uint32_t audioPortNum;
+    sys_ppu_thread_t backgroundMusicThreadHandle;
+    volatile bool terminateFlag;
+#endif
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;
     bool isLooping;

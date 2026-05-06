@@ -1,6 +1,10 @@
 #include "GamePaths.hpp"
 
+#ifndef __PS3__
 #include <SDL.h>
+#else
+#include <cell/cell_fs.h>
+#endif
 #include <cstdio>
 #include <cstring>
 
@@ -30,6 +34,8 @@ void Init()
                     "GamePaths: SDL_AndroidGetExternalStoragePath() returned NULL, using cwd");
         s_userPath[0] = '\0';
     }
+#elif defined(__PS3__)
+    snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/");
 #else
     // Desktop: all files relative to the working directory.
     s_userPath[0] = '\0';
@@ -115,6 +121,8 @@ void EnsureParentDir(const char *resolvedPath)
         *lastSep = '\0';
 #ifdef _WIN32
         _mkdir(dirBuf);
+#elif defined(__PS3__)
+        cellFsMkdir(dirBuf, 0777);
 #else
         mkdir(dirBuf, 0755);
 #endif

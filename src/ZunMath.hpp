@@ -3,6 +3,12 @@
 #include "GLFunc.hpp"
 #include "GameWindow.hpp"
 #include "inttypes.hpp"
+#ifdef __PS3__
+#include <PSGL/psgl.h>
+#ifndef static_assert
+#define static_assert(cond, msg)
+#endif
+#endif
 #include <cmath>
 #include <cstring>
 
@@ -411,6 +417,7 @@ struct ZunViewport
         GLint viewPortGet[4];
         GLfloat depthRangeGet[2];
 
+#ifndef __PS3__
         g_glFuncTable.glGetIntegerv(GL_VIEWPORT, viewPortGet);
         g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRangeGet);
 
@@ -420,6 +427,15 @@ struct ZunViewport
         this->height = viewPortGet[3] / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
         this->minZ = depthRangeGet[0];
         this->maxZ = depthRangeGet[1];
+#else
+        // PSGL implementation or use current values
+        this->x = 0;
+        this->y = 0;
+        this->width = GAME_WINDOW_WIDTH;
+        this->height = GAME_WINDOW_HEIGHT;
+        this->minZ = 0.0f;
+        this->maxZ = 1.0f;
+#endif
 
         // Convert from OpenGL to D3D conventions
         this->y = GAME_WINDOW_HEIGHT - (this->y + this->height);

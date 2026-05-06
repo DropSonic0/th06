@@ -1,7 +1,9 @@
 #pragma once
 
+#ifndef __PS3__
 #include <SDL_gamecontroller.h>
 #include <SDL_video.h>
+#endif
 
 #include "Chain.hpp"
 #include "Controller.hpp"
@@ -147,9 +149,17 @@ struct Supervisor
     //    LPDIRECTINPUT8 dinputIface;
     //    LPDIRECTINPUTDEVICE8A keyboard;
     //    LPDIRECTINPUTDEVICE8A controller;
+#ifndef __PS3__
     SDL_GameController *gameController;
+#else
+    void *gameController;
+#endif
     //    DIDEVCAPS controllerCaps;
+#ifndef __PS3__
     SDL_Window *gameWindow;
+#else
+    void *gameWindow;
+#endif
     ZunMatrix viewMatrix;
     ZunMatrix projectionMatrix;
     ZunViewport viewport;
@@ -192,5 +202,9 @@ extern Supervisor g_Supervisor;
 extern u16 g_LastFrameInput;
 extern u16 g_CurFrameInput;
 extern u16 g_IsEigthFrameOfHeldInput;
+#ifndef __PS3__
 extern SDL_Surface *g_TextBufferSurface;
+#else
+extern void *g_TextBufferSurface;
+#endif
 extern u16 g_NumOfFramesInputsWereHeld;

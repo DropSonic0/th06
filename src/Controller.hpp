@@ -2,7 +2,13 @@
 
 #include "inttypes.hpp"
 
+#ifndef __PS3__
 #include <SDL_gamecontroller.h>
+#define TH_CONTROLLER_BUTTON_MAX SDL_CONTROLLER_BUTTON_MAX
+#else
+#include <cell/pad.h>
+#define TH_CONTROLLER_BUTTON_MAX 32
+#endif
 
 enum TouhouButton
 {
@@ -36,8 +42,10 @@ enum TouhouButton
 namespace Controller
 {
 u16 GetJoystickCaps(void);
+#ifndef __PS3__
 u32 SetButtonFromControllerInputs(u16 *outButtons, i16 controllerButtonToTest, enum TouhouButton touhouButton,
                                   SDL_GameController *controller);
+#endif
 
 u32 SetButtonFromDirectInputJoystate(u16 *outButtons, i16 controllerButtonToTest, enum TouhouButton touhouButton,
                                      const u8 *inputButtons);

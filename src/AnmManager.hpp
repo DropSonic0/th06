@@ -3,7 +3,11 @@
 // #include <d3d8.h>
 // #include <d3dx8math.h>
 
+#ifndef __PS3__
 #include <SDL_video.h>
+#else
+#include <PSGL/psgl.h>
+#endif
 
 #include "AnmIdx.hpp"
 #include "AnmVm.hpp"
@@ -405,10 +409,12 @@ struct AnmManager
         this->screenshotHeight = GAME_REGION_HEIGHT;
     }
 
+#ifndef __PS3__
     static SDL_Surface *LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData);
     static u8 *ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth);
     static void FlipSurface(SDL_Surface *surface);
     void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect);
+#endif
     // Creates, binds, and set parameters for a new texture
     void CreateTextureObject();
     void UpdateDirtyStates();
@@ -423,7 +429,11 @@ struct AnmManager
     i32 spriteIndices[2048];
     AnmRawEntry *anmFiles[128];
     u32 anmFilesSpriteIndexOffsets[128];
+#ifndef __PS3__
     SDL_Surface *surfaces[32];
+#else
+    void *surfaces[32];
+#endif
     //    SDL_Surface *surfacesBis[32];
     //    D3DXIMAGE_INFO surfaceSourceInfo[32];
     GLuint currentTextureHandle;

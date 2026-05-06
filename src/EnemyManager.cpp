@@ -9,7 +9,9 @@
 #include "Player.hpp"
 #include "Rng.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 
 #define ITEM_SPAWNS 3
 #define ITEM_TABLES 8
