@@ -1,30 +1,31 @@
 #include "BombData.hpp"
 
+#include <cmath>
+
 #include "EffectManager.hpp"
 #include "Gui.hpp"
 #include "Rng.hpp"
 #include "ScreenEffect.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
-
-namespace th06
-{
-DIFFABLE_STATIC_ARRAY_ASSIGN(BombData, 4, g_BombData) = {
+#include <SDL.h>
+extern const BombData g_BombData[4] = {
     /* ReimuA  */ {BombData::BombReimuACalc, BombData::BombReimuADraw},
     /* ReimuB  */ {BombData::BombReimuBCalc, BombData::BombReimuBDraw},
     /* MarisaA */ {BombData::BombMarisaACalc, BombData::BombMarisaADraw},
     /* MarisaB */ {BombData::BombMarisaBCalc, BombData::BombMarisaBDraw},
 };
 
-#pragma var_order(angle, i, bombSprite, vecLength, bombPivot, bombIdx)
 void BombData::BombReimuACalc(Player *player)
 {
+    SDL_Log("bra start");
     i32 i;
     f32 vecLength;
     i32 bombIdx;
-    D3DXVECTOR3 bombPivot;
+    ZunVec3 bombPivot;
     AnmVm *bombSprite;
     ZunVec2 angle;
+    SDL_Log("bra 1");
 
     if (player->bombInfo.timer >= player->bombInfo.duration)
     {
@@ -32,16 +33,11 @@ void BombData::BombReimuACalc(Player *player)
         player->bombInfo.isInUse = 0;
         return;
     }
+
+    SDL_Log("bra 2");
     if (player->bombInfo.timer.HasTicked() && player->bombInfo.timer == 0)
     {
-        if (player->playerType == 1)
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT, TH_REIMU_A_BOMB_NAME);
-        }
-        else
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT2, TH_REIMU_A_BOMB_NAME);
-        }
+        g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT, TH_REIMU_A_BOMB_NAME);
         player->bombInfo.duration = 300;
         player->invulnerabilityTimer.SetCurrent(360);
 
@@ -58,6 +54,7 @@ void BombData::BombReimuACalc(Player *player)
         player->bombProjectiles[8].sizeX = 256.0f;
         player->bombProjectiles[8].sizeY = 256.0f;
     }
+    SDL_Log("bra 3");
     if (player->bombInfo.timer >= 60 && player->bombInfo.timer < 180)
     {
 
@@ -70,27 +67,21 @@ void BombData::BombReimuACalc(Player *player)
             angle.x = g_Rng.GetRandomF32ZeroToOne() * ZUN_2PI - ZUN_PI;
 
             player->bombInfo.bombRegionVelocities[i].x =
-                cosf(angle.x) * player->bombInfo.reimuABombProjectilesRelated[i];
+                ZUN_COSF(angle.x) * player->bombInfo.reimuABombProjectilesRelated[i];
 
             player->bombInfo.bombRegionVelocities[i].y =
-                sinf(angle.x) * player->bombInfo.reimuABombProjectilesRelated[i];
+                ZUN_SINF(angle.x) * player->bombInfo.reimuABombProjectilesRelated[i];
             player->unk_838[i] = 0;
 
             for (bombSprite = &player->bombInfo.sprites[0][i * 4], bombIdx = 0; bombIdx < 4; bombIdx++, bombSprite++)
             {
-                if (player->playerType == 1)
-                {
-                    g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_A_BOMB_ARRAY + bombIdx);
-                }
-                else
-                {
-                    g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_A_BOMB_ARRAY2 + bombIdx);
-                }
+                g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_A_BOMB_ARRAY + bombIdx);
             }
-            g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMU_A, 0);
+            g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMU_A);
         }
     }
     player->playerState = PLAYER_STATE_INVULNERABLE;
+    SDL_Log("bra 4");
     for (i = 0; i < ARRAY_SIZE_SIGNED(player->bombInfo.reimuABombProjectilesState); i++)
     {
         if (player->bombInfo.reimuABombProjectilesState[i] == 0)
@@ -112,7 +103,7 @@ void BombData::BombReimuACalc(Player *player)
                 angle.x = bombPivot.x - player->bombInfo.bombRegionPositions[i].x;
                 angle.y = bombPivot.y - player->bombInfo.bombRegionPositions[i].y;
 
-                vecLength = sqrtf(angle.x * angle.x + angle.y * angle.y) /
+                vecLength = ZUN_SQRTF(angle.x * angle.x + angle.y * angle.y) /
                             (player->bombInfo.reimuABombProjectilesRelated[i] / 8.0f);
                 if (vecLength < 1.0f)
                 {
@@ -120,7 +111,7 @@ void BombData::BombReimuACalc(Player *player)
                 }
                 angle.x = angle.x / vecLength + player->bombInfo.bombRegionVelocities[i].x;
                 angle.y = angle.y / vecLength + player->bombInfo.bombRegionVelocities[i].y;
-                vecLength = sqrtf(angle.x * angle.x + angle.y * angle.y);
+                vecLength = ZUN_SQRTF(angle.x * angle.x + angle.y * angle.y);
 
                 player->bombInfo.reimuABombProjectilesRelated[i] = ZUN_MIN(vecLength, 10.0f);
 
@@ -169,7 +160,7 @@ void BombData::BombReimuACalc(Player *player)
 
                     player->bombInfo.bombRegionVelocities[i] / 100.0f; // ZUN moment
 
-                    g_SoundPlayer.PlaySoundByIdx(SOUND_F, 0);
+                    g_SoundPlayer.PlaySoundByIdx(SOUND_F);
                     ScreenEffect::RegisterChain(SCREEN_EFFECT_SHAKE, 16, 8, 0, 0);
                 }
             }
@@ -182,59 +173,76 @@ void BombData::BombReimuACalc(Player *player)
                 player->bombInfo.reimuABombProjectilesState[i] = 0;
             }
         }
+        SDL_Log("bra 5");
         player->bombInfo.bombRegionPositions[i].x +=
             g_Supervisor.effectiveFramerateMultiplier * player->bombInfo.bombRegionVelocities[i].x;
         player->bombInfo.bombRegionPositions[i].y +=
             g_Supervisor.effectiveFramerateMultiplier * player->bombInfo.bombRegionVelocities[i].y;
 
+        SDL_Log("bra 6");
         g_AnmManager->ExecuteScript(&player->bombInfo.sprites[0][i * 4]);
         g_AnmManager->ExecuteScript(&player->bombInfo.sprites[0][i * 4 + 1]);
         g_AnmManager->ExecuteScript(&player->bombInfo.sprites[0][i * 4 + 2]);
         g_AnmManager->ExecuteScript(&player->bombInfo.sprites[0][i * 4 + 3]);
     }
+    SDL_Log("bra finish");
     player->bombInfo.timer.Tick();
 }
 
-#pragma var_order(bombSprite, idx)
 void BombData::BombReimuADraw(Player *player)
 {
+    SDL_Log("brad start");
     i32 idx;
     AnmVm *bombSprite;
 
+    SDL_Log("brad 1");
     BombData::DarkenViewport(player);
     bombSprite = &player->bombInfo.sprites[0][0];
+    SDL_Log("brad 2");
     for (idx = 0; idx < ARRAY_SIZE_SIGNED(player->bombInfo.sprites); idx++)
     {
+        SDL_Log("brad 3");
         if (player->bombInfo.reimuABombProjectilesState[idx] == 0)
         {
             bombSprite = &bombSprite[4];
             continue;
         }
 
-        bombSprite->pos = player->bombInfo.bombRegionPositions[idx] + bombSprite->posOffset;
+        SDL_Log("brad 4");
+        bombSprite->pos.x = uf32(&player->bombInfo.bombRegionPositions[idx].x) + uf32(&bombSprite->posOffset.x);
+        bombSprite->pos.y = uf32(&player->bombInfo.bombRegionPositions[idx].y) + uf32(&bombSprite->posOffset.y);
+        bombSprite->pos.z = uf32(&player->bombInfo.bombRegionPositions[idx].z) + uf32(&bombSprite->posOffset.z);
         player->SetToTopLeftPos(bombSprite);
         g_AnmManager->DrawNoRotation(bombSprite);
         bombSprite++;
 
-        bombSprite->pos = player->bombInfo.bombRegionPositions[idx] + bombSprite->posOffset;
+        SDL_Log("brad 5");
+        bombSprite->pos.x = uf32(&player->bombInfo.bombRegionPositions[idx].x) + uf32(&bombSprite->posOffset.x);
+        bombSprite->pos.y = uf32(&player->bombInfo.bombRegionPositions[idx].y) + uf32(&bombSprite->posOffset.y);
+        bombSprite->pos.z = uf32(&player->bombInfo.bombRegionPositions[idx].z) + uf32(&bombSprite->posOffset.z);
         player->SetToTopLeftPos(bombSprite);
         g_AnmManager->DrawNoRotation(bombSprite);
         bombSprite++;
 
-        bombSprite->pos = player->bombInfo.bombRegionPositions[idx] + bombSprite->posOffset;
+        SDL_Log("brad 6");
+        bombSprite->pos.x = uf32(&player->bombInfo.bombRegionPositions[idx].x) + uf32(&bombSprite->posOffset.x);
+        bombSprite->pos.y = uf32(&player->bombInfo.bombRegionPositions[idx].y) + uf32(&bombSprite->posOffset.y);
+        bombSprite->pos.z = uf32(&player->bombInfo.bombRegionPositions[idx].z) + uf32(&bombSprite->posOffset.z);
         player->SetToTopLeftPos(bombSprite);
         g_AnmManager->DrawNoRotation(bombSprite);
         bombSprite++;
 
-        bombSprite->pos = player->bombInfo.bombRegionPositions[idx] + bombSprite->posOffset;
+        SDL_Log("brad 7");
+        bombSprite->pos.x = uf32(&player->bombInfo.bombRegionPositions[idx].x) + uf32(&bombSprite->posOffset.x);
+        bombSprite->pos.y = uf32(&player->bombInfo.bombRegionPositions[idx].y) + uf32(&bombSprite->posOffset.y);
+        bombSprite->pos.z = uf32(&player->bombInfo.bombRegionPositions[idx].z) + uf32(&bombSprite->posOffset.z);
         player->SetToTopLeftPos(bombSprite);
         g_AnmManager->DrawNoRotation(bombSprite);
         bombSprite++;
     }
-    return;
+    SDL_Log("brad finish");
 }
 
-#pragma var_order(local8, viewport, darkeningTimeLeft)
 void BombData::DarkenViewport(Player *player)
 {
     ZunRect viewport;
@@ -264,12 +272,11 @@ void BombData::DarkenViewport(Player *player)
     ScreenEffect::DrawSquare(&viewport, darknessLevel << 24);
 }
 
-#pragma var_order(i, bombSprite, unusedVector)
 void BombData::BombReimuBCalc(Player *player)
 {
     AnmVm *bombSprite;
     i32 i;
-    D3DXVECTOR3 unusedVector;
+    ZunVec3 unusedVector;
 
     if (player->bombInfo.timer >= player->bombInfo.duration)
     {
@@ -281,31 +288,17 @@ void BombData::BombReimuBCalc(Player *player)
     if (player->bombInfo.timer.HasTicked() && player->bombInfo.timer == 0)
     {
         g_ItemManager.RemoveAllItems();
-        if (player->playerType == 1)
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT, TH_REIMU_B_BOMB_NAME);
-        }
-        else
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT2, TH_REIMU_B_BOMB_NAME);
-        }
+        g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT, TH_REIMU_B_BOMB_NAME);
         player->bombInfo.duration = 140;
         player->invulnerabilityTimer.SetCurrent(200);
         bombSprite = player->bombInfo.sprites[0];
 
         for (i = 0; i < 4; i++, bombSprite++)
         {
-            if (player->playerType == 1)
-            {
-                g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_B_BOMB_ARRAY + i);
-            }
-            else
-            {
-                g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_B_BOMB_ARRAY2 + i);
-            }
+            g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_REIMU_B_BOMB_ARRAY + i);
         }
 
-        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMARI, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMARI);
         player->bombInfo.bombRegionPositions[0].x = player->positionCenter.x;
         player->bombInfo.bombRegionPositions[0].y = 224.0f;
         player->bombInfo.bombRegionPositions[0].z = 0.42f;
@@ -358,7 +351,6 @@ void BombData::BombReimuBCalc(Player *player)
     player->bombInfo.timer.Tick();
 }
 
-#pragma var_order(bombSprite, i)
 void BombData::BombReimuBDraw(Player *player)
 {
     AnmVm *bombSprite;
@@ -376,7 +368,6 @@ void BombData::BombReimuBDraw(Player *player)
     }
 }
 
-#pragma var_order(i, starSprite, unused, starAngle)
 void BombData::BombMarisaACalc(Player *player)
 {
 
@@ -395,38 +386,24 @@ void BombData::BombMarisaACalc(Player *player)
     if (player->bombInfo.timer.HasTicked() && player->bombInfo.timer == 0)
     {
         g_ItemManager.RemoveAllItems();
-        if (player->playerType == 1)
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT, TH_MARISA_A_BOMB_NAME);
-        }
-        else
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT2, TH_MARISA_A_BOMB_NAME);
-        }
+        g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT, TH_MARISA_A_BOMB_NAME);
         player->bombInfo.duration = 250;
         player->invulnerabilityTimer.SetCurrent(300);
 
         starSprite = player->bombInfo.sprites[0];
         for (i = 0; i < ARRAY_SIZE_SIGNED(player->bombInfo.sprites); i++, starSprite++)
         {
-            if (player->playerType == 1)
-            {
-                g_AnmManager->ExecuteAnmIdx(starSprite, ANM_SCRIPT_PLAYER_MARISA_A_BLUE_STAR + i % 3);
-            }
-            else
-            {
-                g_AnmManager->ExecuteAnmIdx(starSprite, ANM_SCRIPT_PLAYER_MARISA_A_BLUE_STAR2 + i % 3);
-            }
+            g_AnmManager->ExecuteAnmIdx(starSprite, ANM_SCRIPT_PLAYER_MARISA_A_BLUE_STAR + i % 3);
             player->bombInfo.bombRegionPositions[i] = player->positionCenter;
 
             starAngle = i * ZUN_2PI / 8.0f;
 
-            player->bombInfo.bombRegionVelocities[i].x = cosf(starAngle) * 2;
+            player->bombInfo.bombRegionVelocities[i].x = ZUN_COSF(starAngle) * 2;
 
-            player->bombInfo.bombRegionVelocities[i].y = sinf(starAngle) * 2;
+            player->bombInfo.bombRegionVelocities[i].y = ZUN_SINF(starAngle) * 2;
             player->bombInfo.bombRegionVelocities[i].z = 0.0f;
         }
-        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMARI, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_REIMARI);
         ScreenEffect::RegisterChain(SCREEN_EFFECT_SHAKE, 120, 4, 1, 0);
     }
     else
@@ -457,7 +434,6 @@ void BombData::BombMarisaACalc(Player *player)
     return;
 }
 
-#pragma var_order(bombSprite, idx)
 void BombData::BombMarisaADraw(Player *player)
 {
 
@@ -501,12 +477,10 @@ void BombData::BombMarisaADraw(Player *player)
     }
 }
 
-#pragma var_order(i, bombSprite, unusedVector)
 void BombData::BombMarisaBCalc(Player *player)
 {
     AnmVm *bombSprite;
     i32 i;
-    D3DXVECTOR3 unusedVector;
 
     if (player->bombInfo.timer >= player->bombInfo.duration)
     {
@@ -520,30 +494,16 @@ void BombData::BombMarisaBCalc(Player *player)
     if (player->bombInfo.timer.HasTicked() && player->bombInfo.timer == 0)
     {
         g_ItemManager.RemoveAllItems();
-        if (player->playerType == 1)
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT, TH_MARISA_B_BOMB_NAME);
-        }
-        else
-        {
-            g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT2, TH_MARISA_B_BOMB_NAME);
-        }
+        g_Gui.ShowBombNamePortrait(ANM_SCRIPT_FACE_BOMB_PORTRAIT, TH_MARISA_B_BOMB_NAME);
         player->bombInfo.duration = 300;
         player->invulnerabilityTimer.SetCurrent(360);
         bombSprite = player->bombInfo.sprites[0];
         for (i = 0; i < 4; i++, bombSprite++)
         {
-            if (player->playerType == 1)
-            {
-                g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_MARISA_B_MASTER_SPARK + i);
-            }
-            else
-            {
-                g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_MARISA_B_MASTER_SPARK2 + i);
-            }
+            g_AnmManager->ExecuteAnmIdx(bombSprite, ANM_SCRIPT_PLAYER_MARISA_B_MASTER_SPARK + i);
             player->bombInfo.bombRegionPositions[i] = player->positionCenter;
         }
-        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_MARISA_B, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB_MARISA_B);
         player->verticalMovementSpeedMultiplierDuringBomb = 0.3f;
         player->horizontalMovementSpeedMultiplierDuringBomb = 0.3f;
     }
@@ -581,7 +541,6 @@ void BombData::BombMarisaBCalc(Player *player)
     player->bombInfo.timer.Tick();
 }
 
-#pragma var_order(bombSprite, i, spriteAngle)
 void BombData::BombMarisaBDraw(Player *player)
 {
     AnmVm *bombSprite;
@@ -594,8 +553,8 @@ void BombData::BombMarisaBDraw(Player *player)
     {
         spriteAngle = (((ZUN_PI / 5) * i) / 3.0f - ZUN_PI) + ((2 * ZUN_PI) / 5);
         bombSprite->pos = player->positionCenter;
-        bombSprite->pos.x += (cosf(spriteAngle) * bombSprite->sprite->heightPx * bombSprite->scaleY) / 2.0f;
-        bombSprite->pos.y += (sinf(spriteAngle) * bombSprite->sprite->heightPx * bombSprite->scaleY) / 2.0f;
+        bombSprite->pos.x += (ZUN_COSF(spriteAngle) * bombSprite->sprite->heightPx * bombSprite->scaleY) / 2.0f;
+        bombSprite->pos.y += (ZUN_SINF(spriteAngle) * bombSprite->sprite->heightPx * bombSprite->scaleY) / 2.0f;
         spriteAngle = (ZUN_PI / 2) - spriteAngle;
         bombSprite->rotation.z = utils::AddNormalizeAngle(spriteAngle, ZUN_PI);
         bombSprite->pos.x += g_GameManager.arcadeRegionTopLeftPos.x;
@@ -605,4 +564,3 @@ void BombData::BombMarisaBDraw(Player *player)
         bombSprite++;
     }
 }
-}; // namespace th06

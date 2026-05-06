@@ -1,10 +1,7 @@
 #pragma once
 
-#include "Windows.h"
 #include "inttypes.hpp"
 
-namespace th06
-{
 class IPbg3Parser
 {
   public:
@@ -22,7 +19,6 @@ class IPbg3Parser
     virtual i32 SeekToOffset(u32 fileOffset) = 0;
     virtual i32 SeekToNextByte() = 0;
     virtual i32 ReadByteAlignedData(u8 *data, u32 bytesToRead) = 0;
-    virtual i32 GetLastWriteTime(LPFILETIME lastWriteTime) = 0;
     virtual ~IPbg3Parser()
     {
     }
@@ -34,4 +30,3 @@ class IPbg3Parser
     u8 bitIdxInCurByte;
     u32 crc;
 };
-}; // namespace th06

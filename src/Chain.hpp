@@ -1,13 +1,7 @@
 #pragma once
 
 #include "ZunResult.hpp"
-#include "diffbuild.hpp"
 #include "inttypes.hpp"
-
-#include "Windows.h"
-
-namespace th06
-{
 
 enum ChainCallbackResult
 {
@@ -33,23 +27,20 @@ class ChainElem
     ChainCallback callback;
     ChainAddedCallback addedCallback;
     ChainDeletedCallback deletedCallback;
-    struct ChainElem *prev;
-    struct ChainElem *next;
-    struct ChainElem *unkPtr;
+    ChainElem *prev;
+    ChainElem *next;
+    ChainElem *unkPtr;
     void *arg;
 
     ChainElem();
     ~ChainElem();
 };
-ZUN_ASSERT_SIZE(ChainElem, 0x20);
 
 class Chain
 {
   private:
     ChainElem calcChain;
     ChainElem drawChain;
-    unsigned int midiOutputDeviceCount;
-    unsigned int unk;
 
     void ReleaseSingleChain(ChainElem *root);
 
@@ -66,7 +57,5 @@ class Chain
 
     ChainElem *CreateElem(ChainCallback callback);
 };
-ZUN_ASSERT_SIZE(Chain, 0x48);
 
-DIFFABLE_EXTERN(Chain, g_Chain)
-}; // namespace th06
+extern Chain g_Chain;

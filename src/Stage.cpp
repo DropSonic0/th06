@@ -10,15 +10,13 @@
 #include "Supervisor.hpp"
 #include "ZunColor.hpp"
 #include "utils.hpp"
-#include <d3d8.h>
+// #include <d3d8.h>
 
-namespace th06
-{
-DIFFABLE_STATIC(ChainElem, g_StageCalcChain)
-DIFFABLE_STATIC(ChainElem, g_StageOnDrawHighPrioChain)
-DIFFABLE_STATIC(ChainElem, g_StageOnDrawLowPrioChain)
+static ChainElem g_StageCalcChain;
+static ChainElem g_StageOnDrawHighPrioChain;
+static ChainElem g_StageOnDrawLowPrioChain;
 
-DIFFABLE_STATIC_ARRAY_ASSIGN(StageFile, 8, g_StageFiles) = {
+static const StageFile g_StageFiles[8] = {
     {"dummy", "dummy"},
     {"data/stg1bg.anm", "data/stage1.std"},
     {"data/stg2bg.anm", "data/stage2.std"},
@@ -28,21 +26,20 @@ DIFFABLE_STATIC_ARRAY_ASSIGN(StageFile, 8, g_StageFiles) = {
     {"data/stg6bg.anm", "data/stage6.std"},
     {"data/stg7bg.anm", "data/stage7.std"},
 };
-DIFFABLE_STATIC(Stage, g_Stage)
+Stage g_Stage;
 
 Stage::Stage()
 {
 }
 
-#pragma var_order(posInterpRatio, curInsn, pos, facingDirInterpRatio, skyFogInterpRatio, idx)
 ChainCallbackResult Stage::OnUpdate(Stage *stage)
 {
     f32 posInterpRatio;
     f32 facingDirInterpRatio;
-    D3DXVECTOR3 pos;
+    ZunVec3 pos;
     i32 idx;
     f32 skyFogInterpRatio;
-    RawStageInstr *curInsn;
+    const RawStageInstr *curInsn;
 
     if (stage->stdData == NULL)
     {
@@ -67,14 +64,14 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_POSITION_KEY:
             if (curInsn->frame == -1)
             {
-                stage->positionInterpInitial = *(D3DXVECTOR3 *)curInsn->args;
+                stage->positionInterpInitial = *(ZunVec3 *)curInsn->args;
                 stage->position.x = stage->positionInterpInitial.x;
                 stage->position.y = stage->positionInterpInitial.y;
                 stage->position.z = stage->positionInterpInitial.z;
             }
-            else if ((ZunBool)(stage->scriptTime.current >= curInsn->frame))
+            else if (stage->scriptTime.current >= curInsn->frame)
             {
-                pos = *(D3DXVECTOR3 *)curInsn->args;
+                pos = *(ZunVec3 *)curInsn->args;
                 stage->position.x = pos.x;
                 stage->position.y = pos.y;
                 stage->position.z = pos.z;
@@ -87,20 +84,25 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
                     curInsn++;
                 }
                 stage->positionInterpEndTime = curInsn->frame;
-                stage->positionInterpFinal = *(D3DXVECTOR3 *)curInsn->args;
+                stage->positionInterpFinal = *(ZunVec3 *)curInsn->args;
             }
             break;
         case STDOP_FOG:
-            if ((ZunBool)(stage->scriptTime.current >= curInsn->frame))
+            if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->skyFog.color = curInsn->args[0];
                 stage->skyFog.nearPlane = ((f32 *)curInsn->args)[1];
                 stage->skyFog.farPlane = ((f32 *)curInsn->args)[2];
                 if (stage->skyFogInterpDuration == 0)
                 {
-                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
-                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&stage->skyFog.nearPlane);
-                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&stage->skyFog.farPlane);
+                    //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
+                    //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32
+                    //                    *)&stage->skyFog.nearPlane);
+                    //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32
+                    //                    *)&stage->skyFog.farPlane);
+
+                    g_AnmManager->SetFogColor(stage->skyFog.color);
+                    g_AnmManager->SetFogRange(stage->skyFog.nearPlane, stage->skyFog.farPlane);
                 }
                 stage->instructionIndex++;
                 stage->skyFogInterpFinal = stage->skyFog;
@@ -108,7 +110,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             }
             break;
         case STDOP_FOG_INTERP:
-            if ((ZunBool)(stage->scriptTime.current >= curInsn->frame))
+            if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->skyFogInterpInitial = stage->skyFog;
                 stage->skyFogInterpDuration = curInsn->args[0];
@@ -118,16 +120,16 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             }
             break;
         case STDOP_CAMERA_FACING:
-            if ((ZunBool)(stage->scriptTime.current >= curInsn->frame))
+            if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->facingDirInterpInitial = stage->facingDirInterpFinal;
-                stage->facingDirInterpFinal = *(D3DXVECTOR3 *)curInsn->args;
+                stage->facingDirInterpFinal = *(ZunVec3 *)curInsn->args;
                 stage->instructionIndex++;
                 continue;
             }
             break;
         case STDOP_CAMERA_FACING_INTERP_LINEAR:
-            if ((ZunBool)(stage->scriptTime.current >= curInsn->frame))
+            if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->facingDirInterpDuration = curInsn->args[0];
                 stage->facingDirInterpTimer.InitializeForPopup();
@@ -158,7 +160,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         }
         if (stage->facingDirInterpDuration != 0)
         {
-            if ((ZunBool)(stage->facingDirInterpTimer.current < stage->facingDirInterpDuration))
+            if (stage->facingDirInterpTimer.current < stage->facingDirInterpDuration)
             {
                 stage->facingDirInterpTimer.Tick();
             }
@@ -194,10 +196,14 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             stage->skyFog.farPlane =
                 (stage->skyFogInterpFinal.farPlane - stage->skyFogInterpInitial.farPlane) * skyFogInterpRatio +
                 stage->skyFogInterpInitial.farPlane;
-            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
-            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&stage->skyFog.nearPlane);
-            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&stage->skyFog.farPlane);
-            if ((ZunBool)(stage->skyFogInterpTimer.current >= stage->skyFogInterpDuration))
+
+            g_AnmManager->SetFogColor(stage->skyFog.color);
+            g_AnmManager->SetFogRange(stage->skyFog.nearPlane, stage->skyFog.farPlane);
+
+            //            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
+            //            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&stage->skyFog.nearPlane);
+            //            g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&stage->skyFog.farPlane);
+            if (stage->skyFogInterpTimer.current >= stage->skyFogInterpDuration)
             {
                 stage->skyFogInterpDuration = 0;
             }
@@ -225,10 +231,16 @@ ChainCallbackResult Stage::OnDrawHighPrio(Stage *stage)
     if (stage->skyFogNeedsSetup)
     {
         stage->skyFogNeedsSetup = 0;
-        g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
+        //        g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
+
+        g_AnmManager->SetFogColor(stage->skyFog.color);
     }
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&stage->skyFog.nearPlane);
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&stage->skyFog.farPlane);
+
+    //    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&stage->skyFog.nearPlane);
+    //    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&stage->skyFog.farPlane);
+
+    g_AnmManager->SetFogRange(stage->skyFog.nearPlane, stage->skyFog.farPlane);
+
     if (stage->spellcardState <= RUNNING)
     {
         if (!g_Gui.IsStageFinished())
@@ -240,10 +252,8 @@ ChainCallbackResult Stage::OnDrawHighPrio(Stage *stage)
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-#pragma var_order(val, stageToSpellcardBackgroundAlpha, gameRegion)
 ChainCallbackResult Stage::OnDrawLowPrio(Stage *stage)
 {
-    f32 val;
     i32 stageToSpellcardBackgroundAlpha;
     ZunRect gameRegion;
 
@@ -272,25 +282,21 @@ ChainCallbackResult Stage::OnDrawLowPrio(Stage *stage)
         }
         g_AnmManager->Draw(&stage->spellcardBackground);
     }
-    g_Supervisor.viewport.MinZ = 0.0;
-    g_Supervisor.viewport.MaxZ = 0.5;
+    g_Supervisor.viewport.minZ = 0.0;
+    g_Supervisor.viewport.maxZ = 0.5;
     GameManager::SetupCameraStageBackground(0);
-    g_Supervisor.d3dDevice->SetViewport(&g_Supervisor.viewport);
-    val = 1000.0f;
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(u32 *)&val);
-    val = 2000.0f;
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(u32 *)&val);
+    g_Supervisor.viewport.Set();
+    g_AnmManager->SetFogRange(1'000.0f, 2'000.0f);
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-#pragma var_order(interpFinal, interpInitial, scriptTimer, facingDirTimer)
 ZunResult Stage::AddedCallback(Stage *stage)
 {
     ZunTimer *facingDirTimer;
     ZunTimer *scriptTimer;
 
-    D3DXVECTOR3 interpFinal;
-    D3DXVECTOR3 interpInitial;
+    ZunVec3 interpFinal;
+    ZunVec3 interpInitial;
 
     scriptTimer = &stage->scriptTime;
     scriptTimer->InitializeForPopup();
@@ -325,13 +331,16 @@ ZunResult Stage::AddedCallback(Stage *stage)
     facingDirTimer->InitializeForPopup();
     stage->unpauseFlag = 0;
 
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(DWORD *)&stage->skyFog.nearPlane);
-    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(DWORD *)&stage->skyFog.farPlane);
+    //    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
+    //    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGSTART, *(DWORD *)&stage->skyFog.nearPlane);
+    //    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGEND, *(DWORD *)&stage->skyFog.farPlane);
+
+    g_AnmManager->SetFogColor(stage->skyFog.color);
+    g_AnmManager->SetFogRange(stage->skyFog.nearPlane, stage->skyFog.farPlane);
+
     return ZUN_SUCCESS;
 }
 
-#pragma var_order(stg, timer)
 ZunResult Stage::RegisterChain(u32 stage)
 {
 
@@ -340,6 +349,7 @@ ZunResult Stage::RegisterChain(u32 stage)
 
     memset(stg, 0, sizeof(Stage));
     stg->stdData = NULL;
+    stg->objects = NULL;
 
     timer = &stg->timer;
     timer->InitializeForPopup();
@@ -381,10 +391,14 @@ ZunResult Stage::DeletedCallback(Stage *s)
     }
     if (s->stdData != NULL)
     {
-        void *stdData = s->stdData;
-        free(stdData);
+        const void *stdData = s->stdData;
+        free((void*)stdData);
         s->stdData = NULL;
     }
+
+    free(s->objects);
+    s->objects = NULL;
+
     return ZUN_SUCCESS;
 }
 
@@ -395,14 +409,14 @@ void Stage::CutChain()
     g_Chain.Cut(&g_StageOnDrawLowPrioChain);
 }
 
-#pragma var_order(vmIdx, idx, curObj, curQuad, sizeVmArr)
-ZunResult Stage::LoadStageData(char *anmpath, char *stdpath)
+ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
 {
     RawStageObject *curObj;
     RawStageQuadBasic *curQuad;
     i32 idx;
     i32 vmIdx;
     u32 sizeVmArr;
+    u32 padding1, padding2, padding3, padding4, padding5, padding6;
 
     if (g_AnmManager->LoadAnm(ANM_FILE_STAGEBG, anmpath, ANM_OFFSET_STAGEBG) != ZUN_SUCCESS)
     {
@@ -411,18 +425,22 @@ ZunResult Stage::LoadStageData(char *anmpath, char *stdpath)
     this->stdData = (RawStageHeader *)FileSystem::OpenPath(stdpath, false);
     if (this->stdData == NULL)
     {
-        g_GameErrorContext.Log(TH_ERR_STAGE_DATA_CORRUPTED);
+        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_STAGE_DATA_CORRUPTED);
         return ZUN_ERROR;
     }
     this->objectsCount = this->stdData->nbObjects;
     this->quadCount = this->stdData->nbFaces;
-    this->objectInstances = (RawStageObjectInstance *)(this->stdData->facesOffset + (i32)this->stdData);
-    this->beginningOfScript = (RawStageInstr *)(this->stdData->scriptOffset + (i32)this->stdData);
-    this->objects = (RawStageObject **)(this->stdData + 1);
+    this->objectInstances = (RawStageObjectInstance *)(this->stdData->facesOffset + ((u8 *)this->stdData));
+    this->beginningOfScript = (RawStageInstr *)(this->stdData->scriptOffset + ((u8 *)this->stdData));
+    const u32 *objectOffsets = (u32 *)(this->stdData + 1);
+
+    this->objects = (RawStageObject **)malloc(sizeof(RawStageObject *) * this->objectsCount);
+
     for (idx = 0; idx < this->objectsCount; idx++)
     {
-        this->objects[idx] = (RawStageObject *)((i32)this->objects[idx] + (i32)this->stdData);
+        this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + objectOffsets[idx]);
     }
+
     sizeVmArr = this->quadCount * sizeof(AnmVm);
     this->quadVms = (AnmVm *)malloc(sizeVmArr);
     for (idx = 0, vmIdx = 0; idx < this->objectsCount; idx++)
@@ -440,12 +458,11 @@ ZunResult Stage::LoadStageData(char *anmpath, char *stdpath)
     return ZUN_SUCCESS;
 }
 
-#pragma var_order(objQuadType1, vmsNotFinished, objIdx, vm, obj, objQuad)
 ZunResult Stage::UpdateObjects()
 {
     AnmVm *vm;
-    RawStageQuadBasic *objQuad;
-    RawStageQuadBasic *objQuadType1;
+    const RawStageQuadBasic *objQuad;
+    const RawStageQuadBasic *objQuadType1;
     i32 objIdx;
     i32 vmsNotFinished;
     RawStageObject *obj;
@@ -453,7 +470,7 @@ ZunResult Stage::UpdateObjects()
     for (objIdx = 0; objIdx < this->objectsCount; objIdx++)
     {
         obj = this->objects[objIdx];
-        if (obj->flags & 1 != 0)
+        if ((obj->flags & 1) != 0)
         {
             vmsNotFinished = 0;
             objQuad = &obj->firstQuad;
@@ -477,7 +494,7 @@ ZunResult Stage::UpdateObjects()
                 {
                     vmsNotFinished++;
                 }
-                objQuad = (RawStageQuadBasic *)((i32)&objQuad->type + objQuad->byteSize);
+                objQuad = (RawStageQuadBasic *)(((i8 *)&objQuad->type) + objQuad->byteSize);
             }
             if (vmsNotFinished == 0)
             {
@@ -488,30 +505,30 @@ ZunResult Stage::UpdateObjects()
     return ZUN_SUCCESS;
 }
 
-#pragma var_order(unk8, curQuadVm, instancesDrawn, instance, worldMatrix, obj, quadScaledPos, quadPos, curQuad,        \
-                  didDraw, projectSrc, quadWidth)
 ZunResult Stage::RenderObjects(i32 zLevel)
 {
     f32 quadWidth;
-    D3DXVECTOR3 projectSrc;
-    ZunBool didDraw;
-    RawStageQuadBasic *curQuad;
-    D3DXVECTOR3 quadPos;
-    D3DXVECTOR3 quadScaledPos;
+    ZunVec3 projectSrc;
+    bool didDraw;
+    const RawStageQuadBasic *curQuad;
+    ZunVec3 quadPos;
+    ZunVec3 quadScaledPos;
     RawStageObject *obj;
-    D3DXMATRIX worldMatrix;
-    RawStageObjectInstance *instance;
+    ZunMatrix worldMatrix;
+    const RawStageObjectInstance *instance;
     i32 instancesDrawn;
     AnmVm *curQuadVm;
     i32 unk8;
 
     instance = &this->objectInstances[0];
     instancesDrawn = 0;
-    didDraw = 0;
+    didDraw = false;
     projectSrc.x = 0.0;
     projectSrc.y = 0.0;
     projectSrc.z = 0.0;
-    D3DXMatrixIdentity(&worldMatrix);
+    //    D3DXMatrixIdentity(&worldMatrix);
+    worldMatrix.Identity();
+
     while (instance->id >= 0)
     {
         obj = this->objects[instance->id];
@@ -543,41 +560,41 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             worldMatrix.m[3][0] = obj->position.x + instance->position.x - this->position.x;
             worldMatrix.m[3][1] = -(obj->position.y + instance->position.y - this->position.y);
             worldMatrix.m[3][2] = obj->position.z + instance->position.z - this->position.z + obj->size.z;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
 
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // Then G:
             worldMatrix.m[3][1] = worldMatrix.m[3][1] - obj->size.y;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // Then E
             worldMatrix.m[3][2] = worldMatrix.m[3][2] - obj->size.z;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // Then A
             worldMatrix.m[3][1] = worldMatrix.m[3][1] + obj->size.y;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
@@ -586,40 +603,40 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             worldMatrix.m[3][0] = obj->position.x + instance->position.x - this->position.x + obj->size.x;
             worldMatrix.m[3][1] = -(obj->position.y + instance->position.y - this->position.y);
             worldMatrix.m[3][2] = obj->position.z + instance->position.z - this->position.z + obj->size.z;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // Then H
             worldMatrix.m[3][1] = worldMatrix.m[3][1] - obj->size.y;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // Then F
             worldMatrix.m[3][2] = worldMatrix.m[3][2] - (obj->size).z;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
 
             // And finally B
             worldMatrix.m[3][1] = worldMatrix.m[3][1] + (obj->size).y;
-            D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                            &g_Supervisor.viewMatrix, &worldMatrix);
-            if (quadPos.y >= g_Supervisor.viewport.Y &&
-                quadPos.y <= g_Supervisor.viewport.Y + g_Supervisor.viewport.Height)
+            projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                        g_Supervisor.viewMatrix, worldMatrix);
+            if (quadPos.y >= g_Supervisor.viewport.y &&
+                quadPos.y <= g_Supervisor.viewport.y + g_Supervisor.viewport.height)
             {
                 goto render;
             }
@@ -629,7 +646,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             goto skip;
 
         render:
-            didDraw = 1;
+            didDraw = true;
             while (0 <= curQuad->type)
             {
                 curQuadVm = this->quadVms + curQuad->vmIdx;
@@ -660,11 +677,11 @@ ZunResult Stage::RenderObjects(i32 zLevel)
                         worldMatrix.m[3][0] = curQuadVm->pos.x;
                         worldMatrix.m[3][1] = -curQuadVm->pos.y;
                         worldMatrix.m[3][2] = curQuadVm->pos.z;
-                        D3DXVec3Project(&quadPos, &projectSrc, &g_Supervisor.viewport, &g_Supervisor.projectionMatrix,
-                                        &g_Supervisor.viewMatrix, &worldMatrix);
+                        projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                                    g_Supervisor.viewMatrix, worldMatrix);
                         worldMatrix.m[3][0] = quadWidth * curQuadVm->scaleX + worldMatrix.m[3][0];
-                        D3DXVec3Project(&quadScaledPos, &projectSrc, &g_Supervisor.viewport,
-                                        &g_Supervisor.projectionMatrix, &g_Supervisor.viewMatrix, &worldMatrix);
+                        projectVec3(quadScaledPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
+                                    g_Supervisor.viewMatrix, worldMatrix);
                         curQuadVm->scaleX = (quadScaledPos.x - quadPos.x) / quadWidth;
                         curQuadVm->scaleY = curQuadVm->scaleX;
                         curQuadVm->pos = quadPos;
@@ -676,7 +693,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
                     }
                     break;
                 }
-                curQuad = (RawStageQuadBasic *)((i32)&curQuad->type + curQuad->byteSize);
+                curQuad = (RawStageQuadBasic *)(((u8 *)&curQuad->type) + curQuad->byteSize);
             }
             instancesDrawn++;
         }
@@ -685,4 +702,3 @@ ZunResult Stage::RenderObjects(i32 zLevel)
     }
     return ZUN_SUCCESS;
 }
-}; // namespace th06

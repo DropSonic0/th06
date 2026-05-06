@@ -1,13 +1,8 @@
 #pragma once
 
-#include "Windows.h"
-
-#include "diffbuild.hpp"
 #include "i18n.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 class GameErrorContext;
 
 class GameErrorContext
@@ -23,7 +18,7 @@ class GameErrorContext
         m_Buffer[0] = '\0';
         // Required to get some mov eax, [m_Buffer_ptr]
         m_ShowMessageBox = false;
-        Log(TH_ERR_LOGGER_START);
+        Log(this, TH_ERR_LOGGER_START);
     }
 
     ~GameErrorContext()
@@ -39,9 +34,8 @@ class GameErrorContext
 
     void Flush();
 
-    const char *Fatal(const char *fmt, ...);
-    const char *Log(const char *fmt, ...);
+    static const char *Fatal(GameErrorContext *ctx, const char *fmt, ...);
+    static const char *Log(GameErrorContext *ctx, const char *fmt, ...);
 };
 
-DIFFABLE_EXTERN(GameErrorContext, g_GameErrorContext)
-}; // namespace th06
+extern GameErrorContext g_GameErrorContext;

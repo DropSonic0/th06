@@ -1,16 +1,15 @@
 #pragma once
 
-#include "Windows.h"
-#include <d3d8types.h>
-#include <string.h>
+// #include <Windows.h>
+// #include <d3d8types.h>
+// #include <string.h>
 
 #include "Chain.hpp"
+#include "ZunColor.hpp"
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 struct ZunRect
 {
     f32 left;
@@ -43,11 +42,11 @@ struct ScreenEffect
     static ChainCallbackResult DrawFadeOut(ScreenEffect *effect);
     static ChainCallbackResult CalcFadeOut(ScreenEffect *effect);
 
-    static void DrawSquare(ZunRect *rect, D3DCOLOR rectColor);
-    static void Clear(D3DCOLOR color);
-    static void SetViewport(D3DCOLOR color);
+    static void DrawSquare(const ZunRect *rect, ZunColor rectColor);
+    static void Clear(ZunColor color);
+    static void SetViewport(ZunColor color);
 
-    enum ScreenEffects usedEffect;
+    ScreenEffects usedEffect;
     ChainElem *calcChainElement;
     ChainElem *drawChainElement;
     u32 unused;
@@ -58,4 +57,3 @@ struct ScreenEffect
     i32 unusedParam;
     ZunTimer timer;
 };
-}; // namespace th06

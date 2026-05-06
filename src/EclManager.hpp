@@ -2,23 +2,19 @@
 
 #include "ItemManager.hpp"
 #include "SoundPlayer.hpp"
-#include "Windows.h"
-#include "ZunBool.hpp"
 #include "ZunColor.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
-#include "diffbuild.hpp"
 #include "inttypes.hpp"
-#include <d3dx8math.h>
+// #include <Windows.h>
+// #include <d3dx8math.h>
 
-namespace th06
-{
 // Forward declaration to avoid include loop.
 struct Enemy;
 struct EnemyEclContext;
 struct EnemyManager;
 
-enum EclVarId
+enum EclVarId : i32
 {
     ECL_VAR_I32_0 = -10001,
     ECL_VAR_I32_1 = -10002,
@@ -55,10 +51,9 @@ struct EclTimelineInstrArgs
     u16 ushortVar1;
     u16 ushortVar2;
     u32 uintVar4;
-
-    D3DXVECTOR3 *Var1AsVec()
+    const ZunVec3 *Var1AsVec() const
     {
-        return (D3DXVECTOR3 *)&this->uintVar1;
+        return (const ZunVec3 *)&this->uintVar1;
     }
 };
 
@@ -84,8 +79,8 @@ union EclRawInstrArg {
         i16 lo;
         i16 hi;
     } sh;
-    f32 f32;
-    i32 i32;
+    f32 f32Param;
+    i32 i32Param;
     EclVarId id;
 };
 
@@ -168,9 +163,9 @@ struct EclRawInstrLaserArgs
     f32 width;
     i32 startTime;
     i32 duration;
-    i32 despawnDuration;
-    i32 hitboxStartTime;
-    i32 hitboxEndDelay;
+    i32 stopTime;
+    i32 grazeDelay;
+    i32 grazeDistance;
     i32 flags;
 };
 
@@ -194,7 +189,7 @@ struct EclRawInstrBulletEffectsArgs
 
 struct EclRawInstrSetInt
 {
-    i32 i32;
+    i32 i32Param;
 };
 
 struct EclRawInstrSpellcardEffectArgs
@@ -257,7 +252,6 @@ struct EclRawInstrEnemyCreateArgs
     i16 itemDrop;
     i32 score;
 };
-ZUN_ASSERT_SIZE(EclRawInstrEnemyCreateArgs, 0x18);
 
 struct EclRawInstrAnmInterruptSlotArgs
 {
@@ -317,7 +311,7 @@ union EclRawInstrArgs {
     EclRawInstrExInstrArgs exInstr;
     i32 setInt;
 
-    i32 GetBossLifeCount()
+    i32 GetBossLifeCount() const
     {
         return this->setInt;
     }
@@ -341,10 +335,9 @@ struct EclRawHeader
 {
     i16 subCount;
     i16 mainCount;
-    EclTimelineInstr *timelineOffsets[3];
-    EclRawInstr *subOffsets[0];
+    u32 timelineOffsets[3];
+    u32 subOffsets[0];
 };
-ZUN_ASSERT_SIZE(EclRawHeader, 0x10);
 
 enum EclRawInstrOpcode
 {
@@ -370,7 +363,7 @@ enum EclRawInstrOpcode
     ECL_OPCODE_MATHDEC,
     ECL_OPCODE_MATHFLOATADD,
     ECL_OPCODE_MATHFLOATSUB,
-    ECL_OPCODE_MATHFLOATMUL,
+    ECL_OPCODE_MATHFLOATMUL, //22
     ECL_OPCODE_MATHFLOATDIV,
     ECL_OPCODE_MATHFLOATMOD,
     ECL_OPCODE_MATHATAN2,
@@ -380,7 +373,7 @@ enum EclRawInstrOpcode
     ECL_OPCODE_JUMPLSS,
     ECL_OPCODE_JUMPLEQ,
     ECL_OPCODE_JUMPEQU,
-    ECL_OPCODE_JUMPGRE,
+    ECL_OPCODE_JUMPGRE, //32
     ECL_OPCODE_JUMPGEQ,
     ECL_OPCODE_JUMPNEQ,
     ECL_OPCODE_CALL,
@@ -390,16 +383,16 @@ enum EclRawInstrOpcode
     ECL_OPCODE_CALLEQU,
     ECL_OPCODE_CALLGRE,
     ECL_OPCODE_CALLGEQ,
-    ECL_OPCODE_CALLNEQ,
+    ECL_OPCODE_CALLNEQ, //42
     ECL_OPCODE_MOVEPOSITION,
     ECL_OPCODE_MOVEAXISVELOCITY,
     ECL_OPCODE_MOVEVELOCITY,
     ECL_OPCODE_MOVEANGULARVELOCITY,
-    ECL_OPCODE_MOVESPEED,
-    ECL_OPCODE_MOVEACCELERATION,
-    ECL_OPCODE_MOVERAND,
-    ECL_OPCODE_MOVERANDINBOUND,
-    ECL_OPCODE_MOVEATPLAYER,
+    ECL_OPCODE_MOVESPEED, //47
+    ECL_OPCODE_MOVEACCELERATION, //48
+    ECL_OPCODE_MOVERAND, //49
+    ECL_OPCODE_MOVERANDINBOUND, // 50
+    ECL_OPCODE_MOVEATPLAYER, // 51
     ECL_OPCODE_MOVEDIRTIMEDECELERATE, // 0x34 / 52
     ECL_OPCODE_MOVEDIRTIMEDECELERATEFAST,
     ECL_OPCODE_MOVEDIRTIMEACCELERATE,
@@ -408,13 +401,13 @@ enum EclRawInstrOpcode
     ECL_OPCODE_MOVEPOSITIONTIMEDECELERATE,
     ECL_OPCODE_MOVEPOSITIONTIMEDECELERATEFAST,
     ECL_OPCODE_MOVEPOSITIONTIMEACCELERATE,
-    ECL_OPCODE_MOVEPOSITIONTIMEACCELERATEFAST,
-    ECL_OPCODE_MOVETIMEDECELERATE,
-    ECL_OPCODE_MOVETIMEDECELERATEFAST,
-    ECL_OPCODE_MOVETIMEACCELERATE,
-    ECL_OPCODE_MOVETIMEACCELERATEFAST,
-    ECL_OPCODE_MOVEBOUNDSSET,
-    ECL_OPCODE_MOVEBOUNDSDISABLE,
+    ECL_OPCODE_MOVEPOSITIONTIMEACCELERATEFAST,//60
+    ECL_OPCODE_MOVETIMEDECELERATE, //61
+    ECL_OPCODE_MOVETIMEDECELERATEFAST,//62
+    ECL_OPCODE_MOVETIMEACCELERATE, //63
+    ECL_OPCODE_MOVETIMEACCELERATEFAST, //64
+    ECL_OPCODE_MOVEBOUNDSSET, //65
+    ECL_OPCODE_MOVEBOUNDSDISABLE, //66
     ECL_OPCODE_BULLETFANAIMED,          // 0x43 / 67
     ECL_OPCODE_BULLETFAN,               // 0x44 / 68
     ECL_OPCODE_BULLETCIRCLEAIMED,       // 0x45 / 69
@@ -443,7 +436,7 @@ enum EclRawInstrOpcode
     ECL_OPCODE_LASERCANCEL,           // 0x5c / 92
     ECL_OPCODE_SPELLCARDSTART,        // 0x5d / 93
     ECL_OPCODE_SPELLCARDEND,          // 0x5e / 94
-    ECL_OPCODE_ENEMYCREATE,
+    ECL_OPCODE_ENEMYCREATE,// 95
     ECL_OPCODE_ENEMYKILLALL,
     ECL_OPCODE_ANMSETMAIN,             // 0x61 / 97
     ECL_OPCODE_ANMSETPOSES,            // 0x62 / 98
@@ -488,17 +481,15 @@ enum EclRawInstrOpcode
 
 struct EclManager
 {
-    ZunResult Load(char *ecl);
+    ZunResult Load(const char *ecl);
     void Unload();
     ZunResult RunEcl(Enemy *enemy);
-    ZunResult CallEclSub(EnemyEclContext *enemyEcl, i16 subId);
-    f32 AngleProvokedPlayer(D3DXVECTOR3 *pos, u8 playerType);
+    ZunResult CallEclSub(EnemyEclContext *enemyEcl, i16 subId) const;
 
-    EclRawHeader *eclFile;
+    const EclRawHeader *eclFile;
+    const EclTimelineInstr *timelinePtrs[3];
     EclRawInstr **subTable;
-    EclTimelineInstr *timeline;
+    const EclTimelineInstr *timeline;
 };
-ZUN_ASSERT_SIZE(EclManager, 0xc);
 
-DIFFABLE_EXTERN(EclManager, g_EclManager);
-}; // namespace th06
+extern EclManager g_EclManager;

@@ -1,7 +1,6 @@
 #include "pbg3/IPbg3Parser.hpp"
+#include <cstddef>
 
-namespace th06
-{
 void IPbg3Parser::Reset()
 {
     this->bitIdxInCurByte = 128;
@@ -25,7 +24,7 @@ u32 IPbg3Parser::ReadVarInt()
         varintHdr |= 1;
     }
 
-    u32 intLen = 0;
+    u32 intLen;
     switch (varintHdr)
     {
     case 0:
@@ -40,17 +39,22 @@ u32 IPbg3Parser::ReadVarInt()
     case 3:
         intLen = 0x80000000;
         break;
+    default:
+        // TODO: There's probably a way to match without goto, but
+        // I can't figure it out... a simple `return 0;` won't share
+        // the function epilogue with the other return res.
+        goto end;
     }
 
-    while (intLen != 0)
+    do
     {
         if (this->ReadBit())
         {
             res |= intLen;
         }
         intLen >>= 1;
-    }
-
+    } while (intLen != 0);
+end:
     return res;
 }
 
@@ -67,17 +71,16 @@ u32 IPbg3Parser::ReadMagic()
 u32 IPbg3Parser::ReadString(char *out, u32 maxSize)
 {
     if (out == NULL)
-        return FALSE;
+        return false;
 
     for (u32 idx = 0; idx < maxSize; idx++)
     {
         out[idx] = this->ReadInt(8);
         if (out[idx] == '\0')
         {
-            return TRUE;
+            return true;
         }
     }
 
-    return FALSE;
+    return false;
 }
-}; // namespace th06

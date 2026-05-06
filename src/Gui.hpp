@@ -3,13 +3,10 @@
 #include "AnmVm.hpp"
 #include "Chain.hpp"
 #include "Enemy.hpp"
-#include "Windows.h"
 #include "ZunTimer.hpp"
-#include "diffbuild.hpp"
 #include "inttypes.hpp"
+// #include <Windows.h>
 
-namespace th06
-{
 enum MsgOps
 {
     MSG_OPCODE_MSGDELETE,
@@ -63,42 +60,40 @@ struct MsgRawInstr
 struct MsgRawHeader
 {
     i32 numInstrs;
-    MsgRawInstr *instrs[1];
+    u32 instrsOffsets[1];
 };
-ZUN_ASSERT_SIZE(MsgRawHeader, 0x8);
 
 struct GuiMsgVm
 {
-    MsgRawHeader *msgFile;
-    MsgRawInstr *currentInstr;
+    const MsgRawHeader *msgFile;
+    const MsgRawInstr **instrs;
+    const MsgRawInstr *currentInstr;
     i32 currentMsgIdx;
     ZunTimer timer;
     i32 framesElapsedDuringPause;
     AnmVm portraits[2];
     AnmVm dialogueLines[2];
     AnmVm introLines[2];
-    D3DCOLOR textColorsA[4];
-    D3DCOLOR textColorsB[4];
+    ZunColor textColorsA[4];
+    ZunColor textColorsB[4];
     u32 fontSize;
     u32 ignoreWaitCounter;
     u8 dialogueSkippable;
 };
-ZUN_ASSERT_SIZE(GuiMsgVm, 0x6a8);
 
 struct GuiFormattedText
 {
-    D3DXVECTOR3 pos;
+    ZunVec3 pos;
     i32 fmtArg;
     i32 isShown;
     ZunTimer timer;
 };
-ZUN_ASSERT_SIZE(GuiFormattedText, 0x20);
 
 struct GuiImpl
 {
     GuiImpl();
     ZunResult RunMsg();
-    ZunResult DrawDialogue();
+    ZunResult DrawDialogue() const;
     void MsgRead(i32 msgIdx);
 
     AnmVm vms[26];
@@ -118,12 +113,7 @@ struct GuiImpl
     GuiFormattedText bonusScore;
     GuiFormattedText fullPowerMode;
     GuiFormattedText spellCardBonus;
-    GuiFormattedText cheatActivated;
-    GuiFormattedText playerDeath;
-
-    GuiFormattedText fullPowerMode2;
 };
-ZUN_ASSERT_SIZE(GuiImpl, 0x2c44);
 struct GuiFlags
 {
     u32 flag0 : 2;
@@ -143,39 +133,36 @@ struct Gui
     static ChainCallbackResult OnDraw(Gui *);
 
     ZunResult ActualAddedCallback();
-    ZunResult LoadMsg(char *path);
-    void FreeMsgFile();
+    ZunResult LoadMsg(const char *path) const;
+    void FreeMsgFile() const;
 
-    ZunBool IsStageFinished();
+    bool IsStageFinished() const;
 
     void UpdateStageElements();
-    ZunBool HasCurrentMsgIdx();
+    bool HasCurrentMsgIdx() const;
 
-    void DrawStageElements();
+    void DrawStageElements() const;
     void DrawGameScene();
 
-    void MsgRead(i32 msgIdx);
-    ZunBool MsgWait();
+    void MsgRead(i32 msgIdx) const;
+    bool MsgWait() const;
 
-    void ShowSpellcard(i32 spellcardSprite, char *spellcardName);
-    void ShowSpellcardBonus(u32 spellcardScore);
-    void ShowBombNamePortrait(u32 sprite, char *bombName);
-    void ShowBonusScore(u32 bonusScore);
-    void ShowCheatActivated();
-    void ShowPlayerDeath();
-    void EndEnemySpellcard();
-    void EndPlayerSpellcard();
-    ZunBool IsDialogueSkippable();
+    void ShowSpellcard(i32 spellcardSprite, const char *spellcardName);
+    void ShowSpellcardBonus(u32 spellcardScore) const;
+    void ShowBombNamePortrait(u32 sprite, const char *bombName);
+    void ShowBonusScore(u32 bonusScore) const;
+    void EndEnemySpellcard() const;
+    void EndPlayerSpellcard() const;
+    bool IsDialogueSkippable() const;
 
-    void ShowFullPowerMode(i32 fmtArg);
-    void ShowFullPowerMode2(i32 fmtArg);
+    void ShowFullPowerMode(i32 fmtArg) const;
 
     void SetBossHealthBar(f32 val)
     {
         this->bossHealthBar1 = val;
     }
 
-    bool BossPresent()
+    bool BossPresent() const
     {
         return this->bossPresent;
     }
@@ -185,7 +172,7 @@ struct Gui
         this->spellcardSecondsRemaining = val;
     }
 
-    i32 SpellcardSecondsRemaining()
+    i32 SpellcardSecondsRemaining() const
     {
         return this->spellcardSecondsRemaining;
     }
@@ -207,7 +194,5 @@ struct Gui
     f32 bossHealthBar1;
     f32 bossHealthBar2;
 };
-ZUN_ASSERT_SIZE(Gui, 0x2c);
 
-DIFFABLE_EXTERN(Gui, g_Gui);
-}; // namespace th06
+extern Gui g_Gui;

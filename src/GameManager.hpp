@@ -1,17 +1,14 @@
 #pragma once
 
-#include "Windows.h"
-#include <d3d8.h>
-#include <d3dx8math.h>
+// #include <Windows.h>
+// #include <d3d8.h>
+// #include <d3dx8math.h>
 
 #include "Chain.hpp"
 #include "ResultScreen.hpp"
 #include "ZunResult.hpp"
-#include "diffbuild.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 enum Difficulty
 {
     EASY,
@@ -49,11 +46,9 @@ enum StageNumber
 #define GAME_REGION_RIGHT (GAME_REGION_LEFT + GAME_REGION_WIDTH)
 #define GAME_REGION_BOTTOM (GAME_REGION_TOP + GAME_REGION_HEIGHT)
 
-#define MAX_CLEARS 99
-
 struct GameManager;
 
-DIFFABLE_EXTERN(GameManager, g_GameManager);
+extern GameManager g_GameManager;
 struct GameManager
 {
     GameManager();
@@ -66,15 +61,10 @@ struct GameManager
     static void SetupCamera(f32);
     static void SetupCameraStageBackground(f32);
 
-    i32 HasReachedMaxClears(i32 character, i32 shottype)
-    {
-        return (this->clrd[shottype + character * 2].difficultyClearedWithRetries[1] == MAX_CLEARS ||
-                this->clrd[shottype + character * 2].difficultyClearedWithRetries[2] == MAX_CLEARS ||
-                this->clrd[shottype + character * 2].difficultyClearedWithRetries[3] == MAX_CLEARS);
-    }
+    i32 HasReachedMaxClears(i32 character, i32 shottype) const;
     void IncreaseSubrank(i32 amount);
     void DecreaseSubrank(i32 amount);
-    i32 IsInBounds(f32 x, f32 y, f32 width, f32 height);
+    i32 IsInBounds(f32 x, f32 y, f32 width, f32 height) const;
 
     void AddScore(i32 points)
     {
@@ -84,11 +74,6 @@ struct GameManager
     static i32 CharacterShotType()
     {
         return g_GameManager.shotType + g_GameManager.character * 2;
-    }
-
-    static i32 CharacterShotType2()
-    {
-        return g_GameManager.shotType2 + g_GameManager.character2 * 2;
     }
 
     u32 guiScore;
@@ -113,15 +98,11 @@ struct GameManager
     u16 pointItemsCollected;
     u8 numRetries;
     i8 powerItemCountForScore;
-
     i8 livesRemaining;
     i8 bombsRemaining;
-
     i8 extraLives;
     u8 character;
-    u8 character2;
     u8 shotType;
-    u8 shotType2;
     u8 isInGameMenu;
     u8 isInRetryMenu;
     u8 isInMenu;
@@ -138,21 +119,15 @@ struct GameManager
     u32 gameFrames;
     i32 currentStage;
     u32 menuCursorBackup;
-    D3DXVECTOR2 arcadeRegionTopLeftPos;
-    D3DXVECTOR2 arcadeRegionSize;
-    D3DXVECTOR2 playerMovementAreaTopLeftPos;
-    D3DXVECTOR2 playerMovementAreaSize;
+    ZunVec2 arcadeRegionTopLeftPos;
+    ZunVec2 arcadeRegionSize;
+    ZunVec2 playerMovementAreaTopLeftPos;
+    ZunVec2 playerMovementAreaSize;
     f32 cameraDistance;
-    D3DXVECTOR3 stageCameraFacingDir;
+    ZunVec3 stageCameraFacingDir;
     i32 counat;
     i32 rank;
     i32 maxRank;
     i32 minRank;
     i32 subRank;
-
-    i8 livesRemaining2;
-    i8 bombsRemaining2;
-    u16 currentPower2;
 };
-ZUN_ASSERT_SIZE(GameManager, 0x1a80);
-}; // namespace th06

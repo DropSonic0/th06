@@ -6,17 +6,15 @@
 #include "Effect.hpp"
 #include "ItemManager.hpp"
 #include "SoundPlayer.hpp"
-#include "Windows.h"
-#include "ZunBool.hpp"
+#include "ZunMath.hpp"
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
-#include <d3d8.h>
-#include <d3dx8math.h>
-#include <string.h>
+// #include <Windows.h>
+// #include <d3d8.h>
+// #include <d3dx8math.h>
+#include <cstring>
 
-namespace th06
-{
 struct Enemy;
 
 struct EnemyBulletShooter
@@ -27,7 +25,7 @@ struct EnemyBulletShooter
     }
     i16 sprite;
     i16 spriteOffset;
-    D3DXVECTOR3 position;
+    ZunVec3 position;
     f32 angle1;
     f32 angle2;
     f32 speed1;
@@ -40,10 +38,8 @@ struct EnemyBulletShooter
     u16 aimMode;
     u16 unk_4a;
     u32 flags;
-    u8 provokedPlayer;
     SoundIdx sfx;
 };
-ZUN_ASSERT_SIZE(EnemyBulletShooter, 0x54);
 
 struct EnemyLaserShooter
 {
@@ -53,7 +49,7 @@ struct EnemyLaserShooter
     }
     i16 sprite;
     i16 spriteOffset;
-    D3DXVECTOR3 position;
+    ZunVec3 position;
     f32 angle;
     u32 unk_14;
     f32 speed;
@@ -64,16 +60,14 @@ struct EnemyLaserShooter
     f32 width;
     i32 startTime;
     i32 duration;
-    i32 despawnDuration;
-    i32 hitboxStartTime;
-    i32 hitboxEndDelay;
+    i32 stopTime;
+    i32 grazeDelay;
+    i32 grazeDistance;
     u32 unk_44;
     u16 type;
     u32 flags;
     u32 unk_50;
-    u8 provokedPlayer;
 };
-ZUN_ASSERT_SIZE(EnemyLaserShooter, 0x54);
 
 struct EnemyEclContext
 {
@@ -95,7 +89,6 @@ struct EnemyEclContext
     i32 compareRegister;
     u16 subId;
 };
-ZUN_ASSERT_SIZE(EnemyEclContext, 0x4c);
 
 struct EnemyFlags
 {
@@ -104,7 +97,7 @@ struct EnemyFlags
     u8 unk2 : 3;
     u8 unk3 : 1;
     u8 unk4 : 1;
-    u8 unk5 : 1;
+    u8 active : 1;
 
     // Second byte
     u8 unk6 : 1;
@@ -140,19 +133,24 @@ struct Enemy
 
     void Move();
     void ClampPos();
-    ZunBool HandleLifeCallback();
-    ZunBool HandleTimerCallback();
+    bool HandleLifeCallback();
+    bool HandleTimerCallback();
     void Despawn();
 
     static void ResetEffectArray(Enemy *enemy);
     static void UpdateEffects(Enemy *enemy);
 
-    f32 LifePercent()
+    f32 LifePercent() const
     {
         return (f32)this->life / (f32)this->maxLife;
     }
 
-    ZunBool HasBossTimerFinished()
+    ZunVec3 HitboxDimensions(f32 shrinkFactor) const
+    {
+        return this->hitboxDimensions * (1.0f / shrinkFactor);
+    }
+
+    bool HasBossTimerFinished() const
     {
         return this->bossTimer.current >= this->timerCallbackThreshold;
     }
@@ -162,12 +160,12 @@ struct Enemy
         return scaleFactor * (high - low) / 32 + low;
     }
 
-    i32 BulletRankAmount1(i32 scaleFactor)
+    i32 BulletRankAmount1(i32 scaleFactor) const
     {
         return Enemy::BulletRankAmountInner(this->bulletRankAmount1Low, this->bulletRankAmount1High, scaleFactor);
     }
 
-    i32 BulletRankAmount2(i32 scaleFactor)
+    i32 BulletRankAmount2(i32 scaleFactor) const
     {
         return Enemy::BulletRankAmountInner(this->bulletRankAmount2Low, this->bulletRankAmount2High, scaleFactor);
     }
@@ -177,7 +175,7 @@ struct Enemy
         return scaleFactor * (high - low) / 32 + low;
     }
 
-    f32 BulletRankSpeed(f32 scaleFactor)
+    f32 BulletRankSpeed(f32 scaleFactor) const
     {
         return Enemy::BulletRankSpeedInner(this->bulletRankSpeedLow, this->bulletRankSpeedHigh, scaleFactor);
     }
@@ -187,7 +185,7 @@ struct Enemy
         return scaleFactor * (high - low) / 32 + low;
     }
 
-    i32 ShootInterval(i32 scaleFactor)
+    i32 ShootInterval(i32 scaleFactor) const
     {
         return Enemy::ShootIntervalInner(this->shootInterval / 5, -this->shootInterval / 5, scaleFactor);
     }
@@ -201,16 +199,16 @@ struct Enemy
     i32 deathCallbackSub;
     i32 interrupts[8];
     i32 runInterrupt;
-    D3DXVECTOR3 position;
-    D3DXVECTOR3 hitboxDimensions;
-    D3DXVECTOR3 axisSpeed;
+    ZunVec3 position;
+    ZunVec3 hitboxDimensions;
+    ZunVec3 axisSpeed;
     f32 angle;
     f32 angularVelocity;
     f32 speed;
     f32 acceleration;
-    D3DXVECTOR3 shootOffset;
-    D3DXVECTOR3 moveInterp;
-    D3DXVECTOR3 moveInterpStartPos;
+    ZunVec3 shootOffset;
+    ZunVec3 moveInterp;
+    ZunVec3 moveInterpStartPos;
     ZunTimer moveInterpTimer;
     i32 moveInterpStartTime;
     f32 bulletRankSpeedLow;
@@ -244,10 +242,10 @@ struct Enemy
     i16 anmExFarRight;
     i16 anmExLeft;
     i16 anmExRight;
-    D3DXVECTOR2 lowerMoveLimit;
-    D3DXVECTOR2 upperMoveLimit;
+    ZunVec2 lowerMoveLimit;
+    ZunVec2 upperMoveLimit;
     Effect *effectArray[12];
-    i32 effectIdx;
+    u32 effectIdx;
     f32 effectDistance;
     i32 lifeCallbackThreshold;
     i32 lifeCallbackSub;
@@ -255,7 +253,4 @@ struct Enemy
     i32 timerCallbackSub;
     f32 exInsFunc6Angle;
     ZunTimer exInsFunc6Timer;
-    u8 provokedPlayer;
 };
-ZUN_ASSERT_SIZE(Enemy, 0xec8);
-}; // namespace th06

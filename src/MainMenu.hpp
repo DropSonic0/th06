@@ -1,16 +1,14 @@
 #pragma once
 
-#include <D3D8.h>
+// #include <D3D8.h>
 
 #include "AnmVm.hpp"
 #include "Chain.hpp"
 #include "ReplayData.hpp"
-#include "ZunBool.hpp"
+#include "ZunColor.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 enum GameState
 {
     STATE_STARTUP,
@@ -22,22 +20,15 @@ enum GameState
     STATE_DIFFICULTY_LOAD,
     STATE_DIFFICULTY_SELECT,
     STATE_CHARACTER_LOAD,
-
     STATE_CHARACTER_SELECT,
-
     STATE_SCORE,
-
     STATE_SHOT_SELECT,
-
     STATE_REPLAY_LOAD,
     STATE_REPLAY_ANIM,
     STATE_REPLAY_UNLOAD,
     STATE_REPLAY_SELECT,
     STATE_MUSIC_ROOM,
     STATE_PRACTICE_LVL_SELECT,
-
-    STATE_CHARACTER_SELECT2,
-    STATE_SHOT_SELECT2
 };
 
 enum CursorMovement
@@ -66,16 +57,16 @@ struct MainMenu
     ZunResult BeginStartup();
     ZunResult DrawStartMenu();
     u32 OnUpdateOptionsMenu();
-    ZunResult DrawReplayMenu();
-    ZunResult ChoosePracticeLevel();
-    ZunBool WeirdSecondInputCheck();
-    void ColorMenuItem(AnmVm *, i32, i32, i32);
+    ZunResult DrawReplayMenu() const;
+    ZunResult ChoosePracticeLevel() const;
+    bool WeirdSecondInputCheck();
+    void ColorMenuItem(AnmVm *, i32, i32, i32) const;
 
     static ZunResult LoadTitleAnm(MainMenu *menu);
     static CursorMovement MoveCursor(MainMenu *menu, i32 menuLength);
-    static void DrawMenuItem(AnmVm *vm, i32 itemNumber, i32 cursor, D3DCOLOR activeItemColor,
-                             D3DCOLOR inactiveItemColor, i32 spriteIdx /* I think*/);
-    static void SwapMapping(MainMenu *menu, i16 btnPressed, i16 oldMapping, ZunBool unk);
+    static void DrawMenuItem(AnmVm *vm, i32 itemNumber, i32 cursor, ZunColor activeItemColor,
+                             ZunColor inactiveItemColor, i32 spriteIdx /* I think*/);
+    static void SwapMapping(MainMenu *menu, i16 btnPressed, i16 oldMapping, bool unk);
 
     i32 ReplayHandling();
     static ZunResult LoadReplayMenu(MainMenu *menu);
@@ -98,10 +89,10 @@ struct MainMenu
     GameState gameState;
     i32 stateTimer;
     i32 idleFrames;
-    D3DCOLOR minimumOpacity;
-    D3DCOLOR menuTextColor;
-    D3DCOLOR color2;
-    D3DCOLOR color1;
+    ZunColor minimumOpacity;
+    ZunColor menuTextColor;
+    ZunColor color2;
+    ZunColor color1;
     i32 numFramesSinceActive;
     u32 framesActive;
     u32 framesInactive;
@@ -125,7 +116,5 @@ struct MainMenu
     i32 frameCountForRefreshRateCalc;
     u32 lastFrameTime;
 };
-ZUN_ASSERT_SIZE(MainMenu, 0x10f34);
 
-DIFFABLE_EXTERN(MainMenu, g_MainMenu);
-}; // namespace th06
+extern MainMenu g_MainMenu;

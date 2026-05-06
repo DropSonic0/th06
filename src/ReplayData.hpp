@@ -2,8 +2,6 @@
 
 #include "inttypes.hpp"
 
-namespace th06
-{
 struct ReplayDataInput
 {
     i32 frameNum;
@@ -21,20 +19,15 @@ struct StageReplayData
     i8 bombsRemaining;
     u8 rank;
     i8 powerItemCountForScore;
-    u8 power2;
-    i8 livesRemaining2;
-    i8 bombsRemaining2;
-    // i8 padding[3];
+    i8 padding[3];
     ReplayDataInput replayInputs[53998];
 };
-ZUN_ASSERT_SIZE(StageReplayData, 0x69780);
 
-struct ReplayData
+struct ReplayHeader
 {
     char magic[4];
     u16 version;
     u8 shottypeChara;
-    u8 shottypeChara2;
     u8 difficulty;
     i32 checksum;
     u8 rngValue1;
@@ -47,7 +40,11 @@ struct ReplayData
     f32 slowdownRate2;
     f32 slowdownRate;
     f32 slowdownRate3;
+    u32 stageReplayDataOffsets[7];
+};
+
+struct ReplayData
+{
+    ReplayHeader *header;
     StageReplayData *stageReplayData[7];
 };
-ZUN_ASSERT_SIZE(ReplayData, 0x50);
-}; // namespace th06

@@ -1,36 +1,14 @@
 #ifdef DEBUG
 #include <cstdarg>
-#include <stdio.h>
+#include <cstdio>
 #endif
-
-#include "Windows.h"
 
 #include "ZunMath.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
 
-namespace th06
-{
-DIFFABLE_STATIC(HANDLE, g_ExclusiveMutex)
 namespace utils
 {
-ZunResult CheckForRunningGameInstance(void)
-{
-    g_ExclusiveMutex = CreateMutex(NULL, TRUE, TEXT("Touhou Koumakyou App"));
-
-    if (g_ExclusiveMutex == NULL)
-    {
-        return ZUN_ERROR;
-    }
-    else if (GetLastError() == ERROR_ALREADY_EXISTS)
-    {
-        g_GameErrorContext.Fatal(TH_ERR_ALREADY_RUNNING);
-        return ZUN_ERROR;
-    }
-
-    return ZUN_SUCCESS;
-}
-
 void DebugPrint(const char *fmt, ...)
 {
 #ifdef DEBUG
@@ -38,10 +16,10 @@ void DebugPrint(const char *fmt, ...)
     std::va_list args;
 
     va_start(args, fmt);
-    vsprintf(tmpBuffer, fmt, args);
+    std::vsnprintf(tmpBuffer, 511, fmt, args);
     va_end(args);
 
-    printf("DEBUG2: %s\n", tmpBuffer);
+    std::printf("DEBUG2: %s\n", tmpBuffer);
 #endif
 }
 
@@ -66,14 +44,13 @@ f32 AddNormalizeAngle(f32 a, f32 b)
     return a;
 }
 
-#pragma var_order(sinOut, cosOut)
-void Rotate(D3DXVECTOR3 *outVector, D3DXVECTOR3 *point, f32 angle)
+void Rotate(ZunVec3 *outVector, const ZunVec3 *point, f32 angle)
 {
     f32 sinOut;
     f32 cosOut;
 
-    sinOut = sinf(angle);
-    cosOut = cosf(angle);
+    sinOut = ZUN_SINF(angle);
+    cosOut = ZUN_COSF(angle);
     outVector->x = cosOut * point->x + sinOut * point->y;
     outVector->y = cosOut * point->y - sinOut * point->x;
 }
@@ -85,11 +62,10 @@ void DebugPrint2(const char *fmt, ...)
     std::va_list args;
 
     va_start(args, fmt);
-    vsprintf(tmpBuffer, fmt, args);
+    std::vsnprintf(tmpBuffer, 511, fmt, args);
     va_end(args);
 
-    printf("DEBUG2: %s\n", tmpBuffer);
+    std::printf("DEBUG2: %s\n", tmpBuffer);
 #endif
 }
 }; // namespace utils
-}; // namespace th06

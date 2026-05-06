@@ -1,31 +1,29 @@
-#include "Windows.h"
-
-#include "CMyFont.hpp"
 #include "GameErrorContext.hpp"
-#include <stdio.h>
+#include "FileSystem.hpp"
+#include <SDL_messagebox.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
 
-namespace th06
-{
-DIFFABLE_STATIC(GameErrorContext, g_GameErrorContext)
-DIFFABLE_STATIC(CMyFont, g_CMyFont)
+GameErrorContext g_GameErrorContext;
 
-const char *GameErrorContext::Log(const char *fmt, ...)
+const char *GameErrorContext::Log(GameErrorContext *ctx, const char *fmt, ...)
 {
     char tmpBuffer[512];
     size_t tmpBufferSize;
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(tmpBuffer, fmt, args);
+    std::vsprintf(tmpBuffer, fmt, args);
 
-    tmpBufferSize = strlen(tmpBuffer);
+    tmpBufferSize = std::strlen(tmpBuffer);
 
-    if (this->m_BufferEnd + tmpBufferSize < &this->m_Buffer[sizeof(this->m_Buffer) - 1])
+    if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
     {
-        strcpy(this->m_BufferEnd, tmpBuffer);
+        std::strcpy(ctx->m_BufferEnd, tmpBuffer);
 
-        this->m_BufferEnd += tmpBufferSize;
-        *this->m_BufferEnd = '\0';
+        ctx->m_BufferEnd += tmpBufferSize;
+        *ctx->m_BufferEnd = '\0';
     }
 
     va_end(args);
@@ -33,28 +31,28 @@ const char *GameErrorContext::Log(const char *fmt, ...)
     return fmt;
 }
 
-const char *GameErrorContext::Fatal(const char *fmt, ...)
+const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
 {
     char tmpBuffer[512];
     size_t tmpBufferSize;
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(tmpBuffer, fmt, args);
+    std::vsprintf(tmpBuffer, fmt, args);
 
-    tmpBufferSize = strlen(tmpBuffer);
+    tmpBufferSize = std::strlen(tmpBuffer);
 
-    if (this->m_BufferEnd + tmpBufferSize < &this->m_Buffer[sizeof(this->m_Buffer) - 1])
+    if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
     {
-        strcpy(this->m_BufferEnd, tmpBuffer);
+        std::strcpy(ctx->m_BufferEnd, tmpBuffer);
 
-        this->m_BufferEnd += tmpBufferSize;
-        *this->m_BufferEnd = '\0';
+        ctx->m_BufferEnd += tmpBufferSize;
+        *ctx->m_BufferEnd = '\0';
     }
 
     va_end(args);
 
-    this->m_ShowMessageBox = true;
+    ctx->m_ShowMessageBox = true;
 
     return fmt;
 }
@@ -65,17 +63,16 @@ void GameErrorContext::Flush()
 
     if (m_BufferEnd != m_Buffer)
     {
-        g_GameErrorContext.Log(TH_ERR_LOGGER_END);
+        GameErrorContext::Log(this, TH_ERR_LOGGER_END);
 
         if (m_ShowMessageBox)
         {
-            MessageBoxA(NULL, m_Buffer, "log", MB_ICONERROR);
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
         }
 
-        logFile = fopen("./log.txt", "wt");
+        logFile = FileSystem::FopenUTF8("./log.txt", "w");
 
-        fprintf(logFile, m_Buffer);
-        fclose(logFile);
+        std::fprintf(logFile, "%s", m_Buffer);
+        std::fclose(logFile);
     }
 }
-}; // namespace th06

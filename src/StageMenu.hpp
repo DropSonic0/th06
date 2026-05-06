@@ -3,8 +3,6 @@
 #include "AnmVm.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 struct StageMenu
 {
     StageMenu();
@@ -23,5 +21,3 @@ struct StageMenu
     AnmVm menuSprites[6];
     AnmVm menuBackground;
 };
-ZUN_ASSERT_SIZE(StageMenu, 0x778);
-}; // namespace th06

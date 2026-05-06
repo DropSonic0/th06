@@ -1,10 +1,7 @@
 #pragma once
 
-#include "diffbuild.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
 struct Rng
 {
     u16 seed;
@@ -34,7 +31,11 @@ struct Rng
     {
         return this->GetRandomF32ZeroToOne() * range;
     }
+
+    void GetRandomF32InBounds(f32 *res, f32 min, f32 max)
+    {
+        *res += this->GetRandomF32InRange(max - min) + min;
+    }
 };
 
-DIFFABLE_EXTERN(Rng, g_Rng);
-}; // namespace th06
+extern Rng g_Rng;

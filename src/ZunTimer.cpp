@@ -1,10 +1,6 @@
 #include "ZunTimer.hpp"
 #include "Supervisor.hpp"
 
-namespace th06
-{
-
-#pragma optimize("s", on)
 void ZunTimer::Initialize()
 {
     this->current = 0;
@@ -69,5 +65,3 @@ i32 ZunTimer::NextTick()
     this->Tick();
     return this->current;
 }
-#pragma optimize("s", off)
-}; // namespace th06

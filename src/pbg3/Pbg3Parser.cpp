@@ -1,22 +1,19 @@
 #include "pbg3/Pbg3Parser.hpp"
 
-namespace th06
-{
-
 Pbg3Parser::Pbg3Parser() : IPbg3Parser(), FileAbstraction()
 {
 }
 
-i32 Pbg3Parser::OpenArchive(char *path)
+i32 Pbg3Parser::OpenArchive(const char *path)
 {
     this->Close();
     this->Reset();
-    if (FileAbstraction::Open(path, "r") == FALSE)
+    if (!FileAbstraction::Open(path, "r"))
     {
-        return FALSE;
+        return false;
     }
-    this->fileSize = GetFileSize(this->handle, NULL);
-    return TRUE;
+    this->fileSize = GetSize();
+    return true;
 }
 
 void Pbg3Parser::Close()
@@ -29,7 +26,7 @@ i32 Pbg3Parser::ReadBit()
 {
     if (!this->HasNonNullHandle())
     {
-        return FALSE;
+        return false;
     }
 
     if (this->bitIdxInCurByte == 0x80)
@@ -37,7 +34,7 @@ i32 Pbg3Parser::ReadBit()
         this->curByte = FileAbstraction::ReadByte();
         if (this->curByte == -1)
         {
-            return FALSE;
+            return false;
         }
         this->offsetInFile += 1;
         this->crc += this->curByte;
@@ -69,7 +66,7 @@ u32 Pbg3Parser::ReadInt(u32 numBitsAsPowersOf2)
             this->curByte = FileAbstraction::ReadByte();
             if (this->curByte == -1)
             {
-                return FALSE;
+                return false;
             }
             this->offsetInFile += 1;
             this->crc += this->curByte;
@@ -104,36 +101,36 @@ i32 Pbg3Parser::SeekToOffset(u32 fileOffset)
 {
     if (fileOffset >= this->fileSize)
     {
-        return FALSE;
+        return false;
     }
 
-    if (this->SeekToNextByte() == FALSE)
+    if (!this->SeekToNextByte())
     {
-        return FALSE;
+        return false;
     }
 
-    if (FileAbstraction::Seek(fileOffset, FILE_BEGIN) == FALSE)
+    if (!FileAbstraction::Seek(fileOffset, SEEK_SET))
     {
-        return FALSE;
+        return false;
     }
 
     this->offsetInFile = fileOffset;
     this->crc = 0;
-    return TRUE;
+    return true;
 }
 
 i32 Pbg3Parser::SeekToNextByte()
 {
     if (!this->HasNonNullHandle())
     {
-        return FALSE;
+        return false;
     }
 
     while (this->bitIdxInCurByte != 0x80)
     {
         this->ReadBit();
     }
-    return TRUE;
+    return true;
 }
 
 i32 Pbg3Parser::ReadByteAlignedData(u8 *data, u32 bytesToRead)
@@ -144,30 +141,13 @@ i32 Pbg3Parser::ReadByteAlignedData(u8 *data, u32 bytesToRead)
     return FileAbstraction::Read(data, bytesToRead, &numBytesRead);
 }
 
-i32 Pbg3Parser::GetLastWriteTime(LPFILETIME lastWriteTime)
-{
-    // Yes, this is comparing against INVALID_HANDLE_VALUE instead of NULL. Why?
-    // Unclear.
-    if (!this->HasValidHandle())
-    {
-        return FALSE;
-    }
-
-    // EWWWW abstraction violation much? (Maybe this is an inlined function?)
-    return FileAbstraction::GetLastWriteTime(lastWriteTime);
-}
-
-// Optimizing for size here needed to prevent the inlining of ReadByteAssumeAligned
-#pragma optimize("s", on)
 i32 Pbg3Parser::ReadByte()
 {
     // MSVC generates an add -0x18 instruction to get the caller base here, while the original binary uses a sub 0x18?
     return Pbg3Parser::ReadByteAssumeAligned();
 }
-#pragma optimize("", on)
 
 Pbg3Parser::~Pbg3Parser()
 {
     this->Close();
 }
-}; // namespace th06

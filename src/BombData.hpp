@@ -2,8 +2,6 @@
 
 #include "Player.hpp"
 
-namespace th06
-{
 struct BombData
 {
     void (*calc)(Player *p);
@@ -19,5 +17,4 @@ struct BombData
     static void BombMarisaBDraw(Player *);
     static void DarkenViewport(Player *player);
 };
-DIFFABLE_EXTERN_ARRAY(BombData, 4, g_BombData);
-}; // namespace th06
+extern const BombData g_BombData[4];

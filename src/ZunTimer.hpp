@@ -1,11 +1,8 @@
 #pragma once
 
 #include "Supervisor.hpp"
-#include "Windows.h"
 #include "inttypes.hpp"
 
-namespace th06
-{
 struct ZunTimer
 {
     i32 previous;
@@ -17,27 +14,27 @@ struct ZunTimer
         this->Initialize();
     }
 
-    ZunBool operator==(i32 time)
+    bool operator==(i32 time) const
     {
         return this->current == time;
     }
 
-    ZunBool operator>=(i32 time)
+    bool operator>=(i32 time) const
     {
         return this->current >= time;
     }
 
-    ZunBool operator>(i32 time)
+    bool operator>(i32 time) const
     {
         return this->current > time;
     }
 
-    ZunBool operator<(i32 time)
+    bool operator<(i32 time) const
     {
         return this->current < time;
     }
 
-    ZunBool operator<=(i32 time)
+    bool operator<=(i32 time) const
     {
         return this->current <= time;
     }
@@ -72,20 +69,18 @@ struct ZunTimer
         g_Supervisor.TickTimer(&this->current, &this->subFrame);
     }
 
-    f32 AsFramesFloat()
+    f32 AsFramesFloat() const
     {
         return this->current + this->subFrame;
     }
 
-    i32 AsFrames()
+    i32 AsFrames() const
     {
         return this->current;
     }
 
-    ZunBool HasTicked()
+    bool HasTicked() const
     {
         return this->current != this->previous;
     }
 };
-ZUN_ASSERT_SIZE(ZunTimer, 0xc);
-}; // namespace th06

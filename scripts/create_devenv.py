@@ -218,6 +218,48 @@ def progress_bar(blocks_transfered, block_size, total_bytes):
     last_refresh = datetime.now()
 
 
+def download_requirement_aria2c(dl_cache_path, requirement, aria2c_path, proxy=None):
+    """Download using aria2c with multi-threading"""
+    path = dl_cache_path / requirement["filename"]
+    if path.exists():
+        if file_matches(path, requirement):
+            return True
+
+    for url in requirement["url"]:
+        # archive.org has rate limits on multi-threaded downloads
+        if "archive.org" in url:
+            connections = "4"
+        else:
+            connections = "16"
+        print("Downloading " + requirement["name"] + " from " + url + " (aria2c " + connections + "-thread)")
+        cmd = [
+            str(aria2c_path),
+            "-x", connections,
+            "-s", connections,
+            "-d", str(dl_cache_path),
+            "-o", requirement["filename"],
+            "--summary-interval=0",
+            "--continue=true",
+            "--max-tries=3",
+            "--retry-wait=5",
+        ]
+        if proxy:
+            cmd.extend(["--all-proxy", proxy])
+        cmd.append(url)
+        try:
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as err:
+            print("Download from " + url + " failed: " + str(err))
+            continue
+
+        if file_matches(path, requirement):
+            return True
+        print("Download from " + url + " produced mismatched hash")
+
+    print("Could not download " + requirement["name"])
+    return False
+
+
 def download_requirement(dl_cache_path, requirement, no_download):
     path = dl_cache_path / requirement["filename"]
     if path.exists():
@@ -289,9 +331,9 @@ def file_matches(path, requirement):
                 "File "
                 + str(path)
                 + " has size "
-                + found_filesize
+                + str(found_filesize)
                 + ", expected size "
-                + expected_filesize
+                + str(expected_filesize)
             )
             return False
 
@@ -374,8 +416,8 @@ def download_requirements(dl_cache_path, steps, should_torrent, no_download):
             "name": "Visual Studio .NET 2002 Professional Edition",
             "only": "vs",
             "url": [
-                "https://archive.org/download/en_vs.net_pro_full/en_vs.net_pro_full.exe",
                 "https://dl.bobpony.com/software/visualstudio/dotnet2002/en_vs.net_pro_full.exe",
+                "https://archive.org/download/en_vs.net_pro_full/en_vs.net_pro_full.exe",
             ],
             "torrent": "https://archive.org/download/en_vs.net_pro_full/en_vs.net_pro_full_archive.torrent",
             "filename": "en_vs.net_pro_full.exe",
@@ -530,38 +572,37 @@ def download_requirements(dl_cache_path, steps, should_torrent, no_download):
         },
     ]
 
-    if should_torrent:
-        # Download aria2c
-        if sys.platform == "win32":
-            aria2c_path = dl_cache_path / "aria2c.exe"
-            if not aria2c_path.exists():
-                print("Downloading aria2c")
-                urllib.request.urlretrieve(
-                    "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip",
-                    str(dl_cache_path / "aria2.zip"),
-                )
-                shutil.unpack_archive(
-                    str(dl_cache_path / "aria2.zip"), str(dl_cache_path), format="zip"
-                )
-                os.remove(str(dl_cache_path / "aria2.zip"))
-                # Move aria2c to the correct location
-                shutil.move(
-                    str(dl_cache_path / "aria2-1.37.0-win-64bit-build1" / "aria2c.exe"),
-                    str(aria2c_path),
-                )
-                shutil.rmtree(
-                    str(dl_cache_path / "aria2-1.37.0-win-64bit-build1"),
-                    ignore_errors=True,
-                )
-        else:
-            # assuming its already in their PATH, because it should be installed before selecting torrent downloads on linux.
-            aria2c_path = "aria2c"
-            if not shutil.which(aria2c_path):
-                # throw an error if aria2c is not installed
-                raise Exception(
-                    "aria2c is not installed, please install it before selecting torrent downloads!"
-                )
+    # Download aria2c for multi-threaded downloads (always needed)
+    proxy = os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
+    if sys.platform == "win32":
+        aria2c_path = dl_cache_path / "aria2c.exe"
+        if not aria2c_path.exists():
+            print("Downloading aria2c for multi-threaded downloads")
+            urllib.request.urlretrieve(
+                "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip",
+                str(dl_cache_path / "aria2.zip"),
+            )
+            shutil.unpack_archive(
+                str(dl_cache_path / "aria2.zip"), str(dl_cache_path), format="zip"
+            )
+            os.remove(str(dl_cache_path / "aria2.zip"))
+            # Move aria2c to the correct location
+            shutil.move(
+                str(dl_cache_path / "aria2-1.37.0-win-64bit-build1" / "aria2c.exe"),
+                str(aria2c_path),
+            )
+            shutil.rmtree(
+                str(dl_cache_path / "aria2-1.37.0-win-64bit-build1"),
+                ignore_errors=True,
+            )
+    else:
+        aria2c_path = "aria2c"
+        if not shutil.which(aria2c_path):
+            raise Exception(
+                "aria2c is not installed, please install it before running this script!"
+            )
 
+    if should_torrent:
         for requirement in requirements:
             if "torrent" in requirement:
                 download_requirement_torrent(dl_cache_path, requirement, aria2c_path)
@@ -570,7 +611,12 @@ def download_requirements(dl_cache_path, steps, should_torrent, no_download):
     for requirement in requirements:
         if requirement["only"] in steps:
             if "condition" not in requirement or requirement["condition"]:
-                if not download_requirement(dl_cache_path, requirement, no_download):
+                if not download_requirement_aria2c(dl_cache_path, requirement, aria2c_path, proxy):
+                    # HTTP failed, try torrent if available
+                    if "torrent" in requirement:
+                        print("HTTP download failed, trying torrent for " + requirement["name"])
+                        if download_requirement_torrent(dl_cache_path, requirement, aria2c_path):
+                            continue
                     failed_requirements.append(requirement)
 
     if len(failed_requirements) != 0:

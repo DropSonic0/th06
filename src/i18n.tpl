@@ -188,12 +188,12 @@
 
 #define TH_EN_UNKNOWN_SPELLCARD "??????"
 
-#define TH_EN_CM_DAT_FILE "TOLOL_CM.dat"
-#define TH_EN_ED_DAT_FILE "TOLOL_ED.dat"
-#define TH_EN_IN_DAT_FILE "TOLOL_IN.dat"
-#define TH_EN_MD_DAT_FILE "TOLOL_MD.dat"
-#define TH_EN_ST_DAT_FILE "TOLOL_ST.dat"
-#define TH_EN_TL_DAT_FILE "TOLOL_TL.dat"
+#define TH_EN_CM_DAT_FILE "紅魔郷CM.dat"
+#define TH_EN_ED_DAT_FILE "紅魔郷ED.dat"
+#define TH_EN_IN_DAT_FILE "紅魔郷IN.dat"
+#define TH_EN_MD_DAT_FILE "紅魔郷MD.dat"
+#define TH_EN_ST_DAT_FILE "紅魔郷ST.dat"
+#define TH_EN_TL_DAT_FILE "紅魔郷TL.dat"
 #define TH_CONCAT_HELPER(x, y) x##y
 
 #define TH_MAKE_LANG_STR(lang, id) TH_CONCAT_HELPER(lang, id)
@@ -288,5 +288,8 @@
 #define TH_ST_DAT_FILE TH_MAKE_LANG_STR(TH_LANG, _ST_DAT_FILE)
 #define TH_TL_DAT_FILE TH_MAKE_LANG_STR(TH_LANG, _TL_DAT_FILE)
 
-#define TH_SONG_NAME "♪%s"
+// Use marker byte 0x01 for ♪ (U+266A) — converted to UTF-8 in ConvertToUtf8.
+// Do NOT use raw UTF-8 here: the %s argument is in native encoding (GBK/SJIS)
+// and mixing encodings breaks the decoder.
+#define TH_SONG_NAME "\x01%s"
 #define TH_FONT_NAME "ＭＳ ゴシック"

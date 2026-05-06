@@ -6,9 +6,6 @@
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
-namespace th06
-{
-
 enum EndingFadeType
 {
     ENDING_FADE_TYPE_NO_FADE,
@@ -63,7 +60,7 @@ struct Ending
 
     ZunResult ParseEndFile();
 
-    ZunResult LoadEnding(char *endFilePath);
+    ZunResult LoadEnding(const char *endFilePath);
     void FadingEffect();
 
     ChainElem *calcChain;
@@ -72,7 +69,7 @@ struct Ending
     f32 backgroundScrollSpeed;
     AnmVm sprites[16];
     char *endFileData;
-    ZunBool hasSeenEnding;
+    bool hasSeenEnding;
     ZunTimer timer1;
     ZunTimer timer2;
     ZunTimer timer3;
@@ -89,5 +86,3 @@ struct Ending
     EndingFadeType fadeType;
     char *endFileDataPtr;
 };
-ZUN_ASSERT_SIZE(Ending, 0x1170);
-}; // namespace th06

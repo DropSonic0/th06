@@ -8,11 +8,8 @@
 #include "Gui.hpp"
 #include "Player.hpp"
 #include "Rng.hpp"
-#include "ZunBool.hpp"
 #include "utils.hpp"
-
-namespace th06
-{
+#include <SDL.h>
 namespace EnemyEclInstr
 {
 #define MAX_BOSS_TIME 7200
@@ -26,28 +23,25 @@ struct PatchouliShottypeVars
         i32 var3;
     } shotVars[2];
 };
-ZUN_ASSERT_SIZE(PatchouliShottypeVars, 0x18);
 
-DIFFABLE_STATIC_ARRAY_ASSIGN(PatchouliShottypeVars, 2, g_PatchouliShottypeVars) = {{{{0, 3, 1}, {2, 3, 4}}},
-                                                                                   {{{1, 4, 0}, {4, 2, 3}}}};
-DIFFABLE_STATIC(i32, g_PlayerShot);
-DIFFABLE_STATIC(f32, g_PlayerDistance);
-DIFFABLE_STATIC(f32, g_PlayerAngle);
-DIFFABLE_STATIC_ARRAY(f32, 6, g_StarAngleTable);
-DIFFABLE_STATIC(D3DXVECTOR3, g_EnemyPosVector);
-DIFFABLE_STATIC(D3DXVECTOR3, g_PlayerPosVector);
+static const PatchouliShottypeVars g_PatchouliShottypeVars[2] = {{{{0, 3, 1}, {2, 3, 4}}}, {{{1, 4, 0}, {4, 2, 3}}}};
+static i32 g_PlayerShot;
+static f32 g_PlayerDistance;
+static f32 g_PlayerAngle;
+static f32 g_StarAngleTable[6];
+static ZunVec3 g_EnemyPosVector;
+static ZunVec3 g_PlayerPosVector;
 
-#pragma var_order(alu, angle)
 void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
 {
     EclRawInstrAluArgs *alu;
     f32 angle;
 
     alu = &instr->args.alu;
-    angle = *GetVarFloat(enemy, &alu->arg1.f32, NULL);
+    angle = *GetVarFloat(enemy, &alu->arg1.f32Param, NULL);
 
-    enemy->moveInterp.x = cosf(angle) * alu->arg2.f32 * alu->res / 2.0f;
-    enemy->moveInterp.y = sinf(angle) * alu->arg2.f32 * alu->res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * alu->arg2.f32Param * (i32)alu->res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * alu->arg2.f32Param * (i32)alu->res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
@@ -60,12 +54,12 @@ void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
 
 void MovePosTime(Enemy *enemy, EclRawInstr *instr)
 {
-    D3DXVECTOR3 newPos;
+    ZunVec3 newPos;
     EclRawInstrAluArgs *alu = &instr->args.alu;
 
-    newPos.x = *GetVarFloat(enemy, &alu->arg1.f32, NULL);
-    newPos.y = *GetVarFloat(enemy, &alu->arg2.f32, NULL);
-    newPos.z = *GetVarFloat(enemy, &alu->arg3.f32, NULL);
+    newPos.x = *GetVarFloat(enemy, &alu->arg1.f32Param, NULL);
+    newPos.y = *GetVarFloat(enemy, &alu->arg2.f32Param, NULL);
+    newPos.z = *GetVarFloat(enemy, &alu->arg3.f32Param, NULL);
 
     enemy->moveInterp = newPos - enemy->position;
     enemy->moveInterpStartPos = enemy->position;
@@ -74,23 +68,20 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
     enemy->flags.unk1 = 2;
-    enemy->axisSpeed = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
+    enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
 }
 
-void MoveTime(Enemy *enemy, EclRawInstr *instr)
+void MoveTime(Enemy *enemy, const EclRawInstr *instr)
 {
-    EclRawInstrAluArgs *alu;
     f32 angle;
-
-    alu = &instr->args.alu;
     angle = *GetVarFloat(enemy, &enemy->angle, NULL);
 
-    enemy->moveInterp.x = cosf(angle) * enemy->speed * alu->res / 2.0f;
-    enemy->moveInterp.y = sinf(angle) * enemy->speed * alu->res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * enemy->speed * instr->args.alu.res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * enemy->speed * instr->args.alu.res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
-    enemy->moveInterpStartTime = alu->res;
+    enemy->moveInterpStartTime = instr->args.alu.res;
 
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
@@ -167,7 +158,7 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
     case ECL_VAR_DIFFICULTY:
         if (valueType != NULL)
             *valueType = ECL_VALUE_TYPE_READONLY;
-        return (int *)&g_GameManager.difficulty;
+        return (i32 *)&g_GameManager.difficulty;
 
     case ECL_VAR_RANK:
         if (valueType != NULL)
@@ -205,15 +196,7 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
         return (i32 *)&g_Player.positionCenter.z;
 
     case ECL_VAR_PLAYER_ANGLE:
-        if (g_Player.playerState == PLAYER_STATE_SPIRIT)
-            g_PlayerAngle = g_Player2.AngleToPlayer(&enemy->position);
-        else if (g_Player2.playerState == PLAYER_STATE_SPIRIT)
-            g_PlayerAngle = g_Player.AngleToPlayer(&enemy->position);
-        else if (g_Player.RangeToPlayer(&enemy->position) > g_Player2.RangeToPlayer(&enemy->position))
-            g_PlayerAngle = g_Player2.AngleToPlayer(&enemy->position);
-        else
-            g_PlayerAngle = g_Player.AngleToPlayer(&enemy->position);
-
+        g_PlayerAngle = g_Player.AngleToPlayer(&enemy->position);
         if (valueType != NULL)
             *valueType = ECL_VALUE_TYPE_READONLY;
         return (i32 *)&g_PlayerAngle;
@@ -224,15 +207,7 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
         return &enemy->bossTimer.current;
 
     case ECL_VAR_PLAYER_DISTANCE:
-        if (g_Player.playerState == PLAYER_STATE_SPIRIT)
-            g_PlayerDistance = D3DXVec3Length(&(g_Player2.positionCenter - enemy->position));
-        else if (g_Player2.playerState == PLAYER_STATE_SPIRIT)
-            g_PlayerDistance = D3DXVec3Length(&(g_Player.positionCenter - enemy->position));
-        else if (g_Player.RangeToPlayer(&enemy->position) > g_Player2.RangeToPlayer(&enemy->position))
-            g_PlayerDistance = D3DXVec3Length(&(g_Player2.positionCenter - enemy->position));
-        else
-            g_PlayerDistance = D3DXVec3Length(&(g_Player.positionCenter - enemy->position));
-
+        g_PlayerDistance = (g_Player.positionCenter - enemy->position).getMagnitude();
         if (valueType != NULL)
             *valueType = ECL_VALUE_TYPE_READONLY;
         return (i32 *)&g_PlayerDistance;
@@ -253,7 +228,8 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
 
 f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
 {
-    i32 varId = *eclVarId;
+
+    i32 varId = uf32(eclVarId);
     i32 *res = GetVar(enemy, (EclVarId *)&varId, valueType);
     if (res == &varId)
     {
@@ -265,12 +241,11 @@ f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
     }
 }
 
-#pragma var_order(lhsPtr, rhsPtr, lhsType)
-void SetVar(Enemy *enemy, EclVarId lhs, void *rhs)
+void SetVar(Enemy *enemy, EclVarId lhs, const void *rhs)
 {
     i32 *lhsPtr;
     EclValueType lhsType;
-    i32 *rhsPtr;
+    const i32 *rhsPtr;
 
     rhsPtr = GetVar(enemy, (EclVarId *)rhs, NULL);
     lhsPtr = GetVar(enemy, &lhs, &lhsType);
@@ -285,135 +260,115 @@ void SetVar(Enemy *enemy, EclVarId lhs, void *rhs)
     return;
 }
 
-#pragma var_order(outPtr, rhsPtr, lhsPtr, outType)
 void MathAdd(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    i32 *lhsPtr;
-    i32 *rhsPtr;
 
     // Get output variable.
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        const i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        const i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr + *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr + *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr + rhsPtr;
     }
-    return;
 }
 
-#pragma var_order(outPtr, rhsPtr, lhsPtr, outType)
 void MathSub(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    i32 *lhsPtr;
-    i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        const i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        const i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr - *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr - *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr - rhsPtr;
     }
-    return;
 }
 
-#pragma var_order(outPtr, rhsPtr, lhsPtr, outType)
 void MathMul(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    i32 *lhsPtr;
-    i32 *rhsPtr;
 
-    lhsPtr = GetVar(enemy, lhsVarId, NULL);
-    rhsPtr = GetVar(enemy, rhsVarId, NULL);
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        const i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        const i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr * *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr * *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr * rhsPtr;
     }
-    return;
 }
 
-#pragma var_order(outPtr, rhsPtr, lhsPtr, outType)
 void MathDiv(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    i32 *lhsPtr;
-    i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        const i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        const i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr / *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr / *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr / rhsPtr;
     }
-    return;
 }
 
-#pragma var_order(outPtr, rhsPtr, lhsPtr, outType)
 void MathMod(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    i32 *lhsPtr;
-    i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        const i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        const i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr % *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = fmodf(*(f32 *)lhsPtr, *(f32 *)rhsPtr);
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = ZUN_FMODF(lhsPtr, rhsPtr);
     }
-    return;
 }
 
-#pragma var_order(y2Ptr, outPtr, x1Ptr, y1Ptr, outType, x2Ptr)
 void MathAtan2(Enemy *enemy, EclVarId outVarId, f32 *x1, f32 *y1, f32 *y2, f32 *x2)
 {
     EclValueType outType;
     f32 *outPtr;
-    f32 *y1Ptr, *x1Ptr, *x2Ptr, *y2Ptr;
+    const f32 *y1Ptr;
+    const f32 *x1Ptr;
+    const f32 *x2Ptr;
+    const f32 *y2Ptr;
 
     outPtr = (f32 *)GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_FLOAT)
@@ -422,12 +377,11 @@ void MathAtan2(Enemy *enemy, EclVarId outVarId, f32 *x1, f32 *y1, f32 *y2, f32 *
         x1Ptr = GetVarFloat(enemy, y1, NULL);
         y2Ptr = GetVarFloat(enemy, y2, NULL);
         x2Ptr = GetVarFloat(enemy, x2, NULL);
-        *outPtr = atan2f(*x2Ptr - *x1Ptr, *y2Ptr - *y1Ptr);
+        *outPtr = ZUN_ATAN2F(*x2Ptr - *x1Ptr, *y2Ptr - *y1Ptr);
     }
     return;
 }
 
-#pragma var_order(i, currentBullet, effectIndex, velocityVector, bulletTimer, accelerationMultiplier, accelerationAngle)
 void ExInsCirnoRainbowBallJank(Enemy *enemy, EclRawInstr *instr)
 {
     f32 accelerationAngle;
@@ -436,7 +390,7 @@ void ExInsCirnoRainbowBallJank(Enemy *enemy, EclRawInstr *instr)
     Bullet *currentBullet;
     i32 effectIndex;
     i32 i;
-    D3DXVECTOR3 velocityVector;
+    ZunVec3 velocityVector;
 
     currentBullet = g_BulletManager.bullets;
     effectIndex = instr->args.exInstr.i32Param;
@@ -491,17 +445,15 @@ void ExInsShootAtRandomArea(Enemy *enemy, EclRawInstr *instr)
     g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);
 }
 
-#pragma var_order(i, propsSpeedBackup, starPatterTarget1, targetDistance, starPatternTarget0, patternPosition,         \
-                  baseTargetPosition)
 void ExInsShootStarPattern(Enemy *enemy, EclRawInstr *instr)
 {
     // Variable names are more quick guesses at functionality than anything else, they should not be trusted
-    D3DXVECTOR3 baseTargetPosition;
+    ZunVec3 baseTargetPosition;
     i32 i;
     f32 propsSpeedBackup;
     f32 patternPosition;
-    D3DXVECTOR3 starPatternTarget0;
-    D3DXVECTOR3 starPatterTarget1;
+    ZunVec3 starPatternTarget0;
+    ZunVec3 starPatterTarget1;
     f32 targetDistance;
 
     if (enemy->currentContext.var2 >= enemy->currentContext.var3)
@@ -552,7 +504,7 @@ void ExInsShootStarPattern(Enemy *enemy, EclRawInstr *instr)
             enemy->bulletProps.speed1 = propsSpeedBackup;
             enemy->bulletProps.angle1 -= (ZUN_PI / 6) * patternPosition;
         }
-        g_SoundPlayer.PlaySoundByIdx(SOUND_16, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_16);
     }
     enemy->currentContext.var2++;
 }
@@ -564,7 +516,6 @@ void ExInsPatchouliShottypeSetVars(Enemy *enemy, EclRawInstr *instr)
     enemy->currentContext.var3 = g_PatchouliShottypeVars[g_GameManager.character].shotVars[g_GameManager.shotType].var3;
 }
 
-#pragma var_order(playerBulletOffset, bulletsLeft, i, currentBullet)
 void ExInsStage56Func4(Enemy *enemy, EclRawInstr *instr)
 {
     i32 bulletsLeft;
@@ -666,20 +617,17 @@ void ExInsStage56Func4(Enemy *enemy, EclRawInstr *instr)
     enemy->currentContext.var2 = 0;
 }
 
-#pragma var_order(patternPosition, i, bulletProps, sinOut, bpPositionOffset, matrixOutSeed, matrixIn, bulletAngle,     \
-                  cosOut, matrixInSeed, matrixOut)
 void ExInsStage5Func5(Enemy *enemy, EclRawInstr *instr)
 {
-
     if (enemy->currentContext.var2 % 9 == 0)
     {
-        D3DXVECTOR3 bpPositionOffset;
+        ZunVec3 bpPositionOffset;
         f32 bulletAngle;
         f32 cosOut;
         i32 i;
-        D3DXVECTOR3 matrixIn;
+        ZunVec3 matrixIn;
         f32 matrixInSeed;
-        D3DXVECTOR3 matrixOut;
+        ZunVec3 matrixOut;
         f32 matrixOutSeed; // Later reused to store angles for trig function calls
         i32 patternPosition;
         f32 sinOut;
@@ -702,17 +650,8 @@ void ExInsStage5Func5(Enemy *enemy, EclRawInstr *instr)
         bulletProps.flags = 0;
 
         matrixOutSeed = 0.5f - patternPosition * 0.5f / 9.0f;
-
-        if (g_Player.playerState == PLAYER_STATE_SPIRIT)
-            matrixOut = g_Player2.positionCenter - enemy->position;
-        else if (g_Player2.playerState == PLAYER_STATE_SPIRIT)
-            matrixOut = g_Player.positionCenter - enemy->position;
-        else if (g_Player.RangeToPlayer(&enemy->position) > g_Player2.RangeToPlayer(&enemy->position))
-            matrixOut = g_Player2.positionCenter - enemy->position;
-        else
-            matrixOut = g_Player.positionCenter - enemy->position;
-
-        D3DXVec3Normalize(&matrixIn, &matrixOut);
+        matrixOut = g_Player.positionCenter - enemy->position;
+        matrixOut.getNormalized(matrixIn);
         if ((patternPosition & 1) != 0)
         {
             matrixInSeed = -256.0f;
@@ -727,14 +666,14 @@ void ExInsStage5Func5(Enemy *enemy, EclRawInstr *instr)
         matrixIn = -matrixIn;
 
         matrixOutSeed = ZUN_PI / 4;
-        cosOut = cosf(matrixOutSeed);
-        sinOut = sinf(matrixOutSeed);
+        cosOut = ZUN_COSF(matrixOutSeed);
+        sinOut = ZUN_SINF(matrixOutSeed);
         matrixOut = matrixIn;
         matrixIn.x = matrixOut.x * cosOut + matrixOut.y * sinOut;
         matrixIn.y = -matrixOut.x * sinOut + matrixOut.y * cosOut;
         matrixOutSeed = -ZUN_PI / 18;
-        cosOut = cosf(matrixOutSeed);
-        sinOut = sinf(matrixOutSeed);
+        cosOut = ZUN_COSF(matrixOutSeed);
+        sinOut = ZUN_SINF(matrixOutSeed);
         bulletProps.angle1 = 0.0;
         bulletAngle = -ZUN_PI / 4;
 
@@ -753,19 +692,18 @@ void ExInsStage5Func5(Enemy *enemy, EclRawInstr *instr)
             bulletProps.spriteOffset = 3;
             g_BulletManager.SpawnBulletPattern(&bulletProps);
         }
-        g_SoundPlayer.PlaySoundByIdx(SOUND_7, 0);
+        g_SoundPlayer.PlaySoundByIdx(SOUND_7);
     }
     enemy->currentContext.var2++;
 }
 
-#pragma var_order(effect, baseAngleModifier, distanceModifier, finalAngle, particlePos)
 void ExInsStage6XFunc6(Enemy *enemy, EclRawInstr *instr)
 {
     i32 baseAngleModifier;
     f32 distanceModifier;
     Effect *effect;
     f32 finalAngle;
-    D3DXVECTOR3 particlePos;
+    ZunVec3 particlePos;
 
     if (enemy->flags.unk15 != 0)
     {
@@ -794,8 +732,8 @@ void ExInsStage6XFunc6(Enemy *enemy, EclRawInstr *instr)
         }
 
         particlePos = enemy->position;
-        particlePos.x += cosf(finalAngle) * distanceModifier;
-        particlePos.y += sinf(finalAngle) * distanceModifier;
+        particlePos.x += ZUN_COSF(finalAngle) * distanceModifier;
+        particlePos.y += ZUN_SINF(finalAngle) * distanceModifier;
         effect = g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_19, &particlePos, 1, COLOR_DEEPBLUE);
         effect->unk_11c.x = (g_Rng.GetRandomF32ZeroToOne() * 40.0f - 20.0f) / 60.0f;
         effect->unk_11c.y = (8.0f * baseAngleModifier) / 60.0f - (4.0f / 15.0f);
@@ -803,8 +741,8 @@ void ExInsStage6XFunc6(Enemy *enemy, EclRawInstr *instr)
         effect->unk_128 = -effect->unk_11c / 120.0f;
 
         particlePos = enemy->position;
-        particlePos.x -= cosf(finalAngle) * distanceModifier;
-        particlePos.y += sinf(finalAngle) * distanceModifier;
+        particlePos.x -= ZUN_COSF(finalAngle) * distanceModifier;
+        particlePos.y += ZUN_SINF(finalAngle) * distanceModifier;
         effect = g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_19, &particlePos, 1, COLOR_DEEPBLUE);
         effect->unk_11c.x = (g_Rng.GetRandomF32ZeroToOne() * 40.0f - 20.0f) / 60.0f;
         effect->unk_11c.y = (8.0f * baseAngleModifier) / 60.0f - (4.0f / 15.0f);
@@ -815,8 +753,6 @@ void ExInsStage6XFunc6(Enemy *enemy, EclRawInstr *instr)
     enemy->exInsFunc6Timer.Tick();
 }
 
-#pragma var_order(laserProps, i, lengthMultiplier, attackType, innerLoopCount, angleDiff, outerLoopCount, laserAngle,  \
-                  randomAngleModifier, positionVectors)
 void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
 {
     f32 angleDiff;
@@ -829,7 +765,7 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
     i32 outerLoopCount;
     f32 randomAngleModifier;
 
-    D3DXVECTOR3 positionVectors[8];
+    ZunVec3 positionVectors[8];
 
     attackType = instr->args.exInstr.i32Param;
     randomAngleModifier = g_Rng.GetRandomF32ZeroToOne() * (ZUN_PI * 2);
@@ -851,8 +787,8 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
         for (i = 0; i < 8; i++)
         {
             positionVectors[i] = enemy->position;
-            positionVectors[i].x += cosf(laserAngle) * lengthMultiplier;
-            positionVectors[i].y += sinf(laserAngle) * lengthMultiplier;
+            positionVectors[i].x += ZUN_COSF(laserAngle) * lengthMultiplier;
+            positionVectors[i].y += ZUN_SINF(laserAngle) * lengthMultiplier;
             laserAngle += ZUN_PI / 4;
         }
 
@@ -912,9 +848,9 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
                     }
                     laserProps.startTime = innerLoopCount * 16 + 60;
                     laserProps.duration = 90 - innerLoopCount * 16;
-                    laserProps.despawnDuration = 16;
-                    laserProps.hitboxStartTime = 50;
-                    laserProps.hitboxEndDelay = 16;
+                    laserProps.stopTime = 16;
+                    laserProps.grazeDelay = 50;
+                    laserProps.grazeDistance = 16;
                     laserProps.flags = 2;
                     laserProps.type = 1;
                     g_BulletManager.SpawnLaserPattern(&laserProps);
@@ -924,8 +860,8 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
                     enemy->bulletProps.position = laserProps.position;
                     g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);
                 }
-                positionVectors[i].x += cosf(laserAngle) * lengthMultiplier;
-                positionVectors[i].y += sinf(laserAngle) * lengthMultiplier;
+                positionVectors[i].x += ZUN_COSF(laserAngle) * lengthMultiplier;
+                positionVectors[i].y += ZUN_SINF(laserAngle) * lengthMultiplier;
                 laserAngle += ZUN_PI / 4;
             }
             laserAngle += angleDiff - (ZUN_PI * 2);
@@ -933,11 +869,10 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
     }
 }
 
-#pragma var_order(bulletProps, changedBullets, i, currentBullet)
 void ExInsStage6Func8(Enemy *enemy, EclRawInstr *instr)
 {
     i32 changedBullets;
-    Bullet *currentBullet;
+    const Bullet *currentBullet;
     i32 i;
 
     changedBullets = 0;
@@ -972,7 +907,6 @@ void ExInsStage6Func8(Enemy *enemy, EclRawInstr *instr)
     enemy->currentContext.var3 = changedBullets;
 }
 
-#pragma var_order(unusedBulletProps, i, local64, currentBullet, randomAngleModifier)
 void ExInsStage6Func9(Enemy *enemy, EclRawInstr *instr)
 {
     Bullet *currentBullet;
@@ -1008,7 +942,7 @@ void ExInsStage6Func9(Enemy *enemy, EclRawInstr *instr)
                        (enemy->position.y - currentBullet->pos.y) * (enemy->position.y - currentBullet->pos.y);
             if (distance > 0.1f)
             {
-                distance = sqrtf(distance);
+                distance = ZUN_SQRTF(distance);
             }
             else
             {
@@ -1020,7 +954,6 @@ void ExInsStage6Func9(Enemy *enemy, EclRawInstr *instr)
     }
 }
 
-#pragma var_order(unusedBulletProps, i, currentBullet, unusedRandomNumber)
 void ExInsStage6Func11(Enemy *enemy, EclRawInstr *instr)
 {
     Bullet *currentBullet;
@@ -1099,7 +1032,7 @@ void ExInsStage4Func12(Enemy *enemy, EclRawInstr *instr)
     {
         if (enemy->lasers[i] != NULL && enemy->lasers[i]->inUse != 0)
         {
-            enemy->bulletProps.position = D3DXVECTOR3(64.0, 0.0, 0.0);
+            enemy->bulletProps.position = ZunVec3(64.0, 0.0, 0.0);
             utils::Rotate(&enemy->bulletProps.position, &enemy->bulletProps.position, enemy->lasers[i]->angle);
             enemy->bulletProps.position += enemy->position;
             g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);
@@ -1107,7 +1040,6 @@ void ExInsStage4Func12(Enemy *enemy, EclRawInstr *instr)
     }
 }
 
-#pragma var_order(i, bulletProps, basePatternAngle, numPatterns)
 void ExInsStageXFunc13(Enemy *enemy, EclRawInstr *instr)
 {
     f32 basePatternAngle;
@@ -1131,13 +1063,12 @@ void ExInsStageXFunc13(Enemy *enemy, EclRawInstr *instr)
     enemy->currentContext.var3++;
 }
 
-#pragma var_order(bulletPosition, i, angleSin, currentLaser, angleCos, positionMultiplier)
 void ExInsStageXFunc14(Enemy *enemy, EclRawInstr *instr)
 {
     f32 angleCos;
     f32 angleSin;
-    D3DXVECTOR3 bulletPosition;
-    Laser *currentLaser;
+    ZunVec3 bulletPosition;
+    const Laser *currentLaser;
     i32 i;
     f32 positionMultiplier;
 
@@ -1165,8 +1096,6 @@ void ExInsStageXFunc14(Enemy *enemy, EclRawInstr *instr)
     }
 }
 
-#pragma var_order(unusedBulletProps, totalIterations, i, innerBullet, enemyAngle, distance, currentBullet,             \
-                  bulletsAngle, j)
 void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
 {
     f32 bulletsAngle;
@@ -1193,7 +1122,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
             currentBullet->sprites.spriteBullet.sprite->heightPx >= 30.0f)
         {
             totalIterations++;
-            enemyAngle = atan2f(currentBullet->pos.y - enemy->position.y, currentBullet->pos.x - enemy->position.x);
+            enemyAngle = ZUN_ATAN2F(currentBullet->pos.y - enemy->position.y, currentBullet->pos.x - enemy->position.x);
 
             for (j = 0, innerBullet = g_BulletManager.bullets; j < ARRAY_SIZE_SIGNED(g_BulletManager.bullets);
                  j++, innerBullet++)
@@ -1205,7 +1134,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
 
                 if (innerBullet->sprites.spriteBullet.sprite != NULL &&
                     innerBullet->sprites.spriteBullet.sprite->heightPx < 30.0f && innerBullet->speed == 0.0f &&
-                    (distance = sqrtf(
+                    (distance = ZUN_SQRTF(
                          (innerBullet->pos.x - currentBullet->pos.x) * (innerBullet->pos.x - currentBullet->pos.x) +
                          (innerBullet->pos.y - currentBullet->pos.y) * (innerBullet->pos.y - currentBullet->pos.y))) <
                         64.0f)
@@ -1215,7 +1144,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
                     innerBullet->timer.InitializeForPopup();
                     innerBullet->ex5Int0 = 120;
                     bulletsAngle =
-                        atan2f(innerBullet->pos.y - enemy->position.y, innerBullet->pos.x - enemy->position.x);
+                        ZUN_ATAN2F(innerBullet->pos.y - enemy->position.y, innerBullet->pos.x - enemy->position.x);
                     innerBullet->angle = (bulletsAngle - enemyAngle) * 2.2f + enemyAngle;
                     sincosmul(&innerBullet->ex4Acceleration, innerBullet->angle, 0.01f);
                     innerBullet->spriteOffset += 1;
@@ -1231,7 +1160,6 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
     enemy->currentContext.var3 = totalIterations;
 }
 
-#pragma var_order(remainingLife, rangeModifier)
 void ExInsStageXFunc16(Enemy *enemy, EclRawInstr *instr)
 {
     f32 rangeModifier;
@@ -1257,4 +1185,3 @@ void ExInsStageXFunc16(Enemy *enemy, EclRawInstr *instr)
     }
 }
 }; // namespace EnemyEclInstr
-}; // namespace th06
