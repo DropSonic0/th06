@@ -7,7 +7,7 @@
 
 void IPbg3Parser::Reset()
 {
-    this->bitIdxInCurByte = 128;
+    this->bitIdxInCurByte = 0;
     this->offsetInFile = 0;
     this->fileSize = 0;
     this->curByte = 0;

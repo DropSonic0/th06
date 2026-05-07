@@ -21,13 +21,15 @@
 
 #ifndef __PS3__
 #include <SDL_joystick.h>
-#endif
-#ifndef __PS3__
 #include <SDL_timer.h>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
 #else
+#include <sys/sys_time.h>
+#include <PSGL/psgl.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_GL_SwapWindow(x) psglSwap()
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -39,6 +41,7 @@ void supervisordlog(std::string msg){
 }
 
 Supervisor g_Supervisor;
+#ifndef __PS3__
 ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_A,
     (i16)SDL_CONTROLLER_BUTTON_B,
@@ -51,6 +54,12 @@ ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
 };
 SDL_Surface *g_TextBufferSurface;
+#else
+ControllerMapping g_ControllerMapping = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8
+};
+void *g_TextBufferSurface;
+#endif
 u16 g_LastFrameInput;
 u16 g_CurFrameInput;
 u16 g_IsEigthFrameOfHeldInput;
@@ -478,16 +487,18 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
 #ifndef __PS3__
     int numSticks = SDL_NumJoysticks();
 #else
-    int numSticks = 0; // Or handle PS3 pads if needed
+    int numSticks = 0;
 #endif
 
     for (int i = 0; i < numSticks; i++)
     {
+#ifndef __PS3__
         if (SDL_IsGameController(i) && (supervisor->gameController = SDL_GameControllerOpen(i)) != NULL)
         {
 
             break;
         }
+#endif
     }
 
     //    supervisor->dinputIface->EnumDevices(DI8DEVCLASS_GAMECTRL, Supervisor::EnumGameControllersCb, NULL,
@@ -558,7 +569,9 @@ ZunResult Supervisor::DeletedCallback(Supervisor *s)
     //    }
     if (s->gameController != NULL)
     {
+#ifndef __PS3__
         SDL_GameControllerClose(s->gameController);
+#endif
         s->gameController = NULL;
     }
     //    if (s->dinputIface != NULL)

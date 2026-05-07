@@ -321,14 +321,6 @@ void GameWindow::CreateGameWindow()
 
     g_Supervisor.gameWindow = g_GameWindow.window;
 #else
-    PSGLinitOptions options = {
-        PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_PERSISTENT_MEMORY_SIZE,
-        1,
-        true,
-        128 * 1024 * 1024,
-    };
-
-    psglInit(&options);
 
     g_GameWindow.device = psglCreateDeviceAuto(GL_ARGB_SCE, GL_DEPTH24_STENCIL8_SCE, 0);
     g_GameWindow.glContext = psglCreateContext();

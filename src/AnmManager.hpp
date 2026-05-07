@@ -409,10 +409,10 @@ struct AnmManager
     void RequestScreenshot()
     {
         this->screenshotTextureId = 3;
-        this->screenshotLeft = GAME_REGION_LEFT;
-        this->screenshotTop = GAME_REGION_TOP;
-        this->screenshotWidth = GAME_REGION_WIDTH;
-        this->screenshotHeight = GAME_REGION_HEIGHT;
+        this->screenshotLeft = (i32)GAME_REGION_LEFT;
+        this->screenshotTop = (i32)GAME_REGION_TOP;
+        this->screenshotWidth = (i32)GAME_REGION_WIDTH;
+        this->screenshotHeight = (i32)GAME_REGION_HEIGHT;
     }
 
 #ifndef __PS3__
