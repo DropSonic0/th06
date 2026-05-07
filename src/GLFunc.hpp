@@ -1,10 +1,14 @@
 #pragma once
 
+#include "inttypes.hpp"
+
 #ifndef __PS3__
 #include <SDL_opengl.h>
 #else
 #include <PSGL/psgl.h>
+#ifndef GLAPIENTRY
 #define GLAPIENTRY
+#endif
 #endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows

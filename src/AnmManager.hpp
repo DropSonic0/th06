@@ -8,6 +8,7 @@
 #else
 #include <PSGL/psgl.h>
 #endif
+#include <string.h>
 
 #include "AnmIdx.hpp"
 #include "AnmVm.hpp"
@@ -390,8 +391,13 @@ struct AnmManager
     void ExecuteAnmIdx(AnmVm *vm, i32 anmFileIdx)
     {
         vm->anmFileIndex = anmFileIdx;
+#ifndef __PS3__
         vm->pos = ZunVec3(0, 0, 0);
         vm->posOffset = ZunVec3(0, 0, 0);
+#else
+        vm->pos.x = vm->pos.y = vm->pos.z = 0.0f;
+        vm->posOffset.x = vm->posOffset.y = vm->posOffset.z = 0.0f;
+#endif
         vm->fontHeight = 15;
         vm->fontWidth = 15;
 

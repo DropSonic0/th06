@@ -119,7 +119,11 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
             }
 
             args = &instruction->args;
+#ifndef __PS3__
             SDL_Log("Ecl OPCODE : %d",instruction->opCode);
+#else
+            printf("Ecl OPCODE : %d\n",instruction->opCode);
+#endif
             switch (instruction->opCode)
             {
             case ECL_OPCODE_UNIMP:
@@ -862,7 +866,11 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 g_Stage.unpauseFlag = 1;
                 break;
             case ECL_OPCODE_BOSSSETLIFECOUNT:
+#ifndef __PS3__
                 g_Gui.eclSetLives = instruction->args.GetBossLifeCount();
+#else
+                g_Gui.eclSetLives = instruction->args.setInt;
+#endif
                 g_GameManager.counat += 1800;
                 break;
             case ECL_OPCODE_ENEMYCREATE:
@@ -986,7 +994,11 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 {
                     enemy->flags.unk1 = 0;
                     enemy->position = enemy->moveInterpStartPos + enemy->moveInterp;
+#ifndef __PS3__
                     enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
+#else
+                    enemy->axisSpeed.x = enemy->axisSpeed.y = enemy->axisSpeed.z = 0.0f;
+#endif
                 }
                 break;
             }

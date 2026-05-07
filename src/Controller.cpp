@@ -34,7 +34,6 @@ u16 Controller::GetJoystickCaps(void)
     //    joyGetDevCapsA(0, &g_JoystickCaps, sizeof(g_JoystickCaps));
 #else
     cellPadInit(7);
-    cellPadOpen(0, CELL_PAD_PORT_TYPE_STANDARD, NULL);
 #endif
     return 0;
 }

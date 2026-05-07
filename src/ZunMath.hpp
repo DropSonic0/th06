@@ -8,6 +8,11 @@
 #ifndef static_assert
 #define static_assert(cond, msg)
 #endif
+#include <math.h>
+#ifndef rintf
+#define rintf(x) floorf((x) + 0.5f)
+#endif
+#include <string.h>
 #endif
 #include <cmath>
 #include <cstring>
@@ -95,6 +100,7 @@ inline u16 RotateLeft16(u16 n, u8 s)
 //   These were mostly added to C++ with C++17, but GNU bikeshedded so hard, they didn't add
 //   them to their headers until 2023. To allow compilation where the older headers are
 //   still used, these macros force the overloaded float version of the base math function.
+#ifndef __PS3__
 #define ZUN_SINF(angle) (std::sin((f32)(angle)))
 #define ZUN_COSF(angle) (std::cos((f32)(angle)))
 #define ZUN_TANF(angle) (std::tan((f32)(angle)))
@@ -103,7 +109,19 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(x)))
+#define ZUN_RINTF(n) (std::rintf((f32)(n)))
+#else
+#include <math.h>
+#define ZUN_SINF(angle) (sinf((f32)(angle)))
+#define ZUN_COSF(angle) (cosf((f32)(angle)))
+#define ZUN_TANF(angle) (tanf((f32)(angle)))
+#define ZUN_SQRTF(n) (sqrtf((f32)(n)))
+#define ZUN_FABSF(n) (fabsf((f32)(n)))
+#define ZUN_FMODF(x, y) (fmodf((f32)(x), (f32)(y)))
+#define ZUN_ATAN2F(x, y) (atan2f((f32)(x), (f32)(y)))
+#define ZUN_POWF(x, y) (powf((f32)(x), (f32)(y)))
+#define ZUN_RINTF(n) (rintf((f32)(n)))
+#endif
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
@@ -113,6 +131,7 @@ struct ZunVec2
     f32 x;
     f32 y;
 
+#ifndef __PS3__
     ZunVec2()
     {
     }
@@ -122,6 +141,7 @@ struct ZunVec2
         this->x = x;
         this->y = y;
     }
+#endif
 
     f32 VectorLength() const
     {
@@ -142,6 +162,7 @@ struct ZunVec3
     f32 y;
     f32 z;
 
+#ifndef __PS3__
     ZunVec3()
     {
     }
@@ -152,15 +173,32 @@ struct ZunVec3
         this->y = y;
         this->z = z;
     }
+#endif
 
     ZunVec3 operator-() const
     {
+#ifndef __PS3__
         return ZunVec3(-this->x, -this->y, -this->z);
+#else
+        ZunVec3 res;
+        res.x = -this->x;
+        res.y = -this->y;
+        res.z = -this->z;
+        return res;
+#endif
     }
 
     ZunVec3 operator+(const ZunVec3 &b) const
     {
+#ifndef __PS3__
         return ZunVec3(this->x + b.x, this->y + b.y, this->z + b.z);
+#else
+        ZunVec3 res;
+        res.x = this->x + b.x;
+        res.y = this->y + b.y;
+        res.z = this->z + b.z;
+        return res;
+#endif
     }
 
     ZunVec3 &operator+=(const ZunVec3 &b)
@@ -174,7 +212,15 @@ struct ZunVec3
 
     ZunVec3 operator-(const ZunVec3 &b) const
     {
+#ifndef __PS3__
         return ZunVec3(this->x - b.x, this->y - b.y, this->z - b.z);
+#else
+        ZunVec3 res;
+        res.x = this->x - b.x;
+        res.y = this->y - b.y;
+        res.z = this->z - b.z;
+        return res;
+#endif
     }
 
     ZunVec3 &operator-=(const ZunVec3 &b)
@@ -188,7 +234,15 @@ struct ZunVec3
 
     ZunVec3 operator*(const f32 mult) const
     {
+#ifndef __PS3__
         return ZunVec3(this->x * mult, this->y * mult, this->z * mult);
+#else
+        ZunVec3 res;
+        res.x = this->x * mult;
+        res.y = this->y * mult;
+        res.z = this->z * mult;
+        return res;
+#endif
     }
 
     ZunVec3 &operator*=(const f32 mult)
@@ -202,7 +256,15 @@ struct ZunVec3
 
     ZunVec3 operator/(const f32 divisor) const
     {
+#ifndef __PS3__
         return ZunVec3(this->x / divisor, this->y / divisor, this->z / divisor);
+#else
+        ZunVec3 res;
+        res.x = this->x / divisor;
+        res.y = this->y / divisor;
+        res.z = this->z / divisor;
+        return res;
+#endif
     }
 
     ZunVec3 &operator/=(const f32 div)
@@ -226,8 +288,14 @@ struct ZunVec3
 
     void calcCross(ZunVec3 &dst, const ZunVec3 &vec) const
     {
+#ifndef __PS3__
         dst = ZunVec3(this->y * vec.z - this->z * vec.y, this->z * vec.x - this->x * vec.z,
                       this->x * vec.y - this->y * vec.x);
+#else
+        dst.x = this->y * vec.z - this->z * vec.y;
+        dst.y = this->z * vec.x - this->x * vec.z;
+        dst.z = this->x * vec.y - this->y * vec.x;
+#endif
     }
 
     f32 calcDot(const ZunVec3 &vec) const
@@ -240,8 +308,10 @@ struct ZunVec3
     {
         topLeftCorner->x = centerPosition->x - size->x / 2.0f;
         topLeftCorner->y = centerPosition->y - size->y / 2.0f;
+        topLeftCorner->z = 0.0f;
         bottomRightCorner->x = size->x / 2.0f + centerPosition->x;
         bottomRightCorner->y = size->y / 2.0f + centerPosition->y;
+        bottomRightCorner->z = 0.0f;
     }
 };
 static_assert(sizeof(ZunVec3) == 0x0C, "ZunVec3 has additional padding between struct members!");
@@ -253,6 +323,7 @@ struct ZunVec4
     f32 z;
     f32 w;
 
+#ifndef __PS3__
     ZunVec4()
     {
     }
@@ -264,6 +335,7 @@ struct ZunVec4
         this->z = z;
         this->w = w;
     }
+#endif
 };
 static_assert(sizeof(ZunVec4) == 0x10, "ZunVec4 has additional padding between struct members!");
 
@@ -275,6 +347,10 @@ struct ZunMatrix
     ZunMatrix operator*(const ZunMatrix &b) const
     {
         ZunMatrix result;
+
+#ifdef __PS3__
+        memset(&result, 0, sizeof(ZunMatrix));
+#endif
 
         for (int i = 0; i < 4; i++)
         {
@@ -294,7 +370,12 @@ struct ZunMatrix
 
     ZunVec3 operator*(const ZunVec3 &b) const
     {
-        ZunVec3 result(0.0f, 0.0f, 0.0f);
+        ZunVec3 result;
+#ifdef __PS3__
+        result.x = result.y = result.z = 0.0f;
+#else
+        result = ZunVec3(0.0f, 0.0f, 0.0f);
+#endif
 
         result.x = this->m[0][0] * b.x + this->m[1][0] * b.y + this->m[2][0] * b.z + this->m[3][0];
         result.y = this->m[0][1] * b.x + this->m[1][1] * b.y + this->m[2][1] * b.z + this->m[3][1];

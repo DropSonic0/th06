@@ -30,6 +30,11 @@ inline uint16_t Swap16(uint16_t x) {
     return ((x & 0x00FF) << 8) |
            ((x & 0xFF00) >> 8);
 }
+#define VEC3_SET(v, _x, _y, _z) do { (v).x = (_x); (v).y = (_y); (v).z = (_z); } while(0)
+#define VEC2_SET(v, _x, _y) do { (v).x = (_x); (v).y = (_y); } while(0)
+#else
+#define VEC3_SET(v, _x, _y, _z) (v) = ZunVec3(_x, _y, _z)
+#define VEC2_SET(v, _x, _y) (v) = ZunVec2(_x, _y)
 #endif
 
 void DebugPrint(const char *fmt, ...);

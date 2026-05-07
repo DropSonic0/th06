@@ -3,7 +3,9 @@
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 
+#ifndef __PS3__
 #include <SDL_timer.h>
+#endif
 
 // #include "midi/MidiDefault.hpp"
 
@@ -78,9 +80,15 @@ struct MidiOutput
     ~MidiOutput();
 
     i32 StopTimer();
+#ifndef __PS3__
     void StartTimer(u32 delay, SDL_TimerCallback cb, void *data);
 
     static u32 SDLCALL DefaultTimerCallback(u32 interval, MidiOutput *timer);
+#else
+    void StartTimer(u32 delay, void* cb, void *data);
+
+    static u32 DefaultTimerCallback(u32 interval, MidiOutput *timer);
+#endif
 
     void OnTimerElapsed();
 
@@ -100,7 +108,11 @@ struct MidiOutput
 
     static u32 ReadVariableLength(u8 **curTrackDataCursor);
 
+#ifndef __PS3__
     SDL_TimerID timerId;
+#else
+    u32 timerId;
+#endif
     u32 lastTimerTicks;
 
     u8 *midiFileData[32];

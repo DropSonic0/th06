@@ -122,7 +122,7 @@ i32 EffectManager::EffectUpdateCallback4(Effect *effect)
 
     if (posMagnitude * posMagnitude < 0)
     {
-        normalizedPos = ZunVec3(1.0f, 0.0f, 0.0f);
+        VEC3_SET(normalizedPos, 1.0f, 0.0f, 0.0f);
     }
     else
     {

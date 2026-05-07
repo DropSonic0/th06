@@ -46,8 +46,8 @@ void EnemyManager::Initialize()
     enemy->flags.unk6 = 1;
     enemy->flags.unk7 = 1;
     enemy->flags.unk8 = 0;
-    enemy->hitboxDimensions = ZunVec3(12.0f, 12.0f, 12.0f);
-    enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
+    VEC3_SET(enemy->hitboxDimensions, 12.0f, 12.0f, 12.0f);
+    VEC3_SET(enemy->axisSpeed, 0.0f, 0.0f, 0.0f);
     enemy->angularVelocity = 0.0f;
     enemy->angle = 0.0f;
     enemy->acceleration = 0.0f;
@@ -64,7 +64,7 @@ void EnemyManager::Initialize()
     enemy->deathAnm3 = 0;
     enemy->shootInterval = 0;
     enemy->shootIntervalTimer.InitializeForPopup();
-    enemy->shootOffset = ZunVec3(0.0f, 0.0f, 0.0f);
+    VEC3_SET(enemy->shootOffset, 0.0f, 0.0f, 0.0f);
     enemy->anmExLeft = -1;
     enemy->anmExRight = -1;
     enemy->anmExDefaults = -1;

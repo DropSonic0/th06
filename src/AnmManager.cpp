@@ -11,7 +11,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <string.h>
 #include <new>
 
 #ifndef __PS3__
@@ -1469,11 +1469,19 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         case AnmOpcode_SetPosition:
             if (vm->flags.usePosOffset == 0)
             {
+#ifndef __PS3__
                 vm->pos = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
+#else
+                vm->pos.x = AnmF32Arg(0); vm->pos.y = AnmF32Arg(1); vm->pos.z = AnmF32Arg(2);
+#endif
             }
             else
             {
+#ifndef __PS3__
                 vm->posOffset = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
+#else
+                vm->posOffset.x = AnmF32Arg(0); vm->posOffset.y = AnmF32Arg(1); vm->posOffset.z = AnmF32Arg(2);
+#endif
             }
             break;
         case AnmOpcode_PosTimeAccel:
@@ -1497,7 +1505,11 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
                 // a memcpy
                 vm->posInterpInitial = vm->posOffset;
             }
+#ifndef __PS3__
             vm->posInterpFinal = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
+#else
+            vm->posInterpFinal.x = AnmF32Arg(0); vm->posInterpFinal.y = AnmF32Arg(1); vm->posInterpFinal.z = AnmF32Arg(2);
+#endif
             vm->posInterpEndTime = AnmI32Arg(3);
             vm->posInterpTime.InitializeForPopup();
             break;
@@ -1795,6 +1807,7 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
 
 ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 {
+#ifndef __PS3__
     if (this->surfaces[surfaceIdx] != NULL)
     {
         this->ReleaseSurface(surfaceIdx);
@@ -1808,6 +1821,9 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
     }
 
     return ZUN_SUCCESS;
+#else
+    return ZUN_SUCCESS;
+#endif
 
     //    u8 *data = FileSystem::OpenPath(path, 0);
     //    if (data == NULL)

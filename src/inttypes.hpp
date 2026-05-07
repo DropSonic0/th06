@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(__PS3__) || defined(__CELLOS_LV2__) || defined(__PPU__) || defined(__SNC__)
+#if defined(__PS3__) || defined(__CELLOS_LV2__) || defined(__PPU__) || defined(__ppu__) || defined(__SNC__) || defined(SN_TARGET_PS3)
 #ifndef __PS3__
 #define __PS3__
 #endif

@@ -14,6 +14,7 @@
 
 //todo : midioutdev
 
+#ifndef __PS3__
 void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
 {
     this->StopTimer();
@@ -29,12 +30,20 @@ void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
         this->timerId = SDL_AddTimer(delay, (SDL_TimerCallback)&MidiOutput::DefaultTimerCallback, this);
     }
 }
+#else
+void MidiOutput::StartTimer(u32 delay, void* cb, void *data)
+{
+    this->StopTimer();
+}
+#endif
 
 i32 MidiOutput::StopTimer()
 {
     if (this->timerId != 0)
     {
+#ifndef __PS3__
         SDL_RemoveTimer(this->timerId);
+#endif
     }
 
     this->timerId = 0;
@@ -42,7 +51,11 @@ i32 MidiOutput::StopTimer()
     return 1;
 }
 
+#ifndef __PS3__
 u32 SDLCALL MidiOutput::DefaultTimerCallback(u32 interval, MidiOutput *timer)
+#else
+u32 MidiOutput::DefaultTimerCallback(u32 interval, MidiOutput *timer)
+#endif
 {
     timer->OnTimerElapsed();
 

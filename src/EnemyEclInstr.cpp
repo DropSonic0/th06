@@ -70,7 +70,7 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
     enemy->flags.unk1 = 2;
-    enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
+    VEC3_SET(enemy->axisSpeed, 0.0f, 0.0f, 0.0f);
 }
 
 void MoveTime(Enemy *enemy, const EclRawInstr *instr)
@@ -1034,7 +1034,7 @@ void ExInsStage4Func12(Enemy *enemy, EclRawInstr *instr)
     {
         if (enemy->lasers[i] != NULL && enemy->lasers[i]->inUse != 0)
         {
-            enemy->bulletProps.position = ZunVec3(64.0, 0.0, 0.0);
+            VEC3_SET(enemy->bulletProps.position, 64.0f, 0.0f, 0.0f);
             utils::Rotate(&enemy->bulletProps.position, &enemy->bulletProps.position, enemy->lasers[i]->angle);
             enemy->bulletProps.position += enemy->position;
             g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);

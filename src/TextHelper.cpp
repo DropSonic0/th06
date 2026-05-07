@@ -4,7 +4,13 @@
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 
+#include "inttypes.hpp"
+#ifndef __PS3__
 #include <SDL_ttf.h>
+#define SDL_SURFACE(x) (SDL_Surface*)(x)
+#else
+#define SDL_SURFACE(x) (x)
+#endif
 #include <algorithm>
 #include <cstring>
 #include "ShittyIconv.hpp"
@@ -61,10 +67,12 @@ ZunResult TextHelper::CreateTextBuffer()
     }
     #endif
 
+#ifndef __PS3__
     g_TextBufferSurface =
         SDL_CreateRGBSurfaceWithFormat(0, GAME_WINDOW_WIDTH, TEXT_BUFFER_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
 
-    SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
+    SDL_SetSurfaceBlendMode(SDL_SURFACE(g_TextBufferSurface), SDL_BLENDMODE_NONE);
+#endif
 
     return ZUN_SUCCESS;
 }
@@ -330,6 +338,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 void TextHelper::ReleaseTextBuffer()
 {
     if(textNotExist) return;
+#ifndef __PS3__
     if (g_Font != NULL)
     {
         TTF_CloseFont(g_Font);
@@ -338,9 +347,10 @@ void TextHelper::ReleaseTextBuffer()
 
     if (g_TextBufferSurface != NULL)
     {
-        SDL_FreeSurface(g_TextBufferSurface);
+        SDL_FreeSurface(SDL_SURFACE(g_TextBufferSurface));
         g_TextBufferSurface = NULL;
     }
+#endif
     
     return;
 }

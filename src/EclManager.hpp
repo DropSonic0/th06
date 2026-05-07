@@ -14,6 +14,34 @@ struct Enemy;
 struct EnemyEclContext;
 struct EnemyManager;
 
+#ifdef __PS3__
+typedef i32 EclVarId;
+#define ECL_VAR_I32_0 ((EclVarId)-10001)
+#define ECL_VAR_I32_1 ((EclVarId)-10002)
+#define ECL_VAR_I32_2 ((EclVarId)-10003)
+#define ECL_VAR_I32_3 ((EclVarId)-10004)
+#define ECL_VAR_F32_0 ((EclVarId)-10005)
+#define ECL_VAR_F32_1 ((EclVarId)-10006)
+#define ECL_VAR_F32_2 ((EclVarId)-10007)
+#define ECL_VAR_F32_3 ((EclVarId)-10008)
+#define ECL_VAR_I32_4 ((EclVarId)-10009)
+#define ECL_VAR_I32_5 ((EclVarId)-10010)
+#define ECL_VAR_I32_6 ((EclVarId)-10011)
+#define ECL_VAR_I32_7 ((EclVarId)-10012)
+#define ECL_VAR_DIFFICULTY ((EclVarId)-10013)
+#define ECL_VAR_RANK ((EclVarId)-10014)
+#define ECL_VAR_ENEMY_POS_X ((EclVarId)-10015)
+#define ECL_VAR_ENEMY_POS_Y ((EclVarId)-10016)
+#define ECL_VAR_ENEMY_POS_Z ((EclVarId)-10017)
+#define ECL_VAR_PLAYER_POS_X ((EclVarId)-10018)
+#define ECL_VAR_PLAYER_POS_Y ((EclVarId)-10019)
+#define ECL_VAR_PLAYER_POS_Z ((EclVarId)-10020)
+#define ECL_VAR_PLAYER_ANGLE ((EclVarId)-10021)
+#define ECL_VAR_ENEMY_TIMER ((EclVarId)-10022)
+#define ECL_VAR_PLAYER_DISTANCE ((EclVarId)-10023)
+#define ECL_VAR_ENEMY_LIFE ((EclVarId)-10024)
+#define ECL_VAR_PLAYER_SHOT ((EclVarId)-10025)
+#else
 enum EclVarId : i32
 {
     ECL_VAR_I32_0 = -10001,
@@ -42,6 +70,7 @@ enum EclVarId : i32
     ECL_VAR_ENEMY_LIFE = -10024,
     ECL_VAR_PLAYER_SHOT = -10025,
 };
+#endif
 
 struct EclTimelineInstrArgs
 {
@@ -311,10 +340,12 @@ union EclRawInstrArgs {
     EclRawInstrExInstrArgs exInstr;
     i32 setInt;
 
+#ifndef __PS3__
     i32 GetBossLifeCount() const
     {
         return this->setInt;
     }
+#endif
 };
 
 struct EclRawInstr
