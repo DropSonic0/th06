@@ -146,7 +146,7 @@ struct EclRawInstrCmpArgs
 
 struct EclRawInstrMoveArgs
 {
-    ZunVec3 pos;
+    ZunVec3POD pos;
 };
 
 struct EclRawInstrAnmSetMainArgs
@@ -201,7 +201,7 @@ struct EclRawInstrLaserArgs
 struct EclRawInstrLaserOpArgs
 {
     i32 laserIdx;
-    ZunVec3 arg1;
+    ZunVec3POD arg1;
 };
 
 struct EclRawInstrBulletEffectsArgs
@@ -224,14 +224,14 @@ struct EclRawInstrSetInt
 struct EclRawInstrSpellcardEffectArgs
 {
     i32 effectColorId;
-    ZunVec3 pos;
+    ZunVec3POD pos;
     f32 effectDistance;
 };
 
 struct EclRawInstrMoveBoundSetArgs
 {
-    ZunVec2 lowerMoveLimit;
-    ZunVec2 upperMoveLimit;
+    ZunVec2POD lowerMoveLimit;
+    ZunVec2POD upperMoveLimit;
 };
 
 struct EclRawInstrAnmSetPosesArgs
@@ -276,7 +276,7 @@ struct EclRawInstrDropItemArgs
 struct EclRawInstrEnemyCreateArgs
 {
     i32 subId;
-    ZunVec3 pos;
+    ZunVec3POD pos;
     i16 life;
     i16 itemDrop;
     i32 score;
@@ -340,12 +340,10 @@ union EclRawInstrArgs {
     EclRawInstrExInstrArgs exInstr;
     i32 setInt;
 
-#ifndef __PS3__
     i32 GetBossLifeCount() const
     {
         return this->setInt;
     }
-#endif
 };
 
 struct EclRawInstr

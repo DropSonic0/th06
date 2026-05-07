@@ -126,12 +126,14 @@ inline u16 RotateLeft16(u16 n, u8 s)
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
 // Replacing all former uses of D3DXVECTOR2
-struct ZunVec2
+struct ZunVec2POD
 {
     f32 x;
     f32 y;
+};
 
-#ifndef __PS3__
+struct ZunVec2 : ZunVec2POD
+{
     ZunVec2()
     {
     }
@@ -141,7 +143,12 @@ struct ZunVec2
         this->x = x;
         this->y = y;
     }
-#endif
+
+    ZunVec2(const ZunVec2POD &pod)
+    {
+        this->x = pod.x;
+        this->y = pod.y;
+    }
 
     f32 VectorLength() const
     {
@@ -156,13 +163,15 @@ struct ZunVec2
 static_assert(sizeof(ZunVec2) == 0x08, "ZunVec2 has additional padding between struct members!");
 
 // Replacing all former uses of D3DXVECTOR3
-struct ZunVec3
+struct ZunVec3POD
 {
     f32 x;
     f32 y;
     f32 z;
+};
 
-#ifndef __PS3__
+struct ZunVec3 : ZunVec3POD
+{
     ZunVec3()
     {
     }
@@ -173,32 +182,27 @@ struct ZunVec3
         this->y = y;
         this->z = z;
     }
-#endif
+
+    ZunVec3(const ZunVec3POD &pod)
+    {
+        this->x = pod.x;
+        this->y = pod.y;
+        this->z = pod.z;
+    }
 
     ZunVec3 operator-() const
     {
-#ifndef __PS3__
         return ZunVec3(-this->x, -this->y, -this->z);
-#else
-        ZunVec3 res;
-        res.x = -this->x;
-        res.y = -this->y;
-        res.z = -this->z;
-        return res;
-#endif
     }
 
     ZunVec3 operator+(const ZunVec3 &b) const
     {
-#ifndef __PS3__
         return ZunVec3(this->x + b.x, this->y + b.y, this->z + b.z);
-#else
-        ZunVec3 res;
-        res.x = this->x + b.x;
-        res.y = this->y + b.y;
-        res.z = this->z + b.z;
-        return res;
-#endif
+    }
+
+    ZunVec3 operator+(const ZunVec3POD &b) const
+    {
+        return ZunVec3(this->x + b.x, this->y + b.y, this->z + b.z);
     }
 
     ZunVec3 &operator+=(const ZunVec3 &b)
@@ -212,15 +216,7 @@ struct ZunVec3
 
     ZunVec3 operator-(const ZunVec3 &b) const
     {
-#ifndef __PS3__
         return ZunVec3(this->x - b.x, this->y - b.y, this->z - b.z);
-#else
-        ZunVec3 res;
-        res.x = this->x - b.x;
-        res.y = this->y - b.y;
-        res.z = this->z - b.z;
-        return res;
-#endif
     }
 
     ZunVec3 &operator-=(const ZunVec3 &b)
@@ -234,15 +230,7 @@ struct ZunVec3
 
     ZunVec3 operator*(const f32 mult) const
     {
-#ifndef __PS3__
         return ZunVec3(this->x * mult, this->y * mult, this->z * mult);
-#else
-        ZunVec3 res;
-        res.x = this->x * mult;
-        res.y = this->y * mult;
-        res.z = this->z * mult;
-        return res;
-#endif
     }
 
     ZunVec3 &operator*=(const f32 mult)
@@ -256,15 +244,7 @@ struct ZunVec3
 
     ZunVec3 operator/(const f32 divisor) const
     {
-#ifndef __PS3__
         return ZunVec3(this->x / divisor, this->y / divisor, this->z / divisor);
-#else
-        ZunVec3 res;
-        res.x = this->x / divisor;
-        res.y = this->y / divisor;
-        res.z = this->z / divisor;
-        return res;
-#endif
     }
 
     ZunVec3 &operator/=(const f32 div)
@@ -288,14 +268,8 @@ struct ZunVec3
 
     void calcCross(ZunVec3 &dst, const ZunVec3 &vec) const
     {
-#ifndef __PS3__
         dst = ZunVec3(this->y * vec.z - this->z * vec.y, this->z * vec.x - this->x * vec.z,
                       this->x * vec.y - this->y * vec.x);
-#else
-        dst.x = this->y * vec.z - this->z * vec.y;
-        dst.y = this->z * vec.x - this->x * vec.z;
-        dst.z = this->x * vec.y - this->y * vec.x;
-#endif
     }
 
     f32 calcDot(const ZunVec3 &vec) const
@@ -316,14 +290,16 @@ struct ZunVec3
 };
 static_assert(sizeof(ZunVec3) == 0x0C, "ZunVec3 has additional padding between struct members!");
 
-struct ZunVec4
+struct ZunVec4POD
 {
     f32 x;
     f32 y;
     f32 z;
     f32 w;
+};
 
-#ifndef __PS3__
+struct ZunVec4 : ZunVec4POD
+{
     ZunVec4()
     {
     }
@@ -335,7 +311,14 @@ struct ZunVec4
         this->z = z;
         this->w = w;
     }
-#endif
+
+    ZunVec4(const ZunVec4POD &pod)
+    {
+        this->x = pod.x;
+        this->y = pod.y;
+        this->z = pod.z;
+        this->w = pod.w;
+    }
 };
 static_assert(sizeof(ZunVec4) == 0x10, "ZunVec4 has additional padding between struct members!");
 
@@ -370,12 +353,7 @@ struct ZunMatrix
 
     ZunVec3 operator*(const ZunVec3 &b) const
     {
-        ZunVec3 result;
-#ifdef __PS3__
-        result.x = result.y = result.z = 0.0f;
-#else
-        result = ZunVec3(0.0f, 0.0f, 0.0f);
-#endif
+        ZunVec3 result(0.0f, 0.0f, 0.0f);
 
         result.x = this->m[0][0] * b.x + this->m[1][0] * b.y + this->m[2][0] * b.z + this->m[3][0];
         result.y = this->m[0][1] * b.x + this->m[1][1] * b.y + this->m[2][1] * b.z + this->m[3][1];

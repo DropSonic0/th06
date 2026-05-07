@@ -136,8 +136,8 @@ struct CharacterPowerBulletData
 {
     i16 waitBetweenBullets;
     i16 bulletFrame;
-    ZunVec2 motion;
-    ZunVec2 size;
+    ZunVec2POD motion;
+    ZunVec2POD size;
     f32 direction;
     f32 velocity;
     u16 unk_1c;

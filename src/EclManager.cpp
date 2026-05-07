@@ -99,7 +99,14 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
     EclRawInstrLaserArgs *local_64;
     const EclRawInstrSpellcardEffectArgs *local_6c;
     ZunVec3 local_98;
-    EclRawInstrEnemyCreateArgs local_b0;
+    struct
+    {
+        i32 subId;
+        ZunVec3 pos;
+        i16 life;
+        i16 itemDrop;
+        i32 score;
+    } local_b0;
     Enemy *local_b4;
 
     for (;;)
@@ -321,7 +328,7 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->ClampPos();
                 break;
             case ECL_OPCODE_MOVEAXISVELOCITY:
-                enemy->axisSpeed = instruction->args.move.pos;
+                enemy->axisSpeed = (ZunVec3)instruction->args.move.pos;
                 enemy->axisSpeed.x = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.x, NULL);
                 enemy->axisSpeed.y = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.y, NULL);
                 enemy->axisSpeed.z = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.z, NULL);

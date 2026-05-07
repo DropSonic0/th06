@@ -749,7 +749,7 @@ ZunResult GuiImpl::DrawDialogue() const
 
     vertices[1].position = ZunVec4(g_GameManager.arcadeRegionTopLeftPos.x +
                                        (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f + 256.0f + 16.0f,
-                                   384.0f, 0.0f, 1.0f),
+                                   384.0f, 0.0f, 1.0f);
 
     //    std::memcpy(&vertices[2].position,
     //           &ZunVec3(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f -
@@ -759,7 +759,7 @@ ZunResult GuiImpl::DrawDialogue() const
 
         vertices[2].position =
             ZunVec4(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f - 16.0f,
-                    384.0f + dialogueBoxHeight, 0.0f, 1.0f),
+                    384.0f + dialogueBoxHeight, 0.0f, 1.0f);
 
     //    std::memcpy(&vertices[3].position,
     //           &ZunVec3(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f +
@@ -1151,7 +1151,7 @@ void Gui::DrawGameScene()
         }
         vm->pos = ZunVec3(488.0f, 464.0f, 0.49f);
         g_AnmManager->DrawNoRotation(vm);
-        vm->pos = ZunVec3(0.0, 464.0f, 0.49f);
+        vm->pos = ZunVec3(0.0f, 464.0f, 0.49f);
         g_AnmManager->DrawNoRotation(vm);
     }
     if (this->flags.flag0 || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
