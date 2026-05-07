@@ -15,6 +15,7 @@
 #include <cell/audio.h>
 #include <sys/ppu_thread.h>
 #include <sys/timer.h>
+#include <sys/sys_time.h>
 #define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
 #define SDL_GetTicks64() (sys_time_get_system_time() / 1000)
 #define SDL_Delay(ms) sys_timer_usleep((ms) * 1000)
@@ -27,7 +28,7 @@
 #else
 #include <math.h>
 #include <string.h>
-#include <malloc.h>
+#include <stdlib.h>
 #endif
 #include <new>
 
@@ -72,16 +73,14 @@ SoundPlayer::SoundPlayer()
     // Note: memset of an std::mutex crashes on windows
     //std::memset(this, 0, sizeof(SoundPlayer));
 #ifdef __PS3__
-    sys_mutex_attribute_t attr;
-    sys_mutex_attribute_initialize(attr);
-    sys_mutex_create(&this->soundBufMutex, &attr);
+    sys_mutex_create(&this->soundBufMutex, NULL);
 #endif
 }
 
 #ifdef __PS3__
 static void ps3_audio_thread(uint64_t arg)
 {
-    SoundPlayer *player = (SoundPlayer *)arg;
+    SoundPlayer *player = (SoundPlayer *)(uintptr_t)arg;
     player->BackgroundMusicPlayerThread();
     sys_ppu_thread_exit(0);
 }
@@ -117,10 +116,10 @@ ZunResult SoundPlayer::InitializeDSound()
     cellAudioInit();
     
     CellAudioPortParam portParam;
-    portParam.resNum = CELL_AUDIO_PORT_2CH;
-    portParam.numChannels = CELL_AUDIO_PORT_2CH;
-    portParam.numBlocks = 8;
+    portParam.nChannel = CELL_AUDIO_PORT_2CH;
+    portParam.nBlock = 8;
     portParam.attr = 0;
+    portParam.level = 1.0f;
 
     if (cellAudioPortOpen(&portParam, &this->audioPortNum) != CELL_OK)
     {
@@ -175,7 +174,7 @@ ZunResult SoundPlayer::Release(void)
     cellAudioQuit();
 #endif
 
-    return ZunResult::ZUN_SUCCESS;
+    return ZUN_SUCCESS;
 }
 
 void SoundPlayer::StopBGM()
@@ -199,7 +198,7 @@ void SoundPlayer::FadeOut(f32 seconds)
 {
     if (this->backgroundMusic.srcWav.fileStream != NULL)
     {
-        this->backgroundMusic.fadeoutLen = seconds * 44100;
+        this->backgroundMusic.fadeoutLen = (u32)(seconds * 44100.0f);
         this->backgroundMusic.fadeoutProgress = 0;
     }
 }
@@ -462,8 +461,13 @@ ZunResult SoundPlayer::LoadPos(const char *path)
         return ZUN_ERROR;
     }
 
+#ifndef __PS3__
     this->backgroundMusic.loopStart = SDL_SwapLE32(*((u32 *)fileData));
     this->backgroundMusic.loopEnd = SDL_SwapLE32(*(u32 *)(fileData + 4));
+#else
+    this->backgroundMusic.loopStart = utils::Swap32(*((u32 *)fileData));
+    this->backgroundMusic.loopEnd = utils::Swap32(*(u32 *)(fileData + 4));
+#endif
 
     free(fileData);
 
@@ -520,6 +524,12 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     SDL_AudioSpec wavFormat;
     u8 *wavRawSamples;
     u32 wavRawSampleByteCount;
+#else
+    // Native WAV loading for PS3
+    // EoSD SFX are typically 22050Hz, Mono. 
+    // We need to resample to 44100Hz and handle Endianness.
+    uint32_t rawSampleCount;
+    i16* rawSamples;
 #endif
     u8 *wavRawData;
 
@@ -579,13 +589,10 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     //soundplayerdlog("load sound 6");
     SDL_FreeWAV(wavRawSamples);
 #else
-    // Native WAV loading for PS3
-    // EoSD SFX are typically 22050Hz, Mono. 
-    // We need to resample to 44100Hz and handle Endianness.
-    uint32_t rawSampleCount = (g_LastFileSize - 44) / 2;
+    rawSampleCount = (g_LastFileSize - 44) / 2;
     this->soundBuffers[idx].len = rawSampleCount * 2; // 22050 -> 44100
     this->soundBuffers[idx].samples = new i16[this->soundBuffers[idx].len];
-    i16* rawSamples = (i16*)(wavRawData + 44);
+    rawSamples = (i16*)(wavRawData + 44);
     for (uint32_t i = 0; i < rawSampleCount; i++) {
         i16 sample = utils::Swap16(rawSamples[i]);
         this->soundBuffers[idx].samples[i*2] = sample;
@@ -710,7 +717,6 @@ void SoundPlayer::MixAudio(u32 samples)
     std::vector<i16> finalBuffer(samples);
     std::vector<i32> mixBuffer(samples);
 #else
-    i16* finalBuffer = (i16*)alloca(samples * sizeof(i16));
     i32* mixBuffer = (i32*)alloca(samples * sizeof(i32));
     memset(mixBuffer, 0, samples * sizeof(i32));
 #endif
@@ -860,7 +866,7 @@ void SoundPlayer::MixAudio(u32 samples)
     {
         floatBuffer[i] = (float)mixBuffer[i] / (mixDivisor * 32768.0f);
     }
-    cellAudioPortWrite(this->audioPortNum, floatBuffer, samples / 2);
+    cellAudioAdd2chData(this->audioPortNum, floatBuffer, samples / 2, 1.0f);
 #endif
 }
 
@@ -888,7 +894,11 @@ void SoundPlayer::BackgroundMusicPlayerThread()
 
         // Quick and dirty checks to keep audio latency low
         //   Can probably be horribly broken, but I don't have weaker hardware to test on
+#ifndef __PS3__
         if (SDL_GetQueuedAudioSize(this->audioDev) > latencyLimit)
+#else
+        if (0) // TODO: Implement PS3 latency check if needed
+#endif
         {
             latencyLimit += 2940; // 1 frame
             samplesSent += targetSamples;
