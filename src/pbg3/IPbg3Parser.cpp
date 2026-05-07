@@ -1,5 +1,9 @@
 #include "pbg3/IPbg3Parser.hpp"
+#ifndef __PS3__
 #include <cstddef>
+#else
+#include <stddef.h>
+#endif
 
 void IPbg3Parser::Reset()
 {

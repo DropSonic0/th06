@@ -11,7 +11,11 @@
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <cstdlib>
+#else
+#include <stdlib.h>
+#endif
 
 i32 Ending::ReadEndFileParameter()
 {

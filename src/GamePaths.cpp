@@ -10,8 +10,13 @@
 #include <string.h>
 #include <ctype.h>
 #else
+#ifndef __PS3__
 #include <cstdio>
 #include <cstring>
+#else
+#include <stdio.h>
+#include <string.h>
+#endif
 #endif
 
 #ifdef _WIN32

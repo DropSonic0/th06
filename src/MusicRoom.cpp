@@ -6,8 +6,13 @@
 #include "Controller.hpp"
 #include "FileSystem.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <cstdlib>
 #include <cstring>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 ZunResult MusicRoom::CheckInputEnable()
 {

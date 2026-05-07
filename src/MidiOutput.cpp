@@ -8,9 +8,18 @@
 
 #ifndef __PS3__
 #include <SDL_endian.h>
+#else
+#include <sys/sys_time.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_FALLTHROUGH
 #endif
+#ifndef __PS3__
 #include <cstdlib>
 #include <cstring>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 //todo : midioutdev
 
@@ -235,7 +244,7 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
         std::memcpy(this->tracks[trackIdx].trackData, currentCursor, trackLength);
         currentCursor += trackLength;
     }
-    this->tempo = 1'000'000;
+    this->tempo = 1000000;
     return ZUN_SUCCESS;
 }
 

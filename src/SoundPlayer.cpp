@@ -19,11 +19,17 @@
 #define SDL_GetTicks64() (sys_time_get_system_time() / 1000)
 #define SDL_Delay(ms) sys_timer_usleep((ms) * 1000)
 #endif
+#ifndef __PS3__
 #include <array>
 #include <cmath>
 #include <cstring>
-#include <new>
 #include <vector>
+#else
+#include <math.h>
+#include <string.h>
+#include <malloc.h>
+#endif
+#include <new>
 
 // This would all be a lot easier with SDL_mixer, but SDL_mixer doesn't permit any way of doing custom
 //   loop points that would be accurate to the sample like EoSD needs. So instead we get to read WAVs and
@@ -35,6 +41,7 @@
 #define BACKGROUND_MUSIC_WAV_BLOCK_ALIGN (BACKGROUND_MUSIC_WAV_BITS_PER_SAMPLE / 8 * BACKGROUND_MUSIC_WAV_NUM_CHANNELS)
 #define BACKGROUND_MUSIC_WAV_BYTE_RATE (BACKGROUND_MUSIC_WAV_BLOCK_ALIGN * BACKGROUND_MUSIC_WAV_SAMPLE_RATE)
 #include <iostream>
+#include <string>
 void soundplayerdlog(std::string msg){
     std::cout<<"soundplayer : "<<msg<<std::endl;
 }
@@ -699,8 +706,14 @@ void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
 
 void SoundPlayer::MixAudio(u32 samples)
 {
+#ifndef __PS3__
     std::vector<i16> finalBuffer(samples);
     std::vector<i32> mixBuffer(samples);
+#else
+    i16* finalBuffer = (i16*)alloca(samples * sizeof(i16));
+    i32* mixBuffer = (i32*)alloca(samples * sizeof(i32));
+    memset(mixBuffer, 0, samples * sizeof(i32));
+#endif
     u8 playingChannels = 0;
 
     // this->soundBufMutex.lock();
@@ -824,7 +837,11 @@ void SoundPlayer::MixAudio(u32 samples)
     //   the input volume of each channel will start scaling down, which isn't correct, but would
     //   likely be imperceptible with that many channels anyway.
 
+#ifndef __PS3__
     const int mixDivisor = std::max(8, (int)playingChannels);
+#else
+    const int mixDivisor = playingChannels > 8 ? playingChannels : 8;
+#endif
 
 #ifndef __PS3__
     for (u32 i = 0; i < samples; i++)
@@ -838,12 +855,12 @@ void SoundPlayer::MixAudio(u32 samples)
 
     SDL_QueueAudio(this->audioDev, finalBuffer.data(), samples * 2);
 #else
-    std::vector<float> floatBuffer(samples);
+    float* floatBuffer = (float*)alloca(samples * sizeof(float));
     for (u32 i = 0; i < samples; i++)
     {
         floatBuffer[i] = (float)mixBuffer[i] / (mixDivisor * 32768.0f);
     }
-    cellAudioPortWrite(this->audioPortNum, floatBuffer.data(), samples / 2);
+    cellAudioPortWrite(this->audioPortNum, floatBuffer, samples / 2);
 #endif
 }
 
@@ -855,9 +872,9 @@ void SoundPlayer::BackgroundMusicPlayerThread()
 #ifndef __PS3__
     SDL_PauseAudioDevice(this->audioDev, 0);
 
-    u32 latencyLimit = 14'700; // ~5 frames
+    u32 latencyLimit = 14700; // ~5 frames
 #else
-    u32 latencyLimit = 14'700;
+    u32 latencyLimit = 14700;
 #endif
     u64 samplesSent = 0;
     u64 startTick = SDL_GetTicks64();
@@ -873,7 +890,7 @@ void SoundPlayer::BackgroundMusicPlayerThread()
         //   Can probably be horribly broken, but I don't have weaker hardware to test on
         if (SDL_GetQueuedAudioSize(this->audioDev) > latencyLimit)
         {
-            latencyLimit += 2'940; // 1 frame
+            latencyLimit += 2940; // 1 frame
             samplesSent += targetSamples;
             targetSamples = 0;
         }

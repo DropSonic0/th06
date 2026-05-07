@@ -23,6 +23,7 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 #include <iostream>
+#include <string>
 void dlog(std::string msg){
     std::cout<<msg<<std::endl;
 }

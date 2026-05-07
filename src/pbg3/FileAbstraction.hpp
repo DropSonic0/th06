@@ -1,7 +1,11 @@
 #pragma once
 
 #include "inttypes.hpp"
+#ifndef __PS3__
 #include <cstdio>
+#else
+#include <stdio.h>
+#endif
 
 enum AccessMode
 {
@@ -48,7 +52,11 @@ class FileAbstraction : public IFileAbstraction
     }
 
   protected:
+#ifndef __PS3__
     std::FILE *handle;
+#else
+    ::FILE *handle;
+#endif
 
   private:
     AccessMode access;

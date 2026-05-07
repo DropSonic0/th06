@@ -202,7 +202,7 @@ void SurfaceOverwriteBlend(SDL_Surface *srcSurface, SDL_Surface *dstSurface, u32
     {
         for (int j = 0; j < srcSurface->w; j++)
         {
-            if ((srcData[j] & 0xFF00'0000) != 0)
+            if ((srcData[j] & 0xFF000000) != 0)
             {
                 dstData[i * dstSurface->pitch + (x + j) * 4] = (srcData[j] >> 16) & 0xFF;
                 dstData[i * dstSurface->pitch + (x + j) * 4 + 1] = (srcData[j] >> 8) & 0xFF;

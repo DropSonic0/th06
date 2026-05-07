@@ -1,153 +1,90 @@
-#include "pbg3/Pbg3Parser.hpp"
+#include "pbg3/IPbg3Parser.hpp"
+#ifndef __PS3__
+#include <cstddef>
+#else
+#include <stddef.h>
+#endif
 
-Pbg3Parser::Pbg3Parser() : IPbg3Parser(), FileAbstraction()
+void IPbg3Parser::Reset()
 {
-}
-
-i32 Pbg3Parser::OpenArchive(const char *path)
-{
-    this->Close();
-    this->Reset();
-    if (!FileAbstraction::Open(path, "r"))
-    {
-        return false;
-    }
-    this->fileSize = GetSize();
-    return true;
-}
-
-void Pbg3Parser::Close()
-{
-    FileAbstraction::Close();
-    this->Reset();
-}
-
-i32 Pbg3Parser::ReadBit()
-{
-    if (!this->HasNonNullHandle())
-    {
-        return false;
-    }
-
-    if (this->bitIdxInCurByte == 0x80)
-    {
-        this->curByte = FileAbstraction::ReadByte();
-        if (this->curByte == -1)
-        {
-            return false;
-        }
-        this->offsetInFile += 1;
-        this->crc += this->curByte;
-    }
-
-    i32 res = this->curByte & this->bitIdxInCurByte;
-    this->bitIdxInCurByte >>= 1;
-    if (this->bitIdxInCurByte == 0)
-    {
-        this->bitIdxInCurByte = 0x80;
-    }
-    return res != 0;
-}
-
-u32 Pbg3Parser::ReadInt(u32 numBitsAsPowersOf2)
-{
-    u32 remainingBits = 1 << (numBitsAsPowersOf2 - 1);
-    u32 result = 0;
-
-    if (!this->HasNonNullHandle())
-    {
-        return 0;
-    }
-
-    while (remainingBits != 0)
-    {
-        if (this->bitIdxInCurByte == 0x80)
-        {
-            this->curByte = FileAbstraction::ReadByte();
-            if (this->curByte == -1)
-            {
-                return false;
-            }
-            this->offsetInFile += 1;
-            this->crc += this->curByte;
-        }
-        u32 bitIdx = this->bitIdxInCurByte;
-        if ((bitIdx & this->curByte) != 0)
-        {
-            result |= remainingBits;
-        }
-        remainingBits >>= 1;
-        this->bitIdxInCurByte >>= 1;
-        if (this->bitIdxInCurByte == 0)
-        {
-            this->bitIdxInCurByte = 0x80;
-        }
-    }
-
-    return result;
-}
-
-i32 Pbg3Parser::ReadByteAssumeAligned()
-{
-    if (this->offsetInFile < this->fileSize)
-    {
-        this->offsetInFile += 1;
-    }
-
-    return FileAbstraction::ReadByte();
-}
-
-i32 Pbg3Parser::SeekToOffset(u32 fileOffset)
-{
-    if (fileOffset >= this->fileSize)
-    {
-        return false;
-    }
-
-    if (!this->SeekToNextByte())
-    {
-        return false;
-    }
-
-    if (!FileAbstraction::Seek(fileOffset, SEEK_SET))
-    {
-        return false;
-    }
-
-    this->offsetInFile = fileOffset;
+    this->bitIdxInCurByte = 128;
+    this->offsetInFile = 0;
+    this->fileSize = 0;
+    this->curByte = 0;
     this->crc = 0;
-    return true;
 }
 
-i32 Pbg3Parser::SeekToNextByte()
+u32 IPbg3Parser::ReadVarInt()
 {
-    if (!this->HasNonNullHandle())
+    u32 res = 0;
+    i32 varintHdr = 0;
+
+    if (this->ReadBit())
     {
+        varintHdr = 2;
+    }
+    if (this->ReadBit())
+    {
+        varintHdr |= 1;
+    }
+
+    u32 intLen;
+    switch (varintHdr)
+    {
+    case 0:
+        intLen = 0x80;
+        break;
+    case 1:
+        intLen = 0x8000;
+        break;
+    case 2:
+        intLen = 0x800000;
+        break;
+    case 3:
+        intLen = 0x80000000;
+        break;
+    default:
+        // TODO: There's probably a way to match without goto, but
+        // I can't figure it out... a simple `return 0;` won't share
+        // the function epilogue with the other return res.
+        goto end;
+    }
+
+    do
+    {
+        if (this->ReadBit())
+        {
+            res |= intLen;
+        }
+        intLen >>= 1;
+    } while (intLen != 0);
+end:
+    return res;
+}
+
+u32 IPbg3Parser::ReadMagic()
+{
+    u32 b0 = this->ReadInt(8);
+    u32 b1 = b0 + (this->ReadInt(8) << 8);
+    u32 b2 = b1 + (this->ReadInt(8) << 16);
+    u32 b3 = b2 + (this->ReadInt(8) << 24);
+
+    return b3;
+}
+
+u32 IPbg3Parser::ReadString(char *out, u32 maxSize)
+{
+    if (out == NULL)
         return false;
-    }
 
-    while (this->bitIdxInCurByte != 0x80)
+    for (u32 idx = 0; idx < maxSize; idx++)
     {
-        this->ReadBit();
+        out[idx] = this->ReadInt(8);
+        if (out[idx] == '\0')
+        {
+            return true;
+        }
     }
-    return true;
-}
 
-i32 Pbg3Parser::ReadByteAlignedData(u8 *data, u32 bytesToRead)
-{
-    u32 numBytesRead;
-
-    this->SeekToNextByte();
-    return FileAbstraction::Read(data, bytesToRead, &numBytesRead);
-}
-
-i32 Pbg3Parser::ReadByte()
-{
-    // MSVC generates an add -0x18 instruction to get the caller base here, while the original binary uses a sub 0x18?
-    return Pbg3Parser::ReadByteAssumeAligned();
-}
-
-Pbg3Parser::~Pbg3Parser()
-{
-    this->Close();
+    return false;
 }

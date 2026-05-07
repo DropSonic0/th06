@@ -3,7 +3,9 @@
 #ifndef __PS3__
 #include "Supervisor.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
 #include <new>
 #include <unordered_set>
 

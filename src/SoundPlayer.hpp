@@ -9,6 +9,7 @@
 #else
 #include <cell/audio.h>
 #include <sys/ppu_thread.h>
+#include <stdio.h>
 #endif
 #ifndef __PS3__
 #include <atomic>

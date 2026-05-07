@@ -1,6 +1,11 @@
 #ifdef DEBUG
+#ifndef __PS3__
 #include <cstdarg>
 #include <cstdio>
+#else
+#include <stdarg.h>
+#include <stdio.h>
+#endif
 #endif
 
 #include "ZunMath.hpp"

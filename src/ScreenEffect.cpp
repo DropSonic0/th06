@@ -6,8 +6,12 @@
 #include "Rng.hpp"
 #include "Supervisor.hpp"
 
+#ifndef __PS3__
 #include <SDL_video.h>
 #include <cstring>
+#else
+#include <string.h>
+#endif
 
 void ScreenEffect::Clear(ZunColor color)
 {
@@ -22,9 +26,17 @@ void ScreenEffect::Clear(ZunColor color)
     // For now let's copy that behaviour
 
     g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifndef __PS3__
     SDL_GL_SwapWindow(g_GameWindow.window);
+#else
+    psglSwap();
+#endif
     g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifndef __PS3__
     SDL_GL_SwapWindow(g_GameWindow.window);
+#else
+    psglSwap();
+#endif
 
     return;
 }

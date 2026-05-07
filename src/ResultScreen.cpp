@@ -16,12 +16,21 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 // #include <direct.h>
+#ifndef __PS3__
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#endif
 #ifndef __PS3__
 #include <SDL.h>
+#else
+#define SDL_Log utils::DebugPrint
 #endif
 
 static const f32 g_DifficultyWeightsList[5] = {-30.0f, -10.0f, 20.0f, 30.0f, 30.0f};

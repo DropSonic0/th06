@@ -1,6 +1,12 @@
+#ifndef __PS3__
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#else
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 #include "pbg3/Pbg3Archive.hpp"
 
@@ -91,7 +97,11 @@ i32 Pbg3Archive::Release()
         delete[] this->entries;
         this->entries = NULL;
     }
+#ifndef __PS3__
     std::free(this->unk);
+#else
+    ::free(this->unk);
+#endif
     return true;
 }
 
@@ -100,7 +110,11 @@ i32 Pbg3Archive::FindEntry(const char *path)
     for (u32 entryIdx = 0; entryIdx < this->numOfEntries; entryIdx += 1)
     {
         char *entryFilename = this->entries[entryIdx].filename;
+#ifndef __PS3__
         i32 res = std::strcmp(path, entryFilename);
+#else
+        i32 res = ::strcmp(path, entryFilename);
+#endif
         if (res == 0)
         {
             return entryIdx;

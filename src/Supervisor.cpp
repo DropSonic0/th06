@@ -22,11 +22,18 @@
 #ifndef __PS3__
 #include <SDL_joystick.h>
 #endif
+#ifndef __PS3__
 #include <SDL_timer.h>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#else
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#endif
 #include <iostream>
+#include <string>
 void supervisordlog(std::string msg){
     std::cout<<"supervisor : "<<msg<<std::endl;
 }
