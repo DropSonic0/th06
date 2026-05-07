@@ -1,4 +1,6 @@
 #include "WebGL.hpp"
+
+#ifndef __PS3__
 #include "Supervisor.hpp"
 #include "utils.hpp"
 #include <SDL.h>
@@ -305,3 +307,4 @@ void WebGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
 void WebGL::Draw()
 {
 }
+#endif

@@ -21,6 +21,7 @@
 #endif
 #include <cstring>
 #include <iostream>
+#include <string>
 void gamewindowdlog(std::string msg){
     std::cout<<"gamewindow : "<<msg<<std::endl;
 }
@@ -28,6 +29,9 @@ void gamewindowdlog(std::string msg){
 GameWindow g_GameWindow;
 
 #ifdef __PS3__
+extern "C" void FixedFunctionGL_SetContextFlags_Helper();
+extern "C" GfxInterface *FixedFunctionGL_Init_Helper();
+
 // Initialize data members that can't be initialized in the struct for old compilers
 void InitGameWindowPS3(int width, int height) {
     g_GameWindow.GAME_WINDOW_WIDTH_REAL = width;
@@ -49,8 +53,13 @@ static const struct
     bool isEsContext;
     void (*setContextFlags)();
     GfxInterface *(*init)();
-} s_RenderBackends[] = {{"GL(ES) 2.0 / WebGL", true, WebGL::SetContextFlags, WebGL::Create},
+} s_RenderBackends[] = {
+#ifndef __PS3__
+                        {"GL(ES) 2.0 / WebGL", true, WebGL::SetContextFlags, WebGL::Create},
                         {"Fixed function GL(ES)", false, FixedFunctionGL::SetContextFlags, FixedFunctionGL::Init}};
+#else
+                        {"Fixed function GL(ES)", false, FixedFunctionGL_SetContextFlags_Helper, FixedFunctionGL_Init_Helper}};
+#endif
 
 RenderResult GameWindow::Render()
 {
@@ -312,8 +321,6 @@ void GameWindow::CreateGameWindow()
 
     g_Supervisor.gameWindow = g_GameWindow.window;
 #else
-    psglInit();
-
     PSGLinitOptions options = {
         PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_PERSISTENT_MEMORY_SIZE,
         1,
@@ -321,9 +328,9 @@ void GameWindow::CreateGameWindow()
         128 * 1024 * 1024,
     };
 
-    // psglInitWithExtendedOptions(&options); // Usually just psglInit() is fine for basics
+    psglInit(&options);
 
-    g_GameWindow.device = psglCreateDeviceAuto(PSGL_DEVICE_FORMAT_X8R8G8B8, PSGL_DEVICE_FORMAT_DEPTH24_STENCIL8, PSGL_DEVICE_ASPECT_RATIO_16_9);
+    g_GameWindow.device = psglCreateDeviceAuto(GL_ARGB_SCE, GL_DEPTH24_STENCIL8_SCE, 0);
     g_GameWindow.glContext = psglCreateContext();
     psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
     psglResetCurrentContext();
@@ -451,7 +458,9 @@ i32 GameWindow::InitD3dRendering(void)
             //            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_SET_REFRESH_RATE_60HZ);
         }
 
+#ifndef __PS3__
         SDL_GL_SetSwapInterval(1);
+#endif
 
         //        if (g_Supervisor.cfg.frameskipConfig == 0)
         //        {
@@ -640,8 +649,8 @@ void GameWindow::InitD3dDevice(void)
         g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
     }
 
-    g_AnmManager->SetFogColor(0xFF'A0'A0'A0);
-    g_AnmManager->SetFogRange(1'000.0f, 5'000.0f);
+    g_AnmManager->SetFogColor(0xFFA0A0A0);
+    g_AnmManager->SetFogRange(1000.0f, 5000.0f);
 
     //    g_AnmManager->gfxBackend->Init();
 

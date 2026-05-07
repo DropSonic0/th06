@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GfxInterface.hpp"
+
+#ifndef __PS3__
 #include <SDL_opengl.h>
 
 enum GlShaderUniform
@@ -42,3 +44,4 @@ struct WebGL : GfxInterface
 
     GLint uniforms[UNIFORMS_COUNT];
 };
+#endif

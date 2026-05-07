@@ -2,10 +2,14 @@
 #include "FileSystem.hpp"
 #ifndef __PS3__
 #include <SDL_messagebox.h>
-#endif
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#else
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#endif
 
 GameErrorContext g_GameErrorContext;
 
@@ -61,7 +65,11 @@ const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
 
 void GameErrorContext::Flush()
 {
+#ifdef __PS3__
+    ::FILE *logFile;
+#else
     FILE *logFile;
+#endif
 
     if (m_BufferEnd != m_Buffer)
     {

@@ -1,15 +1,30 @@
 #include "FixedFunctionGL.hpp"
 #include "GLFunc.hpp"
+
 #include "Supervisor.hpp"
+
+#ifdef __PS3__
+extern "C" void FixedFunctionGL_SetContextFlags_Helper()
+{
+    FixedFunctionGL::SetContextFlags();
+}
+
+extern "C" GfxInterface *FixedFunctionGL_Init_Helper()
+{
+    return FixedFunctionGL::Init();
+}
+#endif
 #ifndef __PS3__
 #include <SDL.h>
 #endif
 
 void FixedFunctionGL::SetContextFlags()
 {
+#ifndef __PS3__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
 }
 
 GfxInterface *FixedFunctionGL::Init()
