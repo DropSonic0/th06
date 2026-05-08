@@ -438,7 +438,7 @@ struct AnmManager
 #ifndef __PS3__
     SDL_Surface *surfaces[32];
 #else
-    TextureData surfaces[32];
+    void *surfaces[32];
 #endif
     //    SDL_Surface *surfacesBis[32];
     //    D3DXIMAGE_INFO surfaceSourceInfo[32];
