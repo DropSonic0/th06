@@ -81,31 +81,21 @@ const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
 
 void GameErrorContext::Flush()
 {
-#ifdef __PS3__
-    ::FILE *logFile;
-#else
-    FILE *logFile;
-#endif
-
     if (m_BufferEnd != m_Buffer)
     {
-        GameErrorContext::Log(this, TH_ERR_LOGGER_END);
-
         if (m_ShowMessageBox)
         {
 #ifndef __PS3__
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
 #endif
+            m_ShowMessageBox = false;
         }
 
-        logFile = FileSystem::FopenUTF8("./log.txt", "w");
-
-#ifndef __PS3__
-        std::fprintf(logFile, "%s", m_Buffer);
-        std::fclose(logFile);
-#else
-        ::fprintf(logFile, "%s", m_Buffer);
-        ::fclose(logFile);
+        if (FileSystem::WriteDataToFile("log.txt", m_Buffer, (size_t)(m_BufferEnd - m_Buffer)) != 0)
+        {
+#ifdef __PS3__
+            ::printf("Error: Could not write log.txt\n");
 #endif
+        }
     }
 }

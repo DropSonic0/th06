@@ -39,6 +39,7 @@ inline uint16_t Swap16(uint16_t x) {
 
 void DebugPrint(const char *fmt, ...);
 void DebugPrint2(const char *fmt, ...);
+void Log(const char *fmt, ...);
 
 f32 AddNormalizeAngle(f32 a, f32 b);
 void Rotate(ZunVec3 *outVector, const ZunVec3 *point, f32 angle);

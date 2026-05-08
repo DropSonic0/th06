@@ -1,4 +1,5 @@
 #include "GLFunc.hpp"
+#include "utils.hpp"
 
 #ifndef __PS3__
 #include <SDL_video.h>
@@ -10,8 +11,12 @@ GLFuncTable g_glFuncTable;
 #define TRY_RESOLVE_FUNCTION(func) this->func = (decltype(this->func))SDL_GL_GetProcAddress(#func);
 #define TRY_RESOLVE_FUNCTION_GLES(func) this->func##_ptr = (decltype(this->func##_ptr))SDL_GL_GetProcAddress(#func);
 #else
-#define TRY_RESOLVE_FUNCTION(func) this->func = ::func;
-#define TRY_RESOLVE_FUNCTION_GLES(func) this->func##_ptr = ::func;
+#define TRY_RESOLVE_FUNCTION(func)                                                                                     \
+    this->func = ::func;                                                                                               \
+    utils::Log("GLFunc: %s = %p", #func, this->func);
+#define TRY_RESOLVE_FUNCTION_GLES(func)                                                                                \
+    this->func##_ptr = ::func;                                                                                         \
+    utils::Log("GLFunc: %s (GLES) = %p", #func, this->func##_ptr);
 #endif
 
 void GLFuncTable::ResolveFunctions(bool glesContext)

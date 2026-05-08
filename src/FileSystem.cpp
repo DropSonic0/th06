@@ -32,6 +32,11 @@ FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
 #ifdef __ANDROID__
     std::string resolvedPath = std::string(GamePaths::GetUserPath()) + std::string(filepath);
     return std::fopen(resolvedPath.c_str(), mode);
+#elif defined(__PS3__)
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
+    GamePaths::EnsureParentDir(resolvedPath);
+    return fopen(resolvedPath, mode);
 #else
 #ifndef _WIN32
     return std::fopen(filepath, mode);

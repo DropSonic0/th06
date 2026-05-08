@@ -22,11 +22,7 @@
 #include "ZunResult.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
-#include <iostream>
-#include <string>
-void dlog(std::string msg){
-    std::cout<<msg<<std::endl;
-}
+#define dlog utils::Log
 
 #ifdef __PS3__
 SYS_PROCESS_PARAM(1001, 0x100000)
@@ -34,7 +30,9 @@ SYS_PROCESS_PARAM(1001, 0x100000)
 
 int main(int argc, char *argv[])
 {
-    //dlog("Starting");
+    GamePaths::Init();
+
+    dlog("Starting");
     i32 renderResult = 0;
 
 #ifdef __ANDROID__
@@ -46,8 +44,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    //dlog("Init Gamepath");
-    GamePaths::Init();
+    dlog("Init Gamepath done");
 
     // if (utils::CheckForRunningGameInstance())
     // {
@@ -56,7 +53,7 @@ int main(int argc, char *argv[])
     //     return 1;
     // }
 
-    //dlog("Load CONF File");
+    dlog("Load CONF File");
     if (g_Supervisor.LoadConfig(TH_CONFIG_FILE) != ZUN_SUCCESS)
     {
 #ifdef __ANDROID__
@@ -75,30 +72,37 @@ int main(int argc, char *argv[])
     //     g_GameErrorContext.Flush();
     //     return 1;
     // }
-    //dlog("Start the game");
+    dlog("Start the game");
 
 restart:
-    //dlog("Create game window");
+    dlog("Create game window");
     GameWindow::CreateGameWindow();
+#ifdef __PS3__
+    if (g_GameWindow.device == NULL || g_GameWindow.glContext == NULL)
+    {
+        dlog("GameWindow creation failed. Exiting...");
+        return 1;
+    }
+#endif
 
-    //dlog("new AnmManager");
+    dlog("new AnmManager");
     g_AnmManager = new AnmManager();
 
-    //dlog("InitD3dRendering");
+    dlog("InitD3dRendering");
     if (GameWindow::InitD3dRendering())
     {
         g_GameErrorContext.Flush();
         return 1;
     }
 
-    //dlog("InitializeDSound");
+    dlog("InitializeDSound");
     g_SoundPlayer.InitializeDSound();
-    //dlog("GetJoystickCaps");
+    dlog("GetJoystickCaps");
     Controller::GetJoystickCaps();
-    //dlog("ResetKeyboard");
+    dlog("ResetKeyboard");
     Controller::ResetKeyboard();
 
-    //dlog("Supervisor::RegisterChain");
+    dlog("Supervisor::RegisterChain");
     if (Supervisor::RegisterChain() != ZUN_SUCCESS)
     {
         goto stop;
@@ -112,7 +116,8 @@ restart:
 
     g_GameWindow.curFrame = 0;
 
-    //dlog("Into loop game event");
+    dlog("Into loop game event");
+    bool firstRender = true;
     while (true)
     {
 #ifndef __PS3__
@@ -130,7 +135,11 @@ restart:
         cellSysutilCheckCallback();
 #endif
 
-        //dlog("g_GameWindow.Render");
+        if (firstRender)
+        {
+            dlog("g_GameWindow.Render (first time)...");
+            firstRender = false;
+        }
         renderResult = g_GameWindow.Render();
         if (renderResult != 0)
         {
@@ -171,7 +180,7 @@ restart:
 
 
 stop:
-    //dlog("stop the game");
+    dlog("stop the game");
     g_Chain.Release();
     g_SoundPlayer.Release();
 
@@ -232,6 +241,7 @@ stop:
 #ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);
 #endif
+    // GameErrorContext::Log(&g_GameErrorContext, TH_ERR_LOGGER_END);
     g_GameErrorContext.Flush();
 #ifndef __PS3__
     SDL_Quit();

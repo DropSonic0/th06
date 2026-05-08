@@ -17,6 +17,7 @@
 #else
 #include <sys/sys_time.h>
 #include <PSGL/psgl.h>
+#include <cell/video_out.h>
 #define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
 #endif
 #include <cstring>
@@ -321,17 +322,95 @@ void GameWindow::CreateGameWindow()
 
     g_Supervisor.gameWindow = g_GameWindow.window;
 #else
+    utils::Log("PSGL: cellVideoOutGetState...");
+    CellVideoOutState videoState;
+    if (cellVideoOutGetState(CELL_VIDEO_OUT_PRIMARY, 0, &videoState) == CELL_OK)
+    {
+        utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.refreshRate);
+        utils::Log("Video: Display Resolution: %dx%d", videoState.displayMode.width, videoState.displayMode.height);
+    }
+    else
+    {
+        utils::Log("Video: FAILED to get state!");
+    }
 
+    utils::Log("PSGL: psglInit...");
+    PSGLinitOptions initOptions;
+    memset(&initOptions, 0, sizeof(PSGLinitOptions));
+    initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE | 
+                         PSGL_INIT_FIFO_SIZE | PSGL_INIT_ERROR_CONSOLE;
+    initOptions.maxSPUs = 1;
+    initOptions.initializeSPUs = GL_TRUE;
+    initOptions.hostMemorySize = 32 * 1024 * 1024; // 32MB
+    initOptions.fifoSize = 256 * 1024; // 256KB
+    initOptions.errorConsole = 1;
+    psglInit(&initOptions);
+    utils::Log("PSGL: psglInit done.");
+
+    cellSysutilCheckCallback();
+
+    utils::Log("PSGL: psglCreateDeviceAuto (ARGB, DEPTH24_STENCIL8)...");
     g_GameWindow.device = psglCreateDeviceAuto(GL_ARGB_SCE, GL_DEPTH24_STENCIL8_SCE, 0);
-    g_GameWindow.glContext = psglCreateContext();
-    psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
-    psglResetCurrentContext();
+    
+    if (g_GameWindow.device == NULL)
+    {
+        utils::Log("PSGL: psglCreateDeviceAuto FAILED. Retrying with RGB565, NO DEPTH...");
+        g_GameWindow.device = psglCreateDeviceAuto(GL_RGB565_SCE, GL_NONE, 0);
+    }
+    
+    if (g_GameWindow.device == NULL)
+    {
+        utils::Log("PSGL: FAILED. Retrying with Extended (Minimal ARGB, NO DEPTH, DOUBLE BUF)...");
+        PSGLdeviceParameters params;
+        memset(&params, 0, sizeof(params));
+        params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | 
+                        PSGL_DEVICE_PARAMETERS_MULTISAMPLING_MODE | PSGL_DEVICE_PARAMETERS_BUFFERING_MODE;
+        params.colorFormat = GL_ARGB_SCE;
+        params.depthFormat = GL_NONE;
+        params.multisamplingMode = 0;
+        params.bufferingMode = PSGL_BUFFERING_MODE_DOUBLE;
+        g_GameWindow.device = psglCreateDeviceExtended(&params);
+    }
 
-    GLuint width, height;
+    if (g_GameWindow.device == NULL)
+    {
+        utils::Log("PSGL: ALL DEVICE CREATION ATTEMPTS FAILED! Trying with 0,0,0...");
+        g_GameWindow.device = psglCreateDeviceAuto(0, 0, 0);
+    }
+
+    if (g_GameWindow.device == NULL)
+    {
+        utils::Log("PSGL: FATAL: Failed to create PSGL device.");
+        return;
+    }
+    utils::Log("PSGL: Device created successfully (%p).", g_GameWindow.device);
+
+    utils::Log("PSGL: psglCreateContext...");
+    g_GameWindow.glContext = psglCreateContext();
+    utils::Log("PSGL: psglCreateContext done (%p).", g_GameWindow.glContext);
+
+    if (g_GameWindow.glContext == NULL)
+    {
+        utils::Log("PSGL: psglCreateContext FAILED!");
+        return;
+    }
+
+    utils::Log("PSGL: psglMakeCurrent...");
+    psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
+    utils::Log("PSGL: psglMakeCurrent done.");
+
+    utils::Log("PSGL: psglResetCurrentContext...");
+    psglResetCurrentContext();
+    utils::Log("PSGL: psglResetCurrentContext done.");
+
+    GLuint width = 0, height = 0;
+    utils::Log("PSGL: psglGetDeviceDimensions...");
     psglGetDeviceDimensions(g_GameWindow.device, &width, &height);
+    utils::Log("PSGL: Device dimensions: %dx%d", width, height);
     InitGameWindowPS3(width, height);
     g_GameWindow.CONFIGURE_VIEW();
 
+    utils::Log("PSGL: ResolveFunctions...");
     g_glFuncTable.ResolveFunctions(false);
     g_GameWindow.renderBackendIndex = 1; // FixedFunctionGL
 #endif
@@ -390,6 +469,9 @@ void GameWindow::CreateGameWindow()
 
 i32 GameWindow::InitD3dRendering(void)
 {
+#ifdef __PS3__
+    utils::Log("GameWindow: InitD3dRendering...");
+#endif
     //    u8 using_d3d_hal;
     //    D3DPRESENT_PARAMETERS present_params;
     //    D3DDISPLAYMODE display_mode;
@@ -587,7 +669,9 @@ i32 GameWindow::InitD3dRendering(void)
     //    g_Supervisor.d3dDevice->SetTransform(D3DTS_VIEW, &g_Supervisor.viewMatrix);
     //    g_Supervisor.d3dDevice->SetTransform(D3DTS_PROJECTION, &g_Supervisor.projectionMatrix);
     g_Supervisor.viewport.Get();
-
+#ifdef __PS3__
+    utils::Log("GameWindow: InitD3dDevice...");
+#endif
     //    g_Supervisor.d3dDevice->GetDeviceCaps(&g_Supervisor.d3dCaps);
     //    if (((((g_Supervisor.cfg.opts >> GCOS_USE_D3D_HW_TEXTURE_BLENDING) & 1) == 0) &&
     //         ((g_Supervisor.d3dCaps.TextureOpCaps & D3DTEXOPCAPS_ADD) == 0)))
@@ -625,6 +709,9 @@ i32 GameWindow::InitD3dRendering(void)
 
 void GameWindow::InitD3dDevice(void)
 {
+#ifdef __PS3__
+    utils::Log("GameWindow: InitD3dDevice details...");
+#endif
     AnmManager *anm1;
     AnmManager *anm2;
     AnmManager *anm3;

@@ -88,6 +88,9 @@ static void ps3_audio_thread(uint64_t arg)
 
 ZunResult SoundPlayer::InitializeDSound()
 {
+#ifdef __PS3__
+    utils::Log("SoundPlayer: InitializeDSound...");
+#endif
 #ifndef __PS3__
     SDL_AudioSpec desiredAudio;
     SDL_AudioSpec obtainedAudio;
@@ -113,6 +116,7 @@ ZunResult SoundPlayer::InitializeDSound()
 
     this->backgroundMusicThreadHandle = std::thread(&SoundPlayer::BackgroundMusicPlayerThread, this);
 #else
+    utils::Log("SoundPlayer: cellAudioInit...");
     cellAudioInit();
     
     CellAudioPortParam portParam;
@@ -121,13 +125,16 @@ ZunResult SoundPlayer::InitializeDSound()
     portParam.attr = 0;
     portParam.level = 1.0f;
 
+    utils::Log("SoundPlayer: cellAudioPortOpen...");
     if (cellAudioPortOpen(&portParam, &this->audioPortNum) != CELL_OK)
     {
         goto fail;
     }
 
+    utils::Log("SoundPlayer: cellAudioPortStart (port %d)...", this->audioPortNum);
     cellAudioPortStart(this->audioPortNum);
 
+    utils::Log("SoundPlayer: sys_ppu_thread_create...");
     sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 16384, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
 #endif
 

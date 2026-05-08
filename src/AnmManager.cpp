@@ -211,6 +211,8 @@ AnmManager::AnmManager()
 {
 #ifndef __PS3__
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
+#else
+    utils::Log("AnmManager: Constructor...");
 #endif
 
     this->maybeLoadedSpriteCount = 0;
@@ -254,6 +256,9 @@ AnmManager::AnmManager()
     // texture is necessary to ensure the texture can't be considered incomplete in these cases.
     this->CreateTextureObject();
     this->dummyTextureHandle = this->currentTextureHandle;
+#ifdef __PS3__
+    utils::Log("AnmManager: dummyTextureHandle = %d", this->dummyTextureHandle);
+#endif
     g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
     //    this->vertexBuffer = NULL;
@@ -272,6 +277,9 @@ AnmManager::AnmManager()
 
 void AnmManager::SetupVertexBuffer()
 {
+#ifdef __PS3__
+    utils::Log("AnmManager: SetupVertexBuffer...");
+#endif
     this->vertexBufferContents[2].position.x = -128;
     this->vertexBufferContents[0].position.x = -128;
     this->vertexBufferContents[3].position.x = 128;
@@ -529,6 +537,9 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
+#ifdef __PS3__
+    utils::Log("AnmManager: LoadAnm(%s)...", path);
+#endif
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
 
@@ -1807,6 +1818,9 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
 
 ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 {
+#ifdef __PS3__
+    utils::Log("AnmManager: LoadSurface(%s)...", path);
+#endif
 #ifndef __PS3__
     if (this->surfaces[surfaceIdx] != NULL)
     {

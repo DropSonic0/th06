@@ -325,6 +325,9 @@ ZunResult Supervisor::RegisterChain()
 
 ZunResult Supervisor::AddedCallback(Supervisor *s)
 {
+#ifdef __PS3__
+    utils::Log("Supervisor: AddedCallback...");
+#endif
     //supervisordlog("callback init");
     i32 i;
 
@@ -337,6 +340,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("set g_Pbg3Archives");
     g_Pbg3Archives = s->pbg3Archives;
     //supervisordlog("LoadPbg3");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadPbg3(IN_PBG3_INDEX, %s)...", TH_IN_DAT_FILE);
+#endif
     if (s->LoadPbg3(IN_PBG3_INDEX, TH_IN_DAT_FILE))
     {
         return ZUN_ERROR;
@@ -345,6 +351,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     // D3DX code swaps twice to copy to both buffers
 
     //supervisordlog("LoadSurface data/title/th06logo.jpg");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadSurface(data/title/th06logo.jpg)...");
+#endif
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
     //supervisordlog("CopySurfaceToBackBuffer");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
@@ -382,6 +391,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("g_SoundPlayer.InitSoundBuffers");
     g_SoundPlayer.InitSoundBuffers();
     //supervisordlog("g_AnmManager->LoadAnm");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadAnm(data/text.anm)...");
+#endif
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
         return ZUN_ERROR;
@@ -407,6 +419,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("ReleasePbg3");
     s->ReleasePbg3(IN_PBG3_INDEX);
     //supervisordlog("LoadPbg3 MD.DAT");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadPbg3(MD_PBG3_INDEX, %s)...", TH_MD_DAT_FILE);
+#endif
     if (g_Supervisor.LoadPbg3(MD_PBG3_INDEX, TH_MD_DAT_FILE) != 0)
         return ZUN_ERROR;
 
@@ -745,6 +760,9 @@ ZunResult Supervisor::LoadConfig(const char *path)
             (g_Supervisor.cfg.windowed >= 2) || (g_Supervisor.cfg.frameskipConfig >= 3) ||
             (g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
         {
+#ifdef __PS3__
+            utils::Log("Config: validation failed. Size = %d (expected 0x38), version = %d (expected %d)", g_LastFileSize, g_Supervisor.cfg.version, GAME_VERSION);
+#endif
             g_Supervisor.cfg.lifeCount = 2;
             g_Supervisor.cfg.bombCount = 3;
             g_Supervisor.cfg.colorMode16bit = 0xff;
