@@ -17,7 +17,7 @@
 #else
 #include <sys/sys_time.h>
 #include <PSGL/psgl.h>
-#include <cell/video_out.h>
+#include <sysutil/sysutil_sysparam.h>
 #define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
 #endif
 #include <cstring>
@@ -326,8 +326,10 @@ void GameWindow::CreateGameWindow()
     CellVideoOutState videoState;
     if (cellVideoOutGetState(CELL_VIDEO_OUT_PRIMARY, 0, &videoState) == CELL_OK)
     {
-        utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.refreshRate);
-        utils::Log("Video: Display Resolution: %dx%d", videoState.displayMode.width, videoState.displayMode.height);
+        utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.displayMode.refreshRates);
+        CellVideoOutResolution res;
+        cellVideoOutGetResolution(videoState.displayMode.resolutionId, &res);
+        utils::Log("Video: Display Resolution: %dx%d", res.width, res.height);
     }
     else
     {
@@ -337,44 +339,31 @@ void GameWindow::CreateGameWindow()
     utils::Log("PSGL: psglInit...");
     PSGLinitOptions initOptions;
     memset(&initOptions, 0, sizeof(PSGLinitOptions));
-    initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE | 
-                         PSGL_INIT_FIFO_SIZE | PSGL_INIT_ERROR_CONSOLE;
+    initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
     initOptions.maxSPUs = 1;
-    initOptions.initializeSPUs = GL_TRUE;
-    initOptions.hostMemorySize = 32 * 1024 * 1024; // 32MB
-    initOptions.fifoSize = 256 * 1024; // 256KB
-    initOptions.errorConsole = 1;
+    initOptions.initializeSPUs = GL_FALSE;
+    initOptions.hostMemorySize = 8 * 1024 * 1024; // 8MB
     psglInit(&initOptions);
     utils::Log("PSGL: psglInit done.");
 
     cellSysutilCheckCallback();
 
-    utils::Log("PSGL: psglCreateDeviceAuto (ARGB, DEPTH24_STENCIL8)...");
-    g_GameWindow.device = psglCreateDeviceAuto(GL_ARGB_SCE, GL_DEPTH24_STENCIL8_SCE, 0);
-    
-    if (g_GameWindow.device == NULL)
-    {
-        utils::Log("PSGL: psglCreateDeviceAuto FAILED. Retrying with RGB565, NO DEPTH...");
-        g_GameWindow.device = psglCreateDeviceAuto(GL_RGB565_SCE, GL_NONE, 0);
-    }
-    
-    if (g_GameWindow.device == NULL)
-    {
-        utils::Log("PSGL: FAILED. Retrying with Extended (Minimal ARGB, NO DEPTH, DOUBLE BUF)...");
-        PSGLdeviceParameters params;
-        memset(&params, 0, sizeof(params));
-        params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | 
-                        PSGL_DEVICE_PARAMETERS_MULTISAMPLING_MODE | PSGL_DEVICE_PARAMETERS_BUFFERING_MODE;
-        params.colorFormat = GL_ARGB_SCE;
-        params.depthFormat = GL_NONE;
-        params.multisamplingMode = 0;
-        params.bufferingMode = PSGL_BUFFERING_MODE_DOUBLE;
-        g_GameWindow.device = psglCreateDeviceExtended(&params);
-    }
+    utils::Log("PSGL: psglCreateDeviceExtended...");
+    PSGLdeviceParameters params;
+    memset(&params, 0, sizeof(params));
+    params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | 
+                    PSGL_DEVICE_PARAMETERS_MULTISAMPLING_MODE | PSGL_DEVICE_PARAMETERS_BUFFERING_MODE | 
+                    PSGL_DEVICE_PARAMETERS_RESC_ADJUST_ASPECT_RATIO | PSGL_DEVICE_PARAMETERS_RESC_RATIO_MODE;
+    params.bufferingMode = PSGL_BUFFERING_MODE_TRIPLE;
+    params.colorFormat = GL_ARGB_SCE;
+    params.depthFormat = GL_NONE;
+    params.multisamplingMode = GL_MULTISAMPLING_NONE_SCE;
+    params.rescRatioMode = RESC_RATIO_MODE_FULLSCREEN;
+    g_GameWindow.device = psglCreateDeviceExtended(&params);
 
     if (g_GameWindow.device == NULL)
     {
-        utils::Log("PSGL: ALL DEVICE CREATION ATTEMPTS FAILED! Trying with 0,0,0...");
+        utils::Log("PSGL: psglCreateDeviceExtended FAILED. Retrying with psglCreateDeviceAuto(0,0,0)...");
         g_GameWindow.device = psglCreateDeviceAuto(0, 0, 0);
     }
 
@@ -412,7 +401,7 @@ void GameWindow::CreateGameWindow()
 
     utils::Log("PSGL: ResolveFunctions...");
     g_glFuncTable.ResolveFunctions(false);
-    g_GameWindow.renderBackendIndex = 1; // FixedFunctionGL
+    g_GameWindow.renderBackendIndex = 0; // FixedFunctionGL
 #endif
 
     g_GameWindow.lastActiveAppValue = 1;
@@ -484,7 +473,10 @@ i32 GameWindow::InitD3dRendering(void)
     f32 field_of_view_y;
     f32 camera_distance;
 
+    utils::Log("GameWindow: Initializing gfxBackend via s_RenderBackends (index %d, addr %p)...", 
+               g_GameWindow.renderBackendIndex, s_RenderBackends[g_GameWindow.renderBackendIndex].init);
     g_AnmManager->gfxBackend = s_RenderBackends[g_GameWindow.renderBackendIndex].init();
+    utils::Log("GameWindow: gfxBackend initialized.");
 
     //    using_d3d_hal = 1;
     //    std::memset(&present_params, 0, sizeof(D3DPRESENT_PARAMETERS));
@@ -699,7 +691,9 @@ i32 GameWindow::InitD3dRendering(void)
     //            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_D3DFMT_A8R8G8B8_UNSUPPORTED);
     //        }
     //    }
+    utils::Log("GameWindow: Calling InitD3dDevice...");
     InitD3dDevice();
+    utils::Log("GameWindow: Calling ScreenEffect::SetViewport(0)...");
     ScreenEffect::SetViewport(0);
     g_GameWindow.isAppClosing = 0;
     g_Supervisor.lastFrameTime = 0;

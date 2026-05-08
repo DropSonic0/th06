@@ -264,6 +264,9 @@ AnmManager::AnmManager()
     //    this->vertexBuffer = NULL;
     this->currentBlendMode = 0;
     this->screenshotTextureId = -1;
+#ifdef __PS3__
+    utils::Log("AnmManager: Constructor done.");
+#endif
     this->projectionMode = PROJECTION_MODE_PERSPECTIVE;
 
     this->dirtyFlags = 0;

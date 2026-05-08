@@ -46,7 +46,7 @@ void Init()
         s_userPath[0] = '\0';
     }
 #elif defined(__PS3__)
-    snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/");
+    snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/USRDIR/");
 #else
     // Desktop: all files relative to the working directory.
     s_userPath[0] = '\0';
@@ -112,6 +112,11 @@ void Resolve(char *outBuf, size_t outBufSize, const char *path)
     if (path[0] == '.' && (path[1] == '/' || path[1] == '\\'))
         path += 2;
 
+#ifdef __PS3__
+    // On PS3, we always want to prepend the absolute base path to ensure 
+    // files are found regardless of whether they are "assets" or "user data".
+    ::snprintf(outBuf, outBufSize, "%s%s", s_userPath, path);
+#else
     if (IsAssetPath(path))
     {
         // Asset: keep the relative path as-is.
@@ -123,6 +128,7 @@ void Resolve(char *outBuf, size_t outBufSize, const char *path)
         // User data: prepend the writable user-data directory.
         snprintf(outBuf, outBufSize, "%s%s", s_userPath, path);
     }
+#endif
 }
 
 void EnsureParentDir(const char *resolvedPath)

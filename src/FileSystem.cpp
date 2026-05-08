@@ -15,6 +15,7 @@
 #include "GamePaths.hpp"
 #include "pbg3/Pbg3Archive.hpp"
 #include "utils.hpp"
+#include <errno.h>
 #ifdef __ANDROID__
 #include <SDL.h>
 #include <sys/stat.h>
@@ -195,6 +196,10 @@ int FileSystem::WriteDataToFile(const char *path, const void *data, size_t size)
     GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), path);
     GamePaths::EnsureParentDir(resolvedPath);
     f = fopen(resolvedPath, "wb");
+    if (f == NULL)
+    {
+        ::printf("FileSystem: fopen failed for %s (errno %d)\n", resolvedPath, errno);
+    }
     #else
     // Resolve to writable user-data directory on Android.
     char resolvedPath[512];

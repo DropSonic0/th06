@@ -50,6 +50,10 @@ void DebugPrint(const char *fmt, ...)
 
 void Log(const char *fmt, ...)
 {
+    static int g_InLog = 0;
+    if (g_InLog) return;
+    g_InLog = 1;
+
     char tmpBuffer[512];
 #ifndef __PS3__
     std::va_list args;
@@ -72,8 +76,11 @@ void Log(const char *fmt, ...)
     ::printf("%s\n", tmpBuffer);
     ::fflush(stdout);
 #endif
+
     GameErrorContext::Log(&g_GameErrorContext, "%s\n", tmpBuffer);
     g_GameErrorContext.Flush();
+
+    g_InLog = 0;
 }
 
 f32 AddNormalizeAngle(f32 a, f32 b)

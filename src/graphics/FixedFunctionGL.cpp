@@ -1,5 +1,6 @@
 #include "FixedFunctionGL.hpp"
 #include "GLFunc.hpp"
+#include "utils.hpp"
 
 #include "Supervisor.hpp"
 
@@ -11,6 +12,9 @@ extern "C" void FixedFunctionGL_SetContextFlags_Helper()
 
 extern "C" GfxInterface *FixedFunctionGL_Init_Helper()
 {
+#ifdef __PS3__
+    utils::Log("FixedFunctionGL_Init_Helper called.");
+#endif
     return FixedFunctionGL::Init();
 }
 #endif
@@ -29,6 +33,96 @@ void FixedFunctionGL::SetContextFlags()
 
 GfxInterface *FixedFunctionGL::Init()
 {
+#ifdef __PS3__
+    utils::Log("FixedFunctionGL: Init start...");
+    utils::Log("FixedFunctionGL: glEnable(GL_TEXTURE_2D)...");
+    g_glFuncTable.glEnable(GL_TEXTURE_2D);
+    utils::Log("FixedFunctionGL: glEnableClientState(GL_VERTEX_ARRAY)...");
+    g_glFuncTable.glEnableClientState(GL_VERTEX_ARRAY);
+
+    utils::Log("FixedFunctionGL: glEnable(GL_ALPHA_TEST)...");
+    g_glFuncTable.glEnable(GL_ALPHA_TEST);
+    utils::Log("FixedFunctionGL: glAlphaFunc...");
+    g_glFuncTable.glAlphaFunc(GL_GEQUAL, 4 / 255.0f);
+
+    if (((g_Supervisor.cfg.opts >> GCOS_SUPPRESS_USE_OF_GOROUD_SHADING) & 1) == 1)
+    {
+        utils::Log("FixedFunctionGL: glShadeModel(GL_FLAT)...");
+        g_glFuncTable.glShadeModel(GL_FLAT);
+    }
+
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
+    {
+        utils::Log("FixedFunctionGL: glEnable(GL_FOG)...");
+        g_glFuncTable.glEnable(GL_FOG);
+    }
+
+    utils::Log("FixedFunctionGL: glFogf(GL_FOG_DENSITY, 1.0f)...");
+    g_glFuncTable.glFogf(GL_FOG_DENSITY, 1.0f);
+    utils::Log("FixedFunctionGL: glFogf(GL_FOG_MODE, GL_LINEAR)...");
+    g_glFuncTable.glFogf(GL_FOG_MODE, GL_LINEAR);
+
+    utils::Log("FixedFunctionGL: glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE)...");
+    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+
+    if (((g_Supervisor.cfg.opts >> GCOS_NO_COLOR_COMP) & 1) == 0)
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(COMBINE_ALPHA, MODULATE)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+    }
+    else
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(COMBINE_ALPHA, REPLACE)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+    }
+
+    utils::Log("FixedFunctionGL: glTexEnvi(OPERAND0_ALPHA, SRC_ALPHA)...");
+    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(SRC1_ALPHA, CONSTANT)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_CONSTANT);
+    }
+    else
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(SRC1_ALPHA, PRIMARY_COLOR)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PRIMARY_COLOR);
+    }
+
+    utils::Log("FixedFunctionGL: glTexEnvi(OPERAND1_ALPHA, SRC_ALPHA)...");
+    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+
+    if (((g_Supervisor.cfg.opts >> GCOS_NO_COLOR_COMP) & 1) == 0)
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(COMBINE_RGB, MODULATE)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+    }
+    else
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(COMBINE_RGB, REPLACE)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+    }
+
+    utils::Log("FixedFunctionGL: glTexEnvi(OPERAND0_RGB, SRC_COLOR)...");
+    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
+
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(SRC1_RGB, CONSTANT)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
+    }
+    else
+    {
+        utils::Log("FixedFunctionGL: glTexEnvi(SRC1_RGB, PRIMARY_COLOR)...");
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
+    }
+
+    utils::Log("FixedFunctionGL: glTexEnvi(OPERAND1_RGB, SRC_COLOR)...");
+    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
+
+    utils::Log("FixedFunctionGL: Creating new FixedFunctionGL...");
+#else
     g_glFuncTable.glEnable(GL_TEXTURE_2D);
     g_glFuncTable.glEnableClientState(GL_VERTEX_ARRAY);
 
@@ -93,7 +187,7 @@ GfxInterface *FixedFunctionGL::Init()
     }
 
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
-
+#endif
     return new FixedFunctionGL();
 }
 

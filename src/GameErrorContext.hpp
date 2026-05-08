@@ -8,7 +8,7 @@ class GameErrorContext;
 class GameErrorContext
 {
   public:
-    char m_Buffer[0x800];
+    char m_Buffer[0x4000];
     char *m_BufferEnd;
     i8 m_ShowMessageBox;
 
