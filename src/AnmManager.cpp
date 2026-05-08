@@ -21,6 +21,9 @@
 #include <SDL_surface.h>
 #else
 #include <PSGL/psgl.h>
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_STDIO
+#include "stb_image.h"
 #endif
 
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
@@ -162,16 +165,7 @@ void AnmManager::ReleaseSurfaces(void)
 {
     for (i32 idx = 0; idx < ARRAY_SIZE_SIGNED(this->surfaces); idx++)
     {
-        if (this->surfaces[idx] != NULL)
-        {
-#ifndef __PS3__
-            SDL_FreeSurface(this->surfaces[idx]);
-#else
-            // PS3 implementation might need free() or similar if surfaces are raw pixels
-            // free(this->surfaces[idx]);
-#endif
-            this->surfaces[idx] = NULL;
-        }
+        this->ReleaseSurface(idx);
     }
 }
 
@@ -420,7 +414,60 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 
     return ZUN_SUCCESS;
 #else
-    // TODO: Implementation for PS3 (likely using a custom TGA/PNG loader or cellGcm)
+    u8 *data;
+    int w, h, channels;
+    u8 *decoded;
+
+    ReleaseTexture(textureIdx);
+
+    data = FileSystem::OpenPath(textureName, 0);
+    if (data == NULL) {
+        return ZUN_ERROR;
+    }
+
+    decoded = stbi_load_from_memory(data, g_LastFileSize, &w, &h, &channels, 4);
+    if (decoded == NULL) {
+        free(data);
+        return ZUN_ERROR;
+    }
+
+    // Hideous hack to account for ANM entries that report a different texture size than the actual size
+    const AnmRawEntry *entry = this->anmFiles[textureIdx];
+    if (w != entry->width || h != entry->height) {
+        utils::Log("AnmManager: Resizing texture %s from %dx%d to %dx%d", textureName, w, h, entry->width, entry->height);
+        u8 *resized = (u8 *)malloc(entry->width * entry->height * 4);
+        if (resized) {
+            // Simple nearest neighbor resize
+            for (int y = 0; y < (int)entry->height; y++) {
+                for (int x = 0; x < (int)entry->width; x++) {
+                    int srcX = x * w / entry->width;
+                    int srcY = y * h / entry->height;
+                    memcpy(resized + (y * entry->width + x) * 4, decoded + (srcY * w + srcX) * 4, 4);
+                }
+            }
+            stbi_image_free(decoded);
+            decoded = resized;
+            w = entry->width;
+            h = entry->height;
+        }
+    }
+
+    CreateTextureObject();
+
+    this->textures[textureIdx].handle = this->currentTextureHandle;
+    this->textures[textureIdx].textureData = decoded;
+    this->textures[textureIdx].width = w;
+    this->textures[textureIdx].height = h;
+    this->textures[textureIdx].format = TEX_FMT_A8R8G8B8;
+    this->textures[textureIdx].fileData = data;
+
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, decoded);
+
+    if (g_glFuncTable.glGetError() != GL_NO_ERROR) {
+        ReleaseTexture(textureIdx);
+        return ZUN_ERROR;
+    }
+
     return ZUN_SUCCESS;
 #endif
 }
@@ -518,6 +565,44 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 
     return ZUN_SUCCESS;
 #else
+    u8 *data;
+    int w, h, channels;
+    u8 *decoded;
+    TextureData *textureDesc;
+
+    textureDesc = this->textures + textureIdx;
+
+    data = FileSystem::OpenPath(textureName, 0);
+    if (data == NULL) {
+        return ZUN_ERROR;
+    }
+
+    decoded = stbi_load_from_memory(data, g_LastFileSize, &w, &h, &channels, 4);
+    if (decoded == NULL) {
+        free(data);
+        return ZUN_ERROR;
+    }
+
+    if (w != (int)textureDesc->width || h != (int)textureDesc->height) {
+        utils::Log("AnmManager: Alpha texture %s size mismatch: %dx%d (expected %dx%d)", textureName, w, h, textureDesc->width, textureDesc->height);
+    }
+
+    u8 *dstData = (u8 *)textureDesc->textureData;
+    for (int y = 0; y < (int)textureDesc->height; y++) {
+        for (int x = 0; x < (int)textureDesc->width; x++) {
+            int srcX = x * w / textureDesc->width;
+            int srcY = y * h / textureDesc->height;
+            dstData[(y * textureDesc->width + x) * 4 + 3] = decoded[(srcY * w + srcX) * 4];
+        }
+    }
+
+    stbi_image_free(decoded);
+    free(data);
+
+    this->SetCurrentTexture(this->textures[textureIdx].handle);
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureDesc->width, textureDesc->height, 0, GL_RGBA,
+                               GL_UNSIGNED_BYTE, textureDesc->textureData);
+
     return ZUN_SUCCESS;
 #endif
 }
@@ -770,7 +855,11 @@ void AnmManager::ReleaseTexture(i32 textureIdx)
     free((void*)this->textures[textureIdx].fileData);
     this->textures[textureIdx].fileData = NULL;
 
+#ifndef __PS3__
     delete[] this->textures[textureIdx].textureData;
+#else
+    free(this->textures[textureIdx].textureData);
+#endif
     this->textures[textureIdx].textureData = NULL;
 }
 
@@ -1949,6 +2038,31 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
     return ZUN_SUCCESS;
 #else
+    u8 *data;
+    int w, h, channels;
+    u8 *decoded;
+
+    if (this->surfaces[surfaceIdx].textureData != NULL) {
+        this->ReleaseSurface(surfaceIdx);
+    }
+
+    data = FileSystem::OpenPath(path, 0);
+    if (data == NULL) {
+        return ZUN_ERROR;
+    }
+
+    decoded = stbi_load_from_memory(data, g_LastFileSize, &w, &h, &channels, 4);
+    free(data);
+
+    if (decoded == NULL) {
+        return ZUN_ERROR;
+    }
+
+    this->surfaces[surfaceIdx].textureData = decoded;
+    this->surfaces[surfaceIdx].width = w;
+    this->surfaces[surfaceIdx].height = h;
+    this->surfaces[surfaceIdx].format = TEX_FMT_A8R8G8B8;
+    // We assume 640x480 for surfaces used in MainMenu
     return ZUN_SUCCESS;
 #endif
 
@@ -2022,15 +2136,19 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
 void AnmManager::ReleaseSurface(i32 surfaceIdx)
 {
+#ifndef __PS3__
     if (this->surfaces[surfaceIdx] != NULL)
     {
-#ifndef __PS3__
         SDL_FreeSurface(this->surfaces[surfaceIdx]);
-#else
-        // PS3 Implementation
-#endif
         this->surfaces[surfaceIdx] = NULL;
     }
+#else
+    if (this->surfaces[surfaceIdx].textureData != NULL)
+    {
+        free(this->surfaces[surfaceIdx].textureData);
+        this->surfaces[surfaceIdx].textureData = NULL;
+    }
+#endif
 }
 
 void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32 dstX, i32 dstY)
@@ -2044,6 +2162,11 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
     }
 
     CopySurfaceRectToBackBuffer(surfaceIdx, dstX, dstY, srcX, srcY, srcSurface->w - srcX, srcSurface->h - srcY);
+#else
+    if (this->surfaces[surfaceIdx].textureData == NULL) return;
+
+    // Hardcode 640x480 for now as it's what th06 uses for backgrounds
+    CopySurfaceRectToBackBuffer(surfaceIdx, dstX, dstY, srcX, srcY, 640 - srcX, 480 - srcY);
 #endif
     //
     //    IDirect3DSurface8 *destSurface;
@@ -2100,6 +2223,74 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
 
     SDL_Rect srcRect{rectLeft, rectTop, rectWidth, rectHeight}, dstRect{dstX, dstY, rectWidth, rectHeight};
     ApplySurfaceToColorBuffer(srcSurface, srcRect, dstRect);
+#else
+    u8 *srcPixels = (u8 *)this->surfaces[surfaceIdx].textureData;
+    if (srcPixels == NULL) return;
+
+    ZunViewport originalViewport;
+    ZunViewport fullscreenViewport;
+
+    if (rectWidth <= 0 || rectHeight <= 0) return;
+
+    originalViewport.Get();
+
+    fullscreenViewport.x = 0;
+    fullscreenViewport.y = 0;
+    fullscreenViewport.height = GAME_WINDOW_HEIGHT;
+    fullscreenViewport.width = GAME_WINDOW_WIDTH;
+    fullscreenViewport.minZ = 0.0f;
+    fullscreenViewport.maxZ = 1.0f;
+
+    fullscreenViewport.Set();
+
+    this->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
+
+    CreateTextureObject();
+
+    // Use actual dimensions for source dimension for these background surfaces
+    u32 sw = this->surfaces[surfaceIdx].width;
+    u32 sh = this->surfaces[surfaceIdx].height;
+    u32 textureWidth = BitCeil(sw);
+    u32 textureHeight = BitCeil(sh);
+
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, sw, sh, GL_RGBA, GL_UNSIGNED_BYTE, srcPixels);
+
+    VertexTex1DiffuseXyz verts[4];
+
+    verts[0].position = ZunVec3(dstX, dstY, 0.0f);
+    verts[1].position = ZunVec3(dstX + rectWidth, dstY, 0.0f);
+    verts[2].position = ZunVec3(dstX, dstY + rectHeight, 0.0f);
+    verts[3].position = ZunVec3(dstX + rectWidth, dstY + rectHeight, 0.0f);
+
+    verts[0].textureUV = ZunVec2((f32)rectLeft / textureWidth, (f32)rectTop / textureHeight);
+    verts[1].textureUV = ZunVec2((f32)(rectLeft + rectWidth) / textureWidth, (f32)rectTop / textureHeight);
+    verts[2].textureUV = ZunVec2((f32)rectLeft / textureWidth, (f32)(rectTop + rectHeight) / textureHeight);
+    verts[3].textureUV = ZunVec2((f32)(rectLeft + rectWidth) / textureWidth, (f32)(rectTop + rectHeight) / textureHeight);
+
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+
+    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*verts), &verts[0].position);
+    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*verts), &verts[0].textureUV);
+
+    this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
+    this->SetColorOp(COMPONENT_RGB, COLOR_OP_REPLACE);
+
+    this->SetDepthMask(false);
+    this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+
+    this->BackendDrawCall();
+
+    this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
+    this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
+
+    g_glFuncTable.glDeleteTextures(1, &this->currentTextureHandle);
+
+    this->SetCurrentSprite(NULL);
+    this->SetCurrentTexture(0);
+    this->SetCurrentBlendMode(0xff);
+
+    originalViewport.Set();
 #endif
     //
     //    IDirect3DSurface8 *D3D_Surface;
