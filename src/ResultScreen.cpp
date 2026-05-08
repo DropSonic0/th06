@@ -113,11 +113,21 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
             free(scoreRaw);
             goto FAILED_TO_READ;
         }
+
+#ifdef __PS3__
+        scoreRaw->dataOffset = utils::Swap32(scoreRaw->dataOffset);
+        scoreRaw->fileLen = utils::Swap32(scoreRaw->fileLen);
+#endif
+
         fileLen = scoreRaw->fileLen;
         decryptedFilePointer = scoreRaw->ShiftBytes(scoreRaw->dataOffset);
         fileLen -= scoreRaw->dataOffset;
         while (fileLen > 0)
         {
+#ifdef __PS3__
+            decryptedFilePointer->magic = utils::Swap32(decryptedFilePointer->magic);
+            decryptedFilePointer->th6kLen = utils::Swap16(decryptedFilePointer->th6kLen);
+#endif
             if (decryptedFilePointer->magic == TH6K_MAGIC)
                 break;
 
@@ -165,6 +175,11 @@ u32 ResultScreen::GetHighScore(ScoreDat *scoreDat, ScoreListNode *node, u32 char
 
     while (remainingSize > 0)
     {
+#ifdef __PS3__
+        highScore->base.magic = utils::Swap32(highScore->base.magic);
+        highScore->base.th6kLen = utils::Swap16(highScore->base.th6kLen);
+        highScore->score = utils::Swap32(highScore->score);
+#endif
         if (highScore->base.magic == HSCR_MAGIC && highScore->base.version == TH6K_VERSION &&
             highScore->character == character && highScore->difficulty == difficulty)
         {
@@ -256,6 +271,13 @@ ZunResult ResultScreen::ParseCatk(ScoreDat *scoreDat, Catk *outCatk)
     cursor = header->fileLen - header->dataOffset;
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedCatk->base.magic = utils::Swap32(parsedCatk->base.magic);
+        parsedCatk->base.th6kLen = utils::Swap16(parsedCatk->base.th6kLen);
+        parsedCatk->idx = utils::Swap16(parsedCatk->idx);
+        parsedCatk->numAttempts = utils::Swap16(parsedCatk->numAttempts);
+        parsedCatk->numSuccess = utils::Swap16(parsedCatk->numSuccess);
+#endif
         if (parsedCatk->base.magic == CATK_MAGIC && parsedCatk->base.version == TH6K_VERSION)
         {
             if (parsedCatk->idx >= CATK_NUM_CAPTURES)
@@ -304,6 +326,10 @@ ZunResult ResultScreen::ParseClrd(ScoreDat *scoreDat, Clrd *outClrd)
     cursor = header->fileLen - header->dataOffset;
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedClrd->base.magic = utils::Swap32(parsedClrd->base.magic);
+        parsedClrd->base.th6kLen = utils::Swap16(parsedClrd->base.th6kLen);
+#endif
         if (parsedClrd->base.magic == CLRD_MAGIC && parsedClrd->base.version == TH6K_VERSION)
         {
             if (parsedClrd->characterShotType >= CLRD_NUM_CHARACTERS)
@@ -358,6 +384,11 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
 
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedPscr->base.magic = utils::Swap32(parsedPscr->base.magic);
+        parsedPscr->base.th6kLen = utils::Swap16(parsedPscr->base.th6kLen);
+        parsedPscr->score = utils::Swap32(parsedPscr->score);
+#endif
         if (parsedPscr->base.magic == PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
         {
             pscr = parsedPscr;

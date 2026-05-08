@@ -20,15 +20,21 @@
 namespace utils
 {
 #ifdef __PS3__
-inline uint32_t Swap32(uint32_t x) {
+inline u32 Swap32(u32 x) {
     return ((x & 0x000000FF) << 24) |
            ((x & 0x0000FF00) << 8) |
            ((x & 0x00FF0000) >> 8) |
            ((x & 0xFF000000) >> 24);
 }
-inline uint16_t Swap16(uint16_t x) {
+inline u16 Swap16(u16 x) {
     return ((x & 0x00FF) << 8) |
            ((x & 0xFF00) >> 8);
+}
+inline f32 SwapF32(f32 f) {
+    union { f32 f; u32 u; } u;
+    u.f = f;
+    u.u = Swap32(u.u);
+    return u.f;
 }
 #define VEC3_SET(v, _x, _y, _z) do { (v).x = (_x); (v).y = (_y); (v).z = (_z); } while(0)
 #define VEC2_SET(v, _x, _y) do { (v).x = (_x); (v).y = (_y); } while(0)

@@ -423,22 +423,105 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         return ZUN_ERROR;
     }
     this->stdData = (RawStageHeader *)FileSystem::OpenPath(stdpath, false);
+    u32 stdFileSize = g_LastFileSize;
+
     if (this->stdData == NULL)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_STAGE_DATA_CORRUPTED);
         return ZUN_ERROR;
     }
+
+#ifdef __PS3__
+    RawStageHeader *header = (RawStageHeader *)this->stdData;
+    header->nbObjects = (i16)utils::Swap16((u16)header->nbObjects);
+    header->nbFaces = (i16)utils::Swap16((u16)header->nbFaces);
+    header->facesOffset = (i32)utils::Swap32((u32)header->facesOffset);
+    header->scriptOffset = (i32)utils::Swap32((u32)header->scriptOffset);
+    header->unk_c = (i32)utils::Swap32((u32)header->unk_c);
+
+    u32 *objectOffsets = (u32 *)(header + 1);
+    for (int i = 0; i < header->nbObjects; i++) {
+        objectOffsets[i] = utils::Swap32(objectOffsets[i]);
+    }
+
+    for (int i = 0; i < header->nbObjects; i++) {
+        RawStageObject *obj = (RawStageObject *)((u8 *)header + objectOffsets[i]);
+        obj->id = (i16)utils::Swap16((u16)obj->id);
+        obj->position.x = utils::SwapF32(obj->position.x);
+        obj->position.y = utils::SwapF32(obj->position.y);
+        obj->position.z = utils::SwapF32(obj->position.z);
+        obj->size.x = utils::SwapF32(obj->size.x);
+        obj->size.y = utils::SwapF32(obj->size.y);
+        obj->size.z = utils::SwapF32(obj->size.z);
+
+        RawStageQuadBasic *quad = &obj->firstQuad;
+        while (true) {
+            quad->type = (i16)utils::Swap16((u16)quad->type);
+            quad->byteSize = (i16)utils::Swap16((u16)quad->byteSize);
+            if (quad->type < 0) break;
+            
+            quad->anmScript = (i16)utils::Swap16((u16)quad->anmScript);
+            quad->vmIdx = (i16)utils::Swap16((u16)quad->vmIdx);
+            quad->position.x = utils::SwapF32(quad->position.x);
+            quad->position.y = utils::SwapF32(quad->position.y);
+            quad->position.z = utils::SwapF32(quad->position.z);
+            quad->size.x = utils::SwapF32(quad->size.x);
+            quad->size.y = utils::SwapF32(quad->size.y);
+
+            quad = (RawStageQuadBasic *)((u8 *)quad + quad->byteSize);
+        }
+    }
+
+    RawStageObjectInstance *instances = (RawStageObjectInstance *)((u8 *)header + header->facesOffset);
+    for (int i = 0; ; i++) {
+        instances[i].id = (i16)utils::Swap16((u16)instances[i].id);
+        if (instances[i].id < 0) break;
+
+        instances[i].unk2 = (i16)utils::Swap16((u16)instances[i].unk2);
+        instances[i].position.x = utils::SwapF32(instances[i].position.x);
+        instances[i].position.y = utils::SwapF32(instances[i].position.y);
+        instances[i].position.z = utils::SwapF32(instances[i].position.z);
+    }
+
+    RawStageInstr *instr = (RawStageInstr *)((u8 *)header + header->scriptOffset);
+    while ((u8 *)instr - (u8 *)header < (int)stdFileSize) {
+        instr->frame = (i32)utils::Swap32((u32)instr->frame);
+        instr->opcode = (i16)utils::Swap16((u16)instr->opcode);
+        instr->size = (i16)utils::Swap16((u16)instr->size);
+        
+        switch (instr->opcode) {
+            case STDOP_FOG:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
+                ((f32 *)instr->args)[1] = utils::SwapF32(((f32 *)instr->args)[1]);
+                ((f32 *)instr->args)[2] = utils::SwapF32(((f32 *)instr->args)[2]);
+                break;
+            case STDOP_CAMERA_FACING_INTERP_LINEAR:
+            case STDOP_FOG_INTERP:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
+                break;
+            default:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
+                instr->args[1] = (i32)utils::Swap32((u32)instr->args[1]);
+                instr->args[2] = (i32)utils::Swap32((u32)instr->args[2]);
+                break;
+        }
+
+        if (instr->size == 0) break;
+        instr = (RawStageInstr *)((u8 *)instr + instr->size);
+    }
+#endif
+
     this->objectsCount = this->stdData->nbObjects;
     this->quadCount = this->stdData->nbFaces;
     this->objectInstances = (RawStageObjectInstance *)(this->stdData->facesOffset + ((u8 *)this->stdData));
     this->beginningOfScript = (RawStageInstr *)(this->stdData->scriptOffset + ((u8 *)this->stdData));
-    const u32 *objectOffsets = (u32 *)(this->stdData + 1);
+    const u32 *objectOffsets2 = (u32 *)(this->stdData + 1);
 
     this->objects = (RawStageObject **)malloc(sizeof(RawStageObject *) * this->objectsCount);
 
     for (idx = 0; idx < this->objectsCount; idx++)
     {
-        this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + objectOffsets[idx]);
+        this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + objectOffsets2[idx]);
     }
 
     sizeVmArr = this->quadCount * sizeof(AnmVm);

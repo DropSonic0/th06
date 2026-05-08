@@ -134,24 +134,15 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     entryIdx = -1;
     if (isExternalResource == 0)
     {
-        entryname = strrchr(filepath, '\\');
-        if (entryname == (char *)0x0)
+        entryname = filepath;
+        for (const char *p = filepath; *p != '\0'; p++)
         {
-            entryname = filepath;
+            if (*p == '\\' || *p == '/')
+            {
+                entryname = p + 1;
+            }
         }
-        else
-        {
-            entryname = entryname + 1;
-        }
-        entryname = strrchr(entryname, '/');
-        if (entryname == (char *)0x0)
-        {
-            entryname = filepath;
-        }
-        else
-        {
-            entryname = entryname + 1;
-        }
+
         if (g_Pbg3Archives != NULL)
         {
             for (pbg3Idx = 0; pbg3Idx < 0x10; pbg3Idx += 1)
@@ -168,6 +159,9 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
         }
         if (entryIdx < 0)
         {
+#ifdef __PS3__
+            utils::Log("FileSystem: %s (entry: %s) not found in any PBG3 archive", filepath, entryname);
+#endif
             return NULL;
         }
     }

@@ -1,4 +1,4 @@
-#ifndef __PS3__
+﻿#ifndef __PS3__
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -121,10 +121,13 @@ i32 Pbg3Archive::FindEntry(const char *path)
 #ifndef __PS3__
         i32 res = std::strcmp(path, entryFilename);
 #else
-        i32 res = ::strcmp(path, entryFilename);
+        i32 res = ::strcasecmp(path, entryFilename);
 #endif
         if (res == 0)
         {
+#ifdef __PS3__
+            utils::Log("Pbg3Archive: Found entry %s at index %d (size=%u)", entryFilename, entryIdx, this->entries[entryIdx].uncompressedSize);
+#endif
             return entryIdx;
         }
     }
@@ -351,6 +354,9 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
 
     if (this->entries[entryIdx].checksum != checksum)
     {
+#ifdef __PS3__
+        utils::Log("Pbg3Archive: Checksum mismatch for %s: expected %u, got %u", filename, this->entries[entryIdx].checksum, checksum);
+#endif
         if (out != NULL)
         {
             free(out);
@@ -359,5 +365,8 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
         return NULL;
     }
 
+#ifdef __PS3__
+    utils::Log("Pbg3Archive: Successfully decompressed %s", filename);
+#endif
     return out;
 }

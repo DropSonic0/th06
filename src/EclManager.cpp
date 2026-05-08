@@ -42,12 +42,176 @@ ZunResult EclManager::Load(const char *eclPath)
     i32 idx;
 
     this->eclFile = (EclRawHeader *)FileSystem::OpenPath(eclPath, false);
+    u32 eclFileSize = g_LastFileSize;
 
     if (this->eclFile == NULL)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_ECLMANAGER_ENEMY_DATA_CORRUPT);
         return ZUN_ERROR;
     }
+
+#ifdef __PS3__
+    EclRawHeader *header = (EclRawHeader *)this->eclFile;
+    header->subCount = (i16)utils::Swap16((u16)header->subCount);
+    header->mainCount = (i16)utils::Swap16((u16)header->mainCount);
+    for (int i = 0; i < 3; i++) {
+        header->timelineOffsets[i] = utils::Swap32(header->timelineOffsets[i]);
+    }
+    // subOffsets is a flexible array at the end of the struct
+    for (int i = 0; i < header->subCount; i++) {
+        header->subOffsets[i] = utils::Swap32(header->subOffsets[i]);
+    }
+
+    utils::Log("EclManager: Loaded %s. Subs: %d, Mains: %d", eclPath, header->subCount, header->mainCount);
+
+    // Byte-swap instructions in each sub
+    for (int i = 0; i < header->subCount; i++) {
+        EclRawInstr *instr = (EclRawInstr *)(((u8 *)header) + header->subOffsets[i]);
+        while (instr) {
+            u32 off = (u32)((u8 *)instr - (u8 *)header);
+            if (off + 8 > eclFileSize) break;
+
+            instr->time = (i32)utils::Swap32((u32)instr->time);
+            instr->opCode = (i16)utils::Swap16((u16)instr->opCode);
+            instr->offsetToNext = (i16)utils::Swap16((u16)instr->offsetToNext);
+            
+            // Instruction arguments swapping based on opcode
+            switch(instr->opCode) {
+                case ECL_OPCODE_SETINT:
+                case ECL_OPCODE_SETFLOAT:
+                case ECL_OPCODE_SETINTRAND:
+                case ECL_OPCODE_SETFLOATRAND:
+                case ECL_OPCODE_MATHINC:
+                case ECL_OPCODE_MATHDEC:
+                case ECL_OPCODE_SHOOTINTERVAL:
+                case ECL_OPCODE_SHOOTINTERVALDELAYED:
+                case ECL_OPCODE_ENEMYFLAGCOLLISION:
+                case ECL_OPCODE_ENEMYFLAGCANTAKEDAMAGE:
+                case ECL_OPCODE_EFFECTSOUND:
+                case ECL_OPCODE_ENEMYFLAGDEATH:
+                case ECL_OPCODE_DEATHCALLBACKSUB:
+                case ECL_OPCODE_ENEMYLIFESET:
+                case ECL_OPCODE_BOSSTIMERSET:
+                case ECL_OPCODE_LIFECALLBACKTHRESHOLD:
+                case ECL_OPCODE_LIFECALLBACKSUB:
+                case ECL_OPCODE_TIMERCALLBACKTHRESHOLD:
+                case ECL_OPCODE_TIMERCALLBACKSUB:
+                case ECL_OPCODE_ENEMYFLAGINTERACTABLE:
+                case ECL_OPCODE_ANMFLAGROTATION:
+                case ECL_OPCODE_EXINSCALL:
+                case ECL_OPCODE_EXINSREPEAT:
+                case ECL_OPCODE_BOSSSETLIFECOUNT:
+                case ECL_OPCODE_ANMINTERRUPTMAIN:
+                case ECL_OPCODE_ENEMYFLAGDISABLECALLSTACK:
+                case ECL_OPCODE_ENEMYFLAGINVISIBLE:
+                case ECL_OPCODE_BOSSTIMERCLEAR:
+                case ECL_OPCODE_SPELLCARDFLAGTIMEOUT:
+                case ECL_OPCODE_BOSSSET:
+                    instr->args.setInt = (i32)utils::Swap32((u32)instr->args.setInt);
+                    break;
+                case ECL_OPCODE_JUMP:
+                case ECL_OPCODE_JUMPDEC:
+                case ECL_OPCODE_JUMPLSS:
+                case ECL_OPCODE_JUMPLEQ:
+                case ECL_OPCODE_JUMPEQU:
+                case ECL_OPCODE_JUMPGRE:
+                case ECL_OPCODE_JUMPGEQ:
+                case ECL_OPCODE_JUMPNEQ:
+                    instr->args.jump.time = (i32)utils::Swap32((u32)instr->args.jump.time);
+                    instr->args.jump.offset = (i32)utils::Swap32((u32)instr->args.jump.offset);
+                    instr->args.jump.var = (EclVarId)utils::Swap32((u32)instr->args.jump.var);
+                    break;
+                case ECL_OPCODE_MOVEPOSITION:
+                case ECL_OPCODE_MOVEAXISVELOCITY:
+                case ECL_OPCODE_MOVEVELOCITY:
+                case ECL_OPCODE_MOVEANGULARVELOCITY:
+                case ECL_OPCODE_MOVEATPLAYER:
+                case ECL_OPCODE_MOVESPEED:
+                case ECL_OPCODE_MOVEACCELERATION:
+                case ECL_OPCODE_MOVERAND:
+                case ECL_OPCODE_MOVERANDINBOUND:
+                case ECL_OPCODE_SHOOTOFFSET:
+                case ECL_OPCODE_ENEMYSETHITBOX:
+                    instr->args.move.pos.x = utils::SwapF32(instr->args.move.pos.x);
+                    instr->args.move.pos.y = utils::SwapF32(instr->args.move.pos.y);
+                    instr->args.move.pos.z = utils::SwapF32(instr->args.move.pos.z);
+                    break;
+                case ECL_OPCODE_BULLETFANAIMED:
+                case ECL_OPCODE_BULLETFAN:
+                case ECL_OPCODE_BULLETCIRCLEAIMED:
+                case ECL_OPCODE_BULLETCIRCLE:
+                case ECL_OPCODE_BULLETOFFSETCIRCLEAIMED:
+                case ECL_OPCODE_BULLETOFFSETCIRCLE:
+                case ECL_OPCODE_BULLETRANDOMANGLE:
+                case ECL_OPCODE_BULLETRANDOMSPEED:
+                case ECL_OPCODE_BULLETRANDOM:
+                    instr->args.bullet.sprite = (i16)utils::Swap16((u16)instr->args.bullet.sprite);
+                    instr->args.bullet.color = (i16)utils::Swap16((u16)instr->args.bullet.color);
+                    instr->args.bullet.count1 = (EclVarId)utils::Swap32((u32)instr->args.bullet.count1);
+                    instr->args.bullet.count2 = (EclVarId)utils::Swap32((u32)instr->args.bullet.count2);
+                    instr->args.bullet.speed1 = utils::SwapF32(instr->args.bullet.speed1);
+                    instr->args.bullet.speed2 = utils::SwapF32(instr->args.bullet.speed2);
+                    instr->args.bullet.angle1 = utils::SwapF32(instr->args.bullet.angle1);
+                    instr->args.bullet.angle2 = utils::SwapF32(instr->args.bullet.angle2);
+                    instr->args.bullet.flags = (i32)utils::Swap32((u32)instr->args.bullet.flags);
+                    break;
+                case ECL_OPCODE_LASERCREATE:
+                case ECL_OPCODE_LASERCREATEAIMED:
+                    instr->args.laser.sprite = (i16)utils::Swap16((u16)instr->args.laser.sprite);
+                    instr->args.laser.color = (i16)utils::Swap16((u16)instr->args.laser.color);
+                    instr->args.laser.angle = utils::SwapF32(instr->args.laser.angle);
+                    instr->args.laser.speed = utils::SwapF32(instr->args.laser.speed);
+                    instr->args.laser.startOffset = utils::SwapF32(instr->args.laser.startOffset);
+                    instr->args.laser.endOffset = utils::SwapF32(instr->args.laser.endOffset);
+                    instr->args.laser.startLength = utils::SwapF32(instr->args.laser.startLength);
+                    instr->args.laser.width = utils::SwapF32(instr->args.laser.width);
+                    instr->args.laser.startTime = (i32)utils::Swap32((u32)instr->args.laser.startTime);
+                    instr->args.laser.duration = (i32)utils::Swap32((u32)instr->args.laser.duration);
+                    instr->args.laser.stopTime = (i32)utils::Swap32((u32)instr->args.laser.stopTime);
+                    instr->args.laser.grazeDelay = (i32)utils::Swap32((u32)instr->args.laser.grazeDelay);
+                    instr->args.laser.grazeDistance = (i32)utils::Swap32((u32)instr->args.laser.grazeDistance);
+                    instr->args.laser.flags = (i32)utils::Swap32((u32)instr->args.laser.flags);
+                    break;
+                case ECL_OPCODE_CALL:
+                case ECL_OPCODE_CALLLSS:
+                case ECL_OPCODE_CALLLEQ:
+                case ECL_OPCODE_CALLEQU:
+                case ECL_OPCODE_CALLGRE:
+                case ECL_OPCODE_CALLGEQ:
+                case ECL_OPCODE_CALLNEQ:
+                    instr->args.call.eclSub = (i32)utils::Swap32((u32)instr->args.call.eclSub);
+                    instr->args.call.var0 = (i32)utils::Swap32((u32)instr->args.call.var0);
+                    instr->args.call.float0 = utils::SwapF32(instr->args.call.float0);
+                    instr->args.call.cmpLhs = (EclVarId)utils::Swap32((u32)instr->args.call.cmpLhs);
+                    instr->args.call.cmpRhs = (i32)utils::Swap32((u32)instr->args.call.cmpRhs);
+                    break;
+                case ECL_OPCODE_RET:
+                    break;
+                case ECL_OPCODE_MATHINTADD:
+                case ECL_OPCODE_MATHINTSUB:
+                case ECL_OPCODE_MATHINTMUL:
+                case ECL_OPCODE_MATHINTDIV:
+                case ECL_OPCODE_MATHINTMOD:
+                case ECL_OPCODE_MATHFLOATADD:
+                case ECL_OPCODE_MATHFLOATSUB:
+                case ECL_OPCODE_MATHFLOATMUL:
+                case ECL_OPCODE_MATHFLOATDIV:
+                case ECL_OPCODE_MATHFLOATMOD:
+                case ECL_OPCODE_SETINTRANDMIN:
+                case ECL_OPCODE_SETFLOATRANDMIN:
+                case ECL_OPCODE_CMPINT:
+                case ECL_OPCODE_CMPFLOAT:
+                    instr->args.alu.res = (EclVarId)utils::Swap32((u32)instr->args.alu.res);
+                    instr->args.alu.arg1.id = (EclVarId)utils::Swap32((u32)instr->args.alu.arg1.id);
+                    instr->args.alu.arg2.id = (EclVarId)utils::Swap32((u32)instr->args.alu.arg2.id);
+                    break;
+            }
+
+            if (instr->offsetToNext == 0) break;
+            instr = (EclRawInstr *)((u8 *)instr + instr->offsetToNext);
+        }
+    }
+#endif
 
     this->timelinePtrs[0] = (EclTimelineInstr *)(((u8 *)this->eclFile) + this->eclFile->timelineOffsets[0]);
 
