@@ -16,6 +16,9 @@
 #include "pbg3/Pbg3Archive.hpp"
 #include "utils.hpp"
 #include <errno.h>
+#ifdef __PS3__
+#include <ctype.h>
+#endif
 #ifdef __ANDROID__
 #include <SDL.h>
 #include <sys/stat.h>
@@ -37,7 +40,29 @@ FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
     char resolvedPath[512];
     GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
     GamePaths::EnsureParentDir(resolvedPath);
-    return fopen(resolvedPath, mode);
+    FILE *f = fopen(resolvedPath, mode);
+    if (f == NULL && (::strncmp(mode, "r", 1) == 0))
+    {
+        // Fallback for .dat vs .DAT
+        char altPath[512];
+        ::strncpy(altPath, filepath, sizeof(altPath) - 1);
+        altPath[sizeof(altPath) - 1] = '\0';
+        char *dot = ::strrchr(altPath, '.');
+        if (dot && (::strlen(dot) == 4) && (::tolower(dot[1]) == 'd') && (::tolower(dot[2]) == 'a') && (::tolower(dot[3]) == 't'))
+        {
+            if (::isupper(dot[1]))
+            {
+                dot[1] = 'd'; dot[2] = 'a'; dot[3] = 't';
+            }
+            else
+            {
+                dot[1] = 'D'; dot[2] = 'A'; dot[3] = 'T';
+            }
+            GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), altPath);
+            f = fopen(resolvedPath, mode);
+        }
+    }
+    return f;
 #else
 #ifndef _WIN32
     return std::fopen(filepath, mode);

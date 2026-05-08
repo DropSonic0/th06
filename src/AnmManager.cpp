@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string.h>
+#include <stddef.h>
 #include <new>
 
 #ifndef __PS3__
@@ -209,6 +210,8 @@ AnmManager::~AnmManager()
 
 AnmManager::AnmManager()
 {
+    std::memset(&this->sprites, 0, sizeof(AnmManager) - offsetof(AnmManager, sprites));
+
 #ifndef __PS3__
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
 #else
@@ -216,8 +219,6 @@ AnmManager::AnmManager()
 #endif
 
     this->maybeLoadedSpriteCount = 0;
-
-    std::memset(this, 0, sizeof(AnmManager));
 
     for (i32 spriteIndex = 0; spriteIndex < ARRAY_SIZE_SIGNED(this->sprites); spriteIndex++)
     {
@@ -545,6 +546,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 #endif
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
+    u32 anmFileSize = g_LastFileSize;
 
     AnmRawEntry *anm = this->anmFiles[anmIdx];
 
@@ -553,6 +555,41 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_ANMMANAGER_SPRITE_CORRUPTED, path);
         return ZUN_ERROR;
     }
+
+#ifdef __PS3__
+    // Byte-swap header
+    anm->numSprites = utils::Swap32(anm->numSprites);
+    anm->numScripts = utils::Swap32(anm->numScripts);
+    utils::Log("AnmManager: Header swapped. Sprites: %d, Scripts: %d, FileSize: %u", anm->numSprites, anm->numScripts, anmFileSize);
+    if (anm->numSprites < 0 || anm->numSprites > 10000 || anm->numScripts < 0 || anm->numScripts > 10000) {
+        utils::Log("AnmManager: Error: invalid sprite/script count");
+        return ZUN_ERROR;
+    }
+    anm->textureIdx = utils::Swap32(anm->textureIdx);
+    anm->width = utils::Swap32(anm->width);
+    anm->height = utils::Swap32(anm->height);
+    anm->format = utils::Swap32(anm->format);
+    anm->colorKey = utils::Swap32(anm->colorKey);
+    anm->nameOffset = utils::Swap32(anm->nameOffset);
+    anm->spriteIdxOffset = utils::Swap32(anm->spriteIdxOffset);
+    anm->alphaNameOffset = utils::Swap32(anm->alphaNameOffset);
+    anm->version = utils::Swap32(anm->version);
+    anm->unk1 = utils::Swap32(anm->unk1);
+    anm->textureOffset = utils::Swap32(anm->textureOffset);
+    anm->hasData = utils::Swap32(anm->hasData);
+    anm->nextOffset = utils::Swap32(anm->nextOffset);
+    anm->unk2 = utils::Swap32(anm->unk2);
+
+    u32 totalOffsets = anm->numSprites + 2 * anm->numScripts;
+    // Safety check for offsets table
+    if (offsetof(AnmRawEntry, spriteOffsets) + totalOffsets * 4 > anmFileSize) {
+        utils::Log("AnmManager: Error: offsets table exceeds file size");
+        return ZUN_ERROR;
+    }
+    for (u32 i = 0; i < totalOffsets; ++i) {
+        anm->spriteOffsets[i] = utils::Swap32(anm->spriteOffsets[i]);
+    }
+#endif
 
     anm->textureIdx = anmIdx;
 
@@ -590,11 +627,39 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     const u32 *curSpriteOffset = anm->spriteOffsets;
 
     i32 index;
-    const AnmRawSprite *rawSprite;
+    AnmRawSprite *rawSprite;
 
-    for (index = 0; index < this->anmFiles[anmIdx]->numSprites; index++, curSpriteOffset++)
+#ifdef __PS3__
+    u8 *swappedMap = (u8 *)malloc(anmFileSize);
+    if (swappedMap) memset(swappedMap, 0, anmFileSize);
+#endif
+
+    utils::Log("AnmManager: Processing sprites...");
+    for (index = 0; index < (i32)anm->numSprites; index++, curSpriteOffset++)
     {
-        rawSprite = (AnmRawSprite *)((u8 *)anm + *curSpriteOffset);
+        u32 spriteDataOff = *curSpriteOffset;
+        if (spriteDataOff + sizeof(AnmRawSprite) > anmFileSize) {
+             utils::Log("AnmManager: Warning: sprite %d data offset %u exceeds file size", index, spriteDataOff);
+             continue;
+        }
+
+        rawSprite = (AnmRawSprite *)((u8 *)anm + spriteDataOff);
+
+#ifdef __PS3__
+        if (swappedMap && spriteDataOff < anmFileSize && !swappedMap[spriteDataOff]) {
+            swappedMap[spriteDataOff] = 1;
+            rawSprite->id = utils::Swap32(rawSprite->id);
+            // Note: bitcast f32 to u32 for Swap32
+            *(u32*)&rawSprite->offset.x = utils::Swap32(*(u32*)&rawSprite->offset.x);
+            *(u32*)&rawSprite->offset.y = utils::Swap32(*(u32*)&rawSprite->offset.y);
+            *(u32*)&rawSprite->size.x = utils::Swap32(*(u32*)&rawSprite->size.x);
+            *(u32*)&rawSprite->size.y = utils::Swap32(*(u32*)&rawSprite->size.y);
+        }
+#endif
+        if (rawSprite->id + spriteIdxOffset >= 2048) {
+            utils::Log("AnmManager: Error: sprite id %d + offset %d exceeds 2048", rawSprite->id, spriteIdxOffset);
+            continue;
+        }
 
         AnmLoadedSprite loadedSprite;
         loadedSprite.sourceFileIndex = this->anmFiles[anmIdx]->textureIdx;
@@ -607,11 +672,49 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         this->LoadSprite(rawSprite->id + spriteIdxOffset, &loadedSprite);
     }
 
-    for (index = 0; index < anm->numScripts; index++, curSpriteOffset += 2)
+#ifdef __PS3__
+    utils::Log("AnmManager: Processing %d scripts...", anm->numScripts);
+#endif
+
+    for (index = 0; index < (i32)anm->numScripts; index++, curSpriteOffset += 2)
     {
-        this->scripts[curSpriteOffset[0] + spriteIdxOffset] = (AnmRawInstr *)((u8 *)anm + curSpriteOffset[1]);
-        this->spriteIndices[curSpriteOffset[0] + spriteIdxOffset] = spriteIdxOffset;
+        u32 scriptId = curSpriteOffset[0];
+        u32 scriptOffset = curSpriteOffset[1];
+        if (scriptId + spriteIdxOffset >= 2048) continue;
+
+        if (scriptOffset + 4 > anmFileSize) continue;
+
+        AnmRawInstr *instr = (AnmRawInstr *)((u8 *)anm + scriptOffset);
+        this->scripts[scriptId + spriteIdxOffset] = instr;
+        this->spriteIndices[scriptId + spriteIdxOffset] = spriteIdxOffset;
+
+#ifdef __PS3__
+        // Byte-swap instructions until we hit an exit opcode or similar
+        while (instr && swappedMap) {
+            u32 off = (u32)((u8 *)instr - (u8 *)anm);
+            if (off + 4 > anmFileSize || swappedMap[off]) break;
+            swappedMap[off] = 1;
+
+            instr->time = (i16)utils::Swap16((u16)instr->time);
+            // opcode and argsCount are u8, no swap needed
+            
+            // Safety check for args swapping
+            if (off + 4 + instr->argsCount > anmFileSize) break;
+
+            // Only swap the arguments that are actually present
+            for (int i = 0; i < (int)(instr->argsCount / 4); ++i) {
+                instr->args[i] = utils::Swap32(instr->args[i]);
+            }
+            if (instr->opcode == AnmOpcode_Exit || instr->opcode == AnmOpcode_ExitHide) {
+                break;
+            }
+            instr = (AnmRawInstr *)((u8 *)instr->args + instr->argsCount);
+        }
+#endif
     }
+#ifdef __PS3__
+    if (swappedMap) free(swappedMap);
+#endif
 
     this->anmFilesSpriteIndexOffsets[anmIdx] = spriteIdxOffset;
 
@@ -1375,7 +1478,14 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 #define AnmF32Arg(index) (*(f32 *)&curInstr->args[index])
 #define AnmI32Arg(index) (*(i32 *)&curInstr->args[index])
 #define AnmU32Arg(index) (*(u32 *)&curInstr->args[index])
+#ifdef __PS3__
+// On big endian, the 16-bit value is in the high bits if it was loaded from little-endian memory into a 32-bit register.
+// But since we swap the 32-bit args, the 16-bit value is now in the low bits (or high depending on original layout).
+// Original layout: [low][high]... so after Swap32 [high][low]... the i16 at index 0 is at offset +2.
+#define AnmI16Arg(index) (*(i16 *)((u8 *)&curInstr->args[index] + 2))
+#else
 #define AnmI16Arg(index) (*(i16 *)&curInstr->args[index])
+#endif
 
 i32 AnmManager::ExecuteScript(AnmVm *vm)
 {

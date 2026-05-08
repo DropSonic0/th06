@@ -100,12 +100,12 @@
 #define TH_JP_ST_DAT_FILE "紅魔郷ST.dat"
 #define TH_JP_TL_DAT_FILE "紅魔郷TL.dat"
 #else
-#define TH_JP_CM_DAT_FILE "CM.dat"
+#define TH_JP_CM_DAT_FILE "CM.DAT"
 #define TH_JP_ED_DAT_FILE "ED.DAT"
-#define TH_JP_IN_DAT_FILE "IN.dat"
-#define TH_JP_MD_DAT_FILE "MD.dat"
-#define TH_JP_ST_DAT_FILE "ST.dat"
-#define TH_JP_TL_DAT_FILE "TL.dat"
+#define TH_JP_IN_DAT_FILE "IN.DAT"
+#define TH_JP_MD_DAT_FILE "MD.DAT"
+#define TH_JP_ST_DAT_FILE "ST.DAT"
+#define TH_JP_TL_DAT_FILE "TL.DAT"
 #endif
 
 // EN
@@ -205,12 +205,12 @@
 #define TH_EN_ST_DAT_FILE "紅魔郷ST.dat"
 #define TH_EN_TL_DAT_FILE "紅魔郷TL.dat"
 #else
-#define TH_EN_CM_DAT_FILE "CM.dat"
-#define TH_EN_ED_DAT_FILE "ED.dat"
-#define TH_EN_IN_DAT_FILE "IN.dat"
-#define TH_EN_MD_DAT_FILE "MD.dat"
-#define TH_EN_ST_DAT_FILE "ST.dat"
-#define TH_EN_TL_DAT_FILE "TL.dat"
+#define TH_EN_CM_DAT_FILE "CM.DAT"
+#define TH_EN_ED_DAT_FILE "ED.DAT"
+#define TH_EN_IN_DAT_FILE "IN.DAT"
+#define TH_EN_MD_DAT_FILE "MD.DAT"
+#define TH_EN_ST_DAT_FILE "ST.DAT"
+#define TH_EN_TL_DAT_FILE "TL.DAT"
 #endif
 #define TH_CONCAT_HELPER(x, y) x##y
 

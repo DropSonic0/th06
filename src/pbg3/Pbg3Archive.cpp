@@ -21,9 +21,17 @@ Pbg3Archive::Pbg3Archive()
     this->unk = NULL;
 }
 
+#ifdef __PS3__
+#include "utils.hpp"
+#endif
+
 i32 Pbg3Archive::ParseHeader()
 {
-    if (this->parser->ReadMagic() != 0x33474250)
+    u32 magic = this->parser->ReadMagic();
+#ifdef __PS3__
+    utils::Log("Pbg3Archive: Read magic 0x%08x (expected 0x33474250)", magic);
+#endif
+    if (magic != 0x33474250)
     {
         if (this->parser != NULL)
         {

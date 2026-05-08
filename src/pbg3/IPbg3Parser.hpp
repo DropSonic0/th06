@@ -8,6 +8,7 @@ class IPbg3Parser
     IPbg3Parser()
     {
         this->Reset();
+        this->fileSize = 0;
     }
     void Reset();
     u32 ReadVarInt();
