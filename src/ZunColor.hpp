@@ -51,11 +51,18 @@
 #define COLOR_MUSIC_ROOM_SONG_DESC_TEXT 0xffe0c0
 #define COLOR_MUSIC_ROOM_SONG_DESC_SHADOW 0x300000
 
+#ifndef __PS3__
 // TODO: The following assumes little endian
 #define COLOR_RED_BYTE_IDX 0
 #define COLOR_GREEN_BYTE_IDX 1
 #define COLOR_BLUE_BYTE_IDX 2
 #define COLOR_ALPHA_BYTE_IDX 3
+#else
+#define COLOR_ALPHA_BYTE_IDX 0
+#define COLOR_RED_BYTE_IDX 1
+#define COLOR_GREEN_BYTE_IDX 2
+#define COLOR_BLUE_BYTE_IDX 3
+#endif
 
 #define COLOR_GET_COMPONENT(color, component) (((u8 *)&(color))[(component)])
 #define COLOR_SET_COMPONENT(color, component, value) ((u8 *)&(color))[(component)] = (value);

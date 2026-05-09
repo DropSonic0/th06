@@ -230,9 +230,9 @@ void GameWindow::Present()
 #ifndef __PS3__
     SDL_GL_SwapWindow(g_GameWindow.window);
 #else
-    utils::Log("GameWindow: psglSwap()...");
+    // utils::Log("GameWindow: psglSwap()...");
     psglSwap();
-    utils::Log("GameWindow: psglSwap() done.");
+    // utils::Log("GameWindow: psglSwap() done.");
 #endif
 
     //gamewindowdlog("present finish");

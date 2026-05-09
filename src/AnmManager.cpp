@@ -2377,7 +2377,7 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     this->SetCurrentSprite(NULL);
     this->SetCurrentTexture(0);
     this->SetCurrentBlendMode(0xff);
-    utils::Log("AnmManager: CopySurfaceRectToBackBuffer done.");
+    // utils::Log("AnmManager: CopySurfaceRectToBackBuffer done.");
 #endif
     //
     //    IDirect3DSurface8 *D3D_Surface;

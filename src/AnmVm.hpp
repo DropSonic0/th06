@@ -105,20 +105,39 @@ enum AnmVmAnchor
 
 union AnmVmFlags {
     u16 flags;
+#ifndef __PS3__
     struct
     {
-        u32 isVisible : 1;
-        u32 flag1 : 1;
-        u32 blendMode : 1;
-        u32 colorOp : 1;
-        u32 flag4 : 1;
-        u32 usePosOffset : 1;
-        u32 flip : 2;
-        u32 anchor : 2;
-        u32 posTime : 2;
-        u32 zWriteDisable : 1;
-        u32 isStopped : 1;
+        u16 isVisible : 1;
+        u16 flag1 : 1;
+        u16 blendMode : 1;
+        u16 colorOp : 1;
+        u16 flag4 : 1;
+        u16 usePosOffset : 1;
+        u16 flip : 2;
+        u16 anchor : 2;
+        u16 posTime : 2;
+        u16 zWriteDisable : 1;
+        u16 isStopped : 1;
+        u16 padding : 2;
     };
+#else
+    struct
+    {
+        u16 padding : 2;
+        u16 isStopped : 1;
+        u16 zWriteDisable : 1;
+        u16 posTime : 2;
+        u16 anchor : 2;
+        u16 flip : 2;
+        u16 usePosOffset : 1;
+        u16 flag4 : 1;
+        u16 colorOp : 1;
+        u16 blendMode : 1;
+        u16 flag1 : 1;
+        u16 isVisible : 1;
+    };
+#endif
 };
 
 struct AnmVm
