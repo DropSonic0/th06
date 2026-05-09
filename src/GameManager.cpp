@@ -428,6 +428,7 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_ECLMANAGER);
         return ZUN_ERROR;
     }
+    utils::Log("GameManager: EclManager::Load finished successfully");
     if (EffectManager::RegisterChain() != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_EFFECTMANAGER);

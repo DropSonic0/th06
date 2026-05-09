@@ -88,6 +88,15 @@ struct MusicStream
     u32 loopEnd;
     u32 fadeoutLen;
     u32 fadeoutProgress;
+#ifdef __PS3__
+    i16 *streamCache;
+    u32 streamCacheSize; // in frames
+    u32 streamCachePos;  // in frames
+    u32 streamCacheValid; // in frames
+    double fraction;
+    i16 lastSamples[2];
+    i16 nextSamples[2];
+#endif
 };
 
 struct SoundPlayer

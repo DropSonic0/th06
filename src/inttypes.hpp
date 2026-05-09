@@ -15,6 +15,7 @@ typedef std::int16_t i16;
 typedef std::uint16_t u16;
 typedef std::int32_t i32;
 typedef std::uint32_t u32;
+typedef std::int64_t i64;
 typedef std::uint64_t u64;
 typedef std::intptr_t iptr;
 #else
@@ -26,6 +27,7 @@ typedef int16_t i16;
 typedef uint16_t u16;
 typedef int32_t i32;
 typedef uint32_t u32;
+typedef int64_t i64;
 typedef uint64_t u64;
 typedef intptr_t iptr;
 #endif
