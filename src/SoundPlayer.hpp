@@ -109,7 +109,7 @@ struct SoundPlayer
     ZunResult LoadPos(const char *path);
 
     void BackgroundMusicPlayerThread();
-    void MixAudio(u32 samples);
+    int MixAudio(u32 samples);
 
     SoundData soundBuffers[128];
 #ifndef __PS3__
@@ -122,6 +122,8 @@ struct SoundPlayer
     uint32_t audioPortNum;
     sys_ppu_thread_t backgroundMusicThreadHandle;
     volatile bool terminateFlag;
+    u64 ps3_startUs;
+    u64 ps3_samplesSent;
 #endif
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;

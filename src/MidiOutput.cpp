@@ -244,7 +244,7 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
         std::memcpy(this->tracks[trackIdx].trackData, currentCursor, trackLength);
         currentCursor += trackLength;
     }
-    this->tempo = 1000000;
+    this->tempo = 1000;
     return ZUN_SUCCESS;
 }
 

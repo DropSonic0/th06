@@ -56,7 +56,15 @@ ControllerMapping g_ControllerMapping = {
 SDL_Surface *g_TextBufferSurface;
 #else
 ControllerMapping g_ControllerMapping = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8
+    14, // shoot (Cross)
+    13, // bomb (Circle)
+    11, // focus (R1)
+    3,  // menu (Start)
+    4,  // up (D-Pad Up)
+    6,  // down (D-Pad Down)
+    7,  // left (D-Pad Left)
+    5,  // right (D-Pad Right)
+    0   // skip (Select)
 };
 void *g_TextBufferSurface;
 #endif
@@ -772,11 +780,17 @@ ZunResult Supervisor::LoadConfig(const char *path)
         wavFile = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
         if (wavFile != NULL)
         {
+#ifdef __PS3__
+            utils::Log("Config: BGM WAV found, setting musicMode to WAV");
+#endif
             g_Supervisor.cfg.musicMode = WAV;
             std::fclose(wavFile);
         }
         else
         {
+#ifdef __PS3__
+            utils::Log("Config: BGM WAV NOT found, setting musicMode to MIDI");
+#endif
             g_Supervisor.cfg.musicMode = MIDI;
             utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
         }
@@ -821,11 +835,17 @@ ZunResult Supervisor::LoadConfig(const char *path)
             wavFile2 = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
             if (wavFile2 != NULL)
             {
+#ifdef __PS3__
+                utils::Log("Config: BGM WAV found (fallback), setting musicMode to WAV");
+#endif
                 g_Supervisor.cfg.musicMode = WAV;
                 std::fclose(wavFile2);
             }
             else
             {
+#ifdef __PS3__
+                utils::Log("Config: BGM WAV NOT found (fallback), setting musicMode to MIDI");
+#endif
                 g_Supervisor.cfg.musicMode = MIDI;
                 utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
             }
@@ -949,6 +969,9 @@ ZunResult Supervisor::PlayMidiFile(i32 midiFileIdx)
 
 ZunResult Supervisor::PlayAudio(const char *path)
 {
+#ifdef __PS3__
+    utils::Log("Supervisor: PlayAudio(%s)", path);
+#endif
     char wavName[256];
     char wavPos[256];
     char *pathExtension;
@@ -966,21 +989,30 @@ ZunResult Supervisor::PlayAudio(const char *path)
     {
         std::strcpy(wavName, path);
         std::strcpy(wavPos, path);
-        pathExtension = std::strrchr(wavName, L'.');
+        pathExtension = std::strrchr(wavName, '.');
         pathExtension[1] = 'w';
         pathExtension[2] = 'a';
         pathExtension[3] = 'v';
-        pathExtension = std::strrchr(wavPos, L'.');
+        pathExtension = std::strrchr(wavPos, '.');
         pathExtension[1] = 'p';
         pathExtension[2] = 'o';
         pathExtension[3] = 's';
+#ifdef __PS3__
+        utils::Log("Supervisor: Loading BGM %s and %s", wavName, wavPos);
+#endif
         g_SoundPlayer.LoadWav(wavName);
         if (g_SoundPlayer.LoadPos(wavPos) < ZUN_SUCCESS)
         {
+#ifdef __PS3__
+            utils::Log("Supervisor: PlayBGM(false) - No pos file found");
+#endif
             g_SoundPlayer.PlayBGM(false);
         }
         else
         {
+#ifdef __PS3__
+            utils::Log("Supervisor: PlayBGM(true) - Looping");
+#endif
             g_SoundPlayer.PlayBGM(true);
         }
     }

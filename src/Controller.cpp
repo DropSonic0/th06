@@ -159,18 +159,30 @@ u16 Controller::GetControllerInput(u16 buttons)
     CellPadData padData;
     if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
     {
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_CROSS) buttons |= TH_BUTTON_SHOOT;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_CIRCLE) buttons |= TH_BUTTON_BOMB;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2] & CELL_PAD_CTRL_R1) buttons |= TH_BUTTON_FOCUS;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_START) buttons |= TH_BUTTON_MENU;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_UP) buttons |= TH_BUTTON_UP;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_DOWN) buttons |= TH_BUTTON_DOWN;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_LEFT) buttons |= TH_BUTTON_LEFT;
-        if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & CELL_PAD_CTRL_RIGHT) buttons |= TH_BUTTON_RIGHT;
+        u16 digital1 = padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1];
+        u16 digital2 = padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2];
+
+        // D-Pad
+        if (digital1 & CELL_PAD_CTRL_UP) buttons |= TH_BUTTON_UP;
+        if (digital1 & CELL_PAD_CTRL_DOWN) buttons |= TH_BUTTON_DOWN;
+        if (digital1 & CELL_PAD_CTRL_LEFT) buttons |= TH_BUTTON_LEFT;
+        if (digital1 & CELL_PAD_CTRL_RIGHT) buttons |= TH_BUTTON_RIGHT;
+
+        // Face buttons & Shoulders
+        if (digital2 & CELL_PAD_CTRL_CROSS) buttons |= TH_BUTTON_SHOOT;
+        if (digital2 & CELL_PAD_CTRL_CIRCLE) buttons |= TH_BUTTON_BOMB;
+        if (digital2 & CELL_PAD_CTRL_R1) buttons |= TH_BUTTON_FOCUS;
+        if (digital2 & CELL_PAD_CTRL_L1) buttons |= TH_BUTTON_SKIP;
+
+        // System buttons
+        if (digital1 & CELL_PAD_CTRL_START) buttons |= TH_BUTTON_MENU;
+        if (digital1 & CELL_PAD_CTRL_SELECT) buttons |= TH_BUTTON_SKIP;
+        if (digital2 & CELL_PAD_CTRL_SQUARE) buttons |= TH_BUTTON_S;
+        if (digital2 & CELL_PAD_CTRL_TRIANGLE) buttons |= TH_BUTTON_Q;
 
         // Analog stick
-        int stickX = (int)padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] - 128;
-        int stickY = (int)padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] - 128;
+        int stickX = (int)(padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] & 0xFF) - 128;
+        int stickY = (int)(padData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] & 0xFF) - 128;
 
         if (stickX > 50) buttons |= TH_BUTTON_RIGHT;
         if (stickX < -50) buttons |= TH_BUTTON_LEFT;
@@ -346,10 +358,11 @@ const u8 *Controller::GetControllerState()
     memset(&g_ControllerData, 0, sizeof(g_ControllerData));
     if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
     {
-        // This is a bit simplified, but should work for rebinding if needed
+        u16 digital1 = padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1];
+        u16 digital2 = padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2];
         for (int i = 0; i < 8; i++) {
-            if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL1] & (1 << i)) g_ControllerData[i] = 0x80;
-            if (padData.button[CELL_PAD_BTN_OFFSET_DIGITAL2] & (1 << i)) g_ControllerData[i+8] = 0x80;
+            if (digital1 & (1 << i)) g_ControllerData[i] = 0x80;
+            if (digital2 & (1 << i)) g_ControllerData[i+8] = 0x80;
         }
     }
 #endif

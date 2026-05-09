@@ -74,6 +74,7 @@ SoundPlayer::SoundPlayer()
     //std::memset(this, 0, sizeof(SoundPlayer));
 #ifdef __PS3__
     sys_mutex_create(&this->soundBufMutex, NULL);
+    this->audioPortNum = 0xFFFFFFFF;
 #endif
 }
 
@@ -117,27 +118,47 @@ ZunResult SoundPlayer::InitializeDSound()
     this->backgroundMusicThreadHandle = std::thread(&SoundPlayer::BackgroundMusicPlayerThread, this);
 #else
     utils::Log("SoundPlayer: cellAudioInit...");
-    cellAudioInit();
+    int res_init = cellAudioInit();
+    if (res_init != CELL_OK && res_init != CELL_AUDIO_ERROR_ALREADY_INIT) {
+        utils::Log("SoundPlayer: cellAudioInit failed: 0x%08x", res_init);
+        goto fail;
+    }
     
     CellAudioPortParam portParam;
     portParam.nChannel = CELL_AUDIO_PORT_2CH;
-    portParam.nBlock = 8;
-    portParam.attr = 0;
+    portParam.nBlock = 16;
+    portParam.attr = CELL_AUDIO_PORTATTR_INITLEVEL;
     portParam.level = 1.0f;
 
-    utils::Log("SoundPlayer: cellAudioPortOpen...");
-    if (cellAudioPortOpen(&portParam, &this->audioPortNum) != CELL_OK)
+    utils::Log("SoundPlayer: cellAudioPortOpen (nBlock=%d, attr=0x%llx)...", portParam.nBlock, portParam.attr);
+    int res = cellAudioPortOpen(&portParam, &this->audioPortNum);
+    if (res != CELL_OK)
     {
+        utils::Log("SoundPlayer: cellAudioPortOpen failed: 0x%08x", res);
         goto fail;
     }
 
     utils::Log("SoundPlayer: cellAudioPortStart (port %d)...", this->audioPortNum);
-    cellAudioPortStart(this->audioPortNum);
+    res = cellAudioPortStart(this->audioPortNum);
+    cellAudioSetPortLevel(this->audioPortNum, 1.0f);
+    if (res != CELL_OK)
+    {
+        utils::Log("SoundPlayer: cellAudioPortStart failed: 0x%08x", res);
+        goto fail;
+    }
 
     utils::Log("SoundPlayer: sys_ppu_thread_create...");
-    sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 128 * 1024, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
+    this->ps3_startUs = sys_time_get_system_time() / 1000;
+    this->ps3_samplesSent = 0;
+    res = sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 128 * 1024, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
+    if (res != CELL_OK)
+    {
+        utils::Log("SoundPlayer: sys_ppu_thread_create failed: 0x%08x", res);
+        goto fail;
+    }
 #endif
 
+    utils::Log("SoundPlayer: InitializeDSound SUCCESS");
     GameErrorContext::Log(&g_GameErrorContext, TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
     return ZUN_SUCCESS;
 
@@ -227,7 +248,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
         return ZUN_ERROR;
     }
 #else
-    if (this->audioPortNum == 0)
+    if (this->audioPortNum == 0xFFFFFFFF)
     {
         return ZUN_ERROR;
     }
@@ -255,7 +276,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     if (fileStream == NULL)
     {
 #ifdef __PS3__
-        utils::Log("SoundPlayer: Failed to load BGM WAV: %s", path);
+        utils::Log("SoundPlayer: Failed to load BGM WAV (fopen failed): %s (resolved: %s)", path, resolvedPath);
 #endif
         utils::DebugPrint2("error : wav file load error %s\n", path);
         return ZUN_ERROR;
@@ -446,6 +467,9 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     return ZUN_SUCCESS;
 
 fail:
+#ifdef __PS3__
+    utils::Log("SoundPlayer: Failed to LoadWav %s (check WAV format?)", path);
+#endif
 #ifndef __PS3__
     SDL_RWclose(fileStream);
 #else
@@ -461,7 +485,7 @@ ZunResult SoundPlayer::LoadPos(const char *path)
 #ifndef __PS3__
     if (this->audioDev == 0 || g_Supervisor.cfg.playSounds == 0 || backgroundMusic.srcWav.fileStream == NULL)
 #else
-    if (this->audioPortNum == 0 || g_Supervisor.cfg.playSounds == 0 || backgroundMusic.srcWav.fileStream == NULL)
+    if (this->audioPortNum == 0xFFFFFFFF || g_Supervisor.cfg.playSounds == 0 || backgroundMusic.srcWav.fileStream == NULL)
 #endif
     {
         return ZUN_ERROR;
@@ -498,12 +522,15 @@ ZunResult SoundPlayer::LoadPos(const char *path)
 
 ZunResult SoundPlayer::InitSoundBuffers()
 {
+#ifdef __PS3__
+    utils::Log("SoundPlayer: InitSoundBuffers...");
+#endif
     //soundplayerdlog("init sound buffer");
     //soundplayerdlog("check audioDev");
 #ifndef __PS3__
     if (this->audioDev == 0)
 #else
-    if (this->audioPortNum == 0)
+    if (this->audioPortNum == 0xFFFFFFFF)
 #endif
     {
         return ZUN_ERROR;
@@ -563,6 +590,9 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
 
     if (wavRawData == NULL)
     {
+#ifdef __PS3__
+        utils::Log("SoundPlayer: LoadSound %d FAILED to OpenPath: %s", idx, path);
+#endif
         goto fail;
     }
 
@@ -606,14 +636,17 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     SDL_FreeWAV(wavRawSamples);
 #else
     rawSampleCount = (g_LastFileSize - 44) / 2;
-    this->soundBuffers[idx].len = rawSampleCount * 2; // 22050 -> 44100
+    this->soundBuffers[idx].len = rawSampleCount * 4; // 22050 Mono -> 44100 Stereo (4 samples per source sample)
     this->soundBuffers[idx].samples = new i16[this->soundBuffers[idx].len];
     for (uint32_t i = 0; i < rawSampleCount; i++) {
         i16 sample;
         memcpy(&sample, wavRawData + 44 + i * 2, 2);
         sample = utils::Swap16(sample);
-        this->soundBuffers[idx].samples[i*2] = sample;
-        this->soundBuffers[idx].samples[i*2 + 1] = sample;
+        // Interleaved Stereo output: L, R, L, R
+        this->soundBuffers[idx].samples[i*4] = sample;     // Frame 1 L
+        this->soundBuffers[idx].samples[i*4 + 1] = sample; // Frame 1 R
+        this->soundBuffers[idx].samples[i*4 + 2] = sample; // Frame 2 L
+        this->soundBuffers[idx].samples[i*4 + 3] = sample; // Frame 2 R
     }
 #endif
 
@@ -624,6 +657,10 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
 
     this->soundBuffers[idx].pos = 0;
     this->soundBuffers[idx].isPlaying = false;
+
+#ifdef __PS3__
+    utils::Log("SoundPlayer: LoadSound %d SUCCESS: %s (len: %u)", idx, path, this->soundBuffers[idx].len);
+#endif
 
     //soundplayerdlog("load sound 7");
     // soundBufMutex.unlock();
@@ -672,10 +709,18 @@ void SoundPlayer::PlaySounds()
     i32 idx;
     i32 sndBufIdx;
 
+#ifdef __PS3__
+    static int log_counter = 0;
+    if (this->soundBuffersToPlay[0] >= 0 && ++log_counter >= 1) { 
+        utils::Log("SoundPlayer: PlaySounds commit [%d, %d, %d]", this->soundBuffersToPlay[0], this->soundBuffersToPlay[1], this->soundBuffersToPlay[2]); 
+        log_counter = 0; 
+    }
+#endif
+
 #ifndef __PS3__
     if (this->audioDev == 0 || !g_Supervisor.cfg.playSounds)
 #else
-    if (this->audioPortNum == 0 || !g_Supervisor.cfg.playSounds)
+    if (this->audioPortNum == 0xFFFFFFFF || !g_Supervisor.cfg.playSounds)
 #endif
     {
         return;
@@ -709,6 +754,10 @@ void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
 {
     u32 i;
 
+#ifdef __PS3__
+    utils::Log("SoundPlayer: PlaySoundByIdx(%d)", idx);
+#endif
+
     for (i = 0; i < ARRAY_SIZE(this->soundBuffersToPlay); i++)
     {
         if (this->soundBuffersToPlay[i] < 0)
@@ -730,16 +779,38 @@ void SoundPlayer::PlaySoundByIdx(SoundIdx idx)
     this->soundBuffersToPlay[i] = idx;
 }
 
-void SoundPlayer::MixAudio(u32 samples)
+int SoundPlayer::MixAudio(u32 samples)
 {
+#ifdef __PS3__
+    static int mix_enter_log = 0;
+    if (++mix_enter_log >= 300) {
+        utils::Log("SoundPlayer: MixAudio enter, samples=%u", samples);
+        mix_enter_log = 0;
+    }
+#endif
 #ifndef __PS3__
     std::vector<i16> finalBuffer(samples);
     std::vector<i32> mixBuffer(samples);
-#else
-    i32* mixBuffer = (i32*)alloca(samples * sizeof(i32));
-    memset(mixBuffer, 0, samples * sizeof(i32));
-#endif
     u8 playingChannels = 0;
+#else
+    static i32 mixBuffer[2048] __attribute__((aligned(16)));
+    if (samples > 2048) samples = 2048;
+    memset(mixBuffer, 0, samples * sizeof(i32));
+    u8 playingChannels = 0;
+
+    // Save state for rollback
+    u32 savedSoundPos[ARRAY_SIZE(this->soundBuffers)];
+    bool savedSoundPlaying[ARRAY_SIZE(this->soundBuffers)];
+    for(int i=0; i<ARRAY_SIZE_SIGNED(this->soundBuffers); i++) {
+        savedSoundPos[i] = this->soundBuffers[i].pos;
+        savedSoundPlaying[i] = this->soundBuffers[i].isPlaying;
+    }
+    u32 savedBgmPos = this->backgroundMusic.pos;
+    long savedFilePos = -1;
+    if (this->backgroundMusic.srcWav.fileStream) {
+        savedFilePos = ftell(this->backgroundMusic.srcWav.fileStream);
+    }
+#endif
 
     // this->soundBufMutex.lock();
 
@@ -752,6 +823,20 @@ void SoundPlayer::MixAudio(u32 samples)
 
         playingChannels++;
 
+#ifdef __PS3__
+        // Source samples are interleaved stereo (PS3 LoadSound upsamples them)
+        const u32 framesToMix = std::min(samples / 2, (this->soundBuffers[i].len - this->soundBuffers[i].pos) / 2);
+
+        for (u32 j = 0; j < framesToMix; j++)
+        {
+            mixBuffer[j * 2] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j * 2];
+            mixBuffer[j * 2 + 1] += this->soundBuffers[i].samples[this->soundBuffers[i].pos + j * 2 + 1];
+        }
+
+        this->soundBuffers[i].pos += framesToMix * 2;
+
+        if (this->soundBuffers[i].pos >= this->soundBuffers[i].len)
+#else
         // Sounds are all mono, so we need to duplicate each sample for stereo output
         const u32 samplesToMix = std::min(samples / 2, this->soundBuffers[i].len - this->soundBuffers[i].pos);
 
@@ -764,6 +849,7 @@ void SoundPlayer::MixAudio(u32 samples)
         this->soundBuffers[i].pos += samplesToMix;
 
         if (this->soundBuffers[i].pos == this->soundBuffers[i].len)
+#endif
         {
             this->soundBuffers[i].isPlaying = false;
         }
@@ -878,8 +964,8 @@ void SoundPlayer::MixAudio(u32 samples)
 #ifndef __PS3__
     const int mixDivisor = std::max(8, (int)playingChannels);
 #else
-    // PS3: Reduce mix divisor to increase volume (original game volume is quite low)
-    const int mixDivisor = playingChannels > 4 ? playingChannels : 4;
+    // PS3: Dynamic mix divisor for better volume
+    const int mixDivisor = std::max(2, (int)playingChannels);
 #endif
 
 #ifndef __PS3__
@@ -893,13 +979,45 @@ void SoundPlayer::MixAudio(u32 samples)
     }
 
     SDL_QueueAudio(this->audioDev, finalBuffer.data(), samples * 2);
+    return 0;
 #else
-    float* floatBuffer = (float*)alloca(samples * sizeof(float));
+    static float floatBuffer[2048] __attribute__((aligned(16)));
+    if (samples > 2048) samples = 2048;
+
     for (u32 i = 0; i < samples; i++)
     {
         floatBuffer[i] = (float)mixBuffer[i] / (mixDivisor * 32768.0f);
     }
-    cellAudioAdd2chData(this->audioPortNum, floatBuffer, samples / 2, 1.0f);
+    int res_add = cellAudioAdd2chData(this->audioPortNum, floatBuffer, samples / 2, 1.0f);
+
+    static int log_counter = 0;
+    static int first_mixes = 0;
+    if (first_mixes < 10 || ++log_counter >= 300) {
+        float peak = 0;
+        if (playingChannels > 0) {
+            for (u32 i = 0; i < samples; i++) if (fabsf(floatBuffer[i]) > peak) peak = fabsf(floatBuffer[i]);
+        }
+        utils::Log("SoundPlayer: Mix (chans=%d, peak=%.3f, res=0x%x)", playingChannels, peak, res_add);
+        log_counter = 0;
+        if (first_mixes < 10) first_mixes++;
+    }
+
+    if (res_add < 0) {
+        if (res_add != CELL_AUDIO_ERROR_PORT_FULL) {
+            utils::Log("SoundPlayer: cellAudioAdd2chData(port=%d, samples=%d) failed: 0x%08x", this->audioPortNum, samples/2, res_add);
+        }
+        // Rollback
+        for(int i=0; i<ARRAY_SIZE_SIGNED(this->soundBuffers); i++) {
+            this->soundBuffers[i].pos = savedSoundPos[i];
+            this->soundBuffers[i].isPlaying = savedSoundPlaying[i];
+        }
+        this->backgroundMusic.pos = savedBgmPos;
+        if (savedFilePos != -1) {
+            fseek(this->backgroundMusic.srcWav.fileStream, savedFilePos, SEEK_SET);
+        }
+        return res_add;
+    }
+    return 0;
 #endif
 }
 
@@ -910,32 +1028,52 @@ void SoundPlayer::BackgroundMusicPlayerThread()
 {
 #ifdef __PS3__
     utils::Log("SoundPlayer: BackgroundMusicPlayerThread start...");
-#endif
-#ifndef __PS3__
+    u64 lastDiagLog = 0;
+    while (!this->terminateFlag)
+    {
+        // PS3: High precision calculation using microseconds
+        u64 curUs = sys_time_get_system_time() / 1000;
+        i32 targetSamples = (i32)((curUs - this->ps3_startUs) * 441 / 10000) - (i32)this->ps3_samplesSent;
+
+        if (curUs - lastDiagLog > 1000000) {
+            utils::Log("SoundPlayer: Thread alive, curUs=%llu, samplesSent=%llu, targetSamples=%d", curUs, this->ps3_samplesSent, targetSamples);
+            lastDiagLog = curUs;
+        }
+
+        // Safety reset if we drift too far (1 second = 44100 samples)
+        if (targetSamples < -44100 || targetSamples > 44100) {
+            utils::Log("SoundPlayer: Sync lost, resetting. targetSamples=%d", targetSamples);
+            this->ps3_startUs = curUs;
+            this->ps3_samplesSent = 0;
+            targetSamples = 0;
+        }
+        
+        while (targetSamples >= 256)
+        {
+            if (this->MixAudio(256 * 2) == 0) {
+                this->ps3_samplesSent += 256;
+                targetSamples -= 256;
+            } else {
+                break;
+            }
+        }
+        sys_timer_usleep(1000);
+    }
+#else
     SDL_PauseAudioDevice(this->audioDev, 0);
 
     u32 latencyLimit = 14700; // ~5 frames
-#else
-    u32 latencyLimit = 14700;
-#endif
     u64 samplesSent = 0;
     u64 startTick = SDL_GetTicks64();
 
-    while (1)
+    while (!this->terminateFlag)
     {
         u64 curTicks = SDL_GetTicks64();
 
         // Keep slightly more than 1 frame's worth of samples in the audio buffer at all times
-#ifndef __PS3__
         i32 targetSamples = (curTicks - startTick) * 44.100 - samplesSent + 1024;
-#else
-        // PS3: Buffer more samples to reduce HDD read frequency
-        i32 targetSamples = (curTicks - startTick) * 44.100 - samplesSent + 2048;
-#endif
 
         // Quick and dirty checks to keep audio latency low
-        //   Can probably be horribly broken, but I don't have weaker hardware to test on
-#ifndef __PS3__
         if (SDL_GetQueuedAudioSize(this->audioDev) > latencyLimit)
         {
             latencyLimit += 2940; // 1 frame
@@ -947,13 +1085,6 @@ void SoundPlayer::BackgroundMusicPlayerThread()
             samplesSent += targetSamples - 1024;
             targetSamples = 1024;
         }
-#else
-        if (targetSamples > 2048)
-        {
-            samplesSent += targetSamples - 2048;
-            targetSamples = 2048;
-        }
-#endif
 
         if (targetSamples > 0)
         {
@@ -961,15 +1092,7 @@ void SoundPlayer::BackgroundMusicPlayerThread()
             samplesSent += targetSamples;
         }
 
-        if (this->terminateFlag)
-        {
-            return;
-        }
-
-#ifndef __PS3__
         SDL_Delay(5);
-#else
-        SDL_Delay(10); // PS3: Sleep longer between batches
-#endif
     }
+#endif
 }
