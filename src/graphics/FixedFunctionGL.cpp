@@ -193,20 +193,35 @@ GfxInterface *FixedFunctionGL::Init()
 
 void FixedFunctionGL::SetFogRange(f32 nearPlane, f32 farPlane)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glFogf(START/END, %f, %f)...", nearPlane, farPlane);
+#endif
     g_glFuncTable.glFogf(GL_FOG_START, nearPlane);
     g_glFuncTable.glFogf(GL_FOG_END, farPlane);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glFogf done.");
+#endif
 }
 
 void FixedFunctionGL::SetFogColor(ZunColor color)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glFogfv(COLOR, 0x%x)...", color);
+#endif
     GLfloat normalizedFogColor[4] = {((color >> 16) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
                                      (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f};
 
     g_glFuncTable.glFogfv(GL_FOG_COLOR, normalizedFogColor);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glFogfv done.");
+#endif
 }
 
 void FixedFunctionGL::ToggleVertexAttribute(u8 attr, bool enable)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: ToggleVertexAttribute(attr=0x%x, enable=%d)...", attr, enable);
+#endif
     if (attr & VERTEX_ATTR_TEX_COORD)
     {
         // Arg 0 will be the texture is it's used, and diffuse otherwise. Arg 1 will always be diffuse
@@ -235,10 +250,16 @@ void FixedFunctionGL::ToggleVertexAttribute(u8 attr, bool enable)
             g_glFuncTable.glDisableClientState(GL_COLOR_ARRAY);
         }
     }
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: ToggleVertexAttribute done.");
+#endif
 }
 
 void FixedFunctionGL::SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetAttributePointer(attr=%d, stride=%d, ptr=%p)...", attr, stride, ptr);
+#endif
     switch (attr)
     {
     case VERTEX_ARRAY_POSITION:
@@ -251,10 +272,16 @@ void FixedFunctionGL::SetAttributePointer(VertexAttributeArrays attr, std::size_
         g_glFuncTable.glColorPointer(4, GL_UNSIGNED_BYTE, stride, ptr);
         break;
     }
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetAttributePointer done.");
+#endif
 }
 
 void FixedFunctionGL::SetColorOp(TextureOpComponent component, ColorOp op)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetColorOp(component=%d, op=%d)...", component, op);
+#endif
     const GLenum opEnums[3] = {GL_MODULATE, GL_ADD, GL_REPLACE};
 
     if (component > COMPONENT_ALPHA || op > COLOR_OP_REPLACE)
@@ -265,25 +292,98 @@ void FixedFunctionGL::SetColorOp(TextureOpComponent component, ColorOp op)
     GLenum componentEnum = component == COMPONENT_ALPHA ? GL_COMBINE_ALPHA : GL_COMBINE_RGB;
 
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, componentEnum, opEnums[op]);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetColorOp done.");
+#endif
 }
 
 void FixedFunctionGL::SetTextureFactor(ZunColor factor)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glTexEnvfv(TFAC, 0x%x)...", factor);
+#endif
     GLfloat tfactorColor[4] = {((factor >> 16) & 0xFF) / 255.0f, ((factor >> 8) & 0xFF) / 255.0f,
                                (factor & 0xFF) / 255.0f, ((factor >> 24) & 0xFF) / 255.0f};
 
     g_glFuncTable.glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, tfactorColor);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetTextureFactor done.");
+#endif
 }
 
 void FixedFunctionGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetTransformMatrix(type=%d)...", type);
+#endif
     // This is not going to work for modelview
     GLenum matrixEnum[4] = {GL_MODELVIEW, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE};
 
     g_glFuncTable.glMatrixMode(matrixEnum[type]);
+    
+#ifdef __PS3__
+    // Rule out alignment issues
+    float alignedMatrix[16];
+    memcpy(alignedMatrix, &matrix, sizeof(alignedMatrix));
+    g_glFuncTable.glLoadMatrixf((const GLfloat *)alignedMatrix);
+#else
     g_glFuncTable.glLoadMatrixf((const GLfloat *)&matrix);
+#endif
+
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: SetTransformMatrix done.");
+#endif
+}
+
+void FixedFunctionGL::SetDepthMask(bool enable)
+{
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDepthMask(%d)...", enable);
+#endif
+    g_glFuncTable.glDepthMask(enable);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDepthMask done.");
+#endif
+}
+
+void FixedFunctionGL::SetDepthFunc(DepthFunc func)
+{
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDepthFunc(%d)...", func);
+#endif
+    if (func == DEPTH_FUNC_ALWAYS)
+    {
+        g_glFuncTable.glDepthFunc(GL_ALWAYS);
+    }
+    else
+    {
+        g_glFuncTable.glDepthFunc(GL_LEQUAL);
+    }
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDepthFunc done.");
+#endif
+}
+
+void FixedFunctionGL::Clear(ZunColor color)
+{
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glClear(0x%x)...", color);
+#endif
+    g_glFuncTable.glClearColor(((color >> 16) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
+                               (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f);
+    g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glClear done.");
+#endif
 }
 
 void FixedFunctionGL::Draw()
 {
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDrawArrays(TRIANGLE_STRIP, 0, 4)...");
+#endif
+    g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+#ifdef __PS3__
+    // utils::Log("FixedFunctionGL: glDrawArrays done.");
+#endif
 }

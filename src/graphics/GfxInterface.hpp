@@ -55,5 +55,8 @@ struct GfxInterface
     virtual void SetColorOp(TextureOpComponent component, ColorOp op) = 0;
     virtual void SetTextureFactor(ZunColor factor) = 0;
     virtual void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix) = 0;
+    virtual void SetDepthMask(bool enable) = 0;
+    virtual void SetDepthFunc(DepthFunc func) = 0;
+    virtual void Clear(ZunColor color) = 0;
     virtual void Draw() = 0;
 };

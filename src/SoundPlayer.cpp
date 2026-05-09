@@ -135,7 +135,7 @@ ZunResult SoundPlayer::InitializeDSound()
     cellAudioPortStart(this->audioPortNum);
 
     utils::Log("SoundPlayer: sys_ppu_thread_create...");
-    sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 16384, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
+    sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 1000, 128 * 1024, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
 #endif
 
     GameErrorContext::Log(&g_GameErrorContext, TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
@@ -254,9 +254,15 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 #endif
     if (fileStream == NULL)
     {
+#ifdef __PS3__
+        utils::Log("SoundPlayer: Failed to load BGM WAV: %s", path);
+#endif
         utils::DebugPrint2("error : wav file load error %s\n", path);
         return ZUN_ERROR;
     }
+#ifdef __PS3__
+    utils::Log("SoundPlayer: Loaded BGM WAV: %s", path);
+#endif
 
     // Minimum size of RIFF header and chunk info preceeding the sample data
 #ifndef __PS3__
@@ -512,6 +518,9 @@ ZunResult SoundPlayer::InitSoundBuffers()
         if (this->LoadSound(idx, g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx],
                             1.0f / ZUN_POWF(10.0f, (float)g_SoundBufferIdxVol[idx].volume / -2000)) != ZUN_SUCCESS)
         {
+#ifdef __PS3__
+            utils::Log("SoundPlayer: Failed to load SFX: %s", g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx]);
+#endif
             GameErrorContext::Log(&g_GameErrorContext, TH_ERR_SOUNDPLAYER_FAILED_TO_LOAD_SOUND_FILE, g_SFXList[idx]);
             return ZUN_ERROR;
         }
@@ -599,9 +608,10 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     rawSampleCount = (g_LastFileSize - 44) / 2;
     this->soundBuffers[idx].len = rawSampleCount * 2; // 22050 -> 44100
     this->soundBuffers[idx].samples = new i16[this->soundBuffers[idx].len];
-    rawSamples = (i16*)(wavRawData + 44);
     for (uint32_t i = 0; i < rawSampleCount; i++) {
-        i16 sample = utils::Swap16(rawSamples[i]);
+        i16 sample;
+        memcpy(&sample, wavRawData + 44 + i * 2, 2);
+        sample = utils::Swap16(sample);
         this->soundBuffers[idx].samples[i*2] = sample;
         this->soundBuffers[idx].samples[i*2 + 1] = sample;
     }
@@ -617,10 +627,12 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
 
     //soundplayerdlog("load sound 7");
     // soundBufMutex.unlock();
+    free(wavRawData);
     return ZUN_SUCCESS;
 
 fail:
     // soundBufMutex.unlock();
+    free(wavRawData);
     return ZUN_ERROR;
 }
 
@@ -778,26 +790,39 @@ void SoundPlayer::MixAudio(u32 samples)
             const u32 samplesToMix =
                 std::min((samples / 2) - samplesMixed, this->backgroundMusic.loopEnd - this->backgroundMusic.pos);
 
+#ifndef __PS3__
             for (u32 j = 0; j < samplesToMix; j++)
             {
-#ifndef __PS3__
-                mixBuffer[samplesMixed + j * 2] +=
+                mixBuffer[(samplesMixed + j) * 2] +=
                     ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
-                mixBuffer[samplesMixed + j * 2 + 1] +=
+                mixBuffer[(samplesMixed + j) * 2 + 1] +=
                     ((i16)SDL_ReadLE16(this->backgroundMusic.srcWav.fileStream)) * fadeoutMult;
-#else
-                int16_t sample;
-                fread(&sample, 2, 1, this->backgroundMusic.srcWav.fileStream);
-                mixBuffer[samplesMixed + j * 2] += utils::Swap16(sample) * fadeoutMult;
-                fread(&sample, 2, 1, this->backgroundMusic.srcWav.fileStream);
-                mixBuffer[samplesMixed + j * 2 + 1] += utils::Swap16(sample) * fadeoutMult;
-#endif
             }
-
             this->backgroundMusic.pos += samplesToMix;
             samplesMixed += samplesToMix;
+#else
+            // PS3 Optimization: Use a buffer to read multiple samples at once
+            static int16_t readBuffer[2048];
+            u32 framesToRead = (samplesToMix > 1024) ? 1024 : samplesToMix;
+            size_t itemsRead = fread(readBuffer, 2, framesToRead * 2, this->backgroundMusic.srcWav.fileStream);
+            u32 framesRead = itemsRead / 2;
+            
+            for (u32 j = 0; j < framesRead; j++)
+            {
+                mixBuffer[(samplesMixed + j) * 2] += (int16_t)utils::Swap16(readBuffer[j * 2]) * fadeoutMult;
+                mixBuffer[(samplesMixed + j) * 2 + 1] += (int16_t)utils::Swap16(readBuffer[j * 2 + 1]) * fadeoutMult;
+            }
+            
+            this->backgroundMusic.pos += framesRead;
+            samplesMixed += framesRead;
+            
+            if (framesRead == 0 && framesToRead > 0) {
+                // Unexpected end of file or error
+                break;
+            }
+#endif
 
-            if (this->backgroundMusic.pos == this->backgroundMusic.loopEnd)
+            if (this->backgroundMusic.pos >= this->backgroundMusic.loopEnd)
             {
                 if (this->isLooping)
                 {
@@ -853,7 +878,8 @@ void SoundPlayer::MixAudio(u32 samples)
 #ifndef __PS3__
     const int mixDivisor = std::max(8, (int)playingChannels);
 #else
-    const int mixDivisor = playingChannels > 8 ? playingChannels : 8;
+    // PS3: Reduce mix divisor to increase volume (original game volume is quite low)
+    const int mixDivisor = playingChannels > 4 ? playingChannels : 4;
 #endif
 
 #ifndef __PS3__
@@ -882,6 +908,9 @@ void SoundPlayer::MixAudio(u32 samples)
 //   in a thread keeps sound running continuously, even if the main thread runs into lag
 void SoundPlayer::BackgroundMusicPlayerThread()
 {
+#ifdef __PS3__
+    utils::Log("SoundPlayer: BackgroundMusicPlayerThread start...");
+#endif
 #ifndef __PS3__
     SDL_PauseAudioDevice(this->audioDev, 0);
 
@@ -897,15 +926,17 @@ void SoundPlayer::BackgroundMusicPlayerThread()
         u64 curTicks = SDL_GetTicks64();
 
         // Keep slightly more than 1 frame's worth of samples in the audio buffer at all times
+#ifndef __PS3__
         i32 targetSamples = (curTicks - startTick) * 44.100 - samplesSent + 1024;
+#else
+        // PS3: Buffer more samples to reduce HDD read frequency
+        i32 targetSamples = (curTicks - startTick) * 44.100 - samplesSent + 2048;
+#endif
 
         // Quick and dirty checks to keep audio latency low
         //   Can probably be horribly broken, but I don't have weaker hardware to test on
 #ifndef __PS3__
         if (SDL_GetQueuedAudioSize(this->audioDev) > latencyLimit)
-#else
-        if (0) // TODO: Implement PS3 latency check if needed
-#endif
         {
             latencyLimit += 2940; // 1 frame
             samplesSent += targetSamples;
@@ -916,6 +947,13 @@ void SoundPlayer::BackgroundMusicPlayerThread()
             samplesSent += targetSamples - 1024;
             targetSamples = 1024;
         }
+#else
+        if (targetSamples > 2048)
+        {
+            samplesSent += targetSamples - 2048;
+            targetSamples = 2048;
+        }
+#endif
 
         if (targetSamples > 0)
         {
@@ -928,6 +966,10 @@ void SoundPlayer::BackgroundMusicPlayerThread()
             return;
         }
 
+#ifndef __PS3__
         SDL_Delay(5);
+#else
+        SDL_Delay(10); // PS3: Sleep longer between batches
+#endif
     }
 }

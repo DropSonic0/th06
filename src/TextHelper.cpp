@@ -9,6 +9,8 @@
 #include <SDL_ttf.h>
 #define SDL_SURFACE(x) (SDL_Surface*)(x)
 #else
+#include "AnmManager.hpp"
+#include "utils.hpp"
 #define SDL_SURFACE(x) (x)
 typedef void TTF_Font;
 #endif
@@ -230,7 +232,71 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                                      i32 fontWidth, ZunColor textColor, ZunColor shadowColor, const char *string,
                                      TextureData *outTexture)
 {
-    if(textNotExist) return;
+    if(textNotExist) {
+#ifdef __PS3__
+        // PS3 Fallback: Clear the area and render characters using sprites from ascii.anm
+        if (!outTexture->textureData) {
+            outTexture->textureData = new u8[outTexture->width * outTexture->height * 4];
+            memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
+        }
+
+        // We can't easily draw directly to the raw pixel buffer here without a lot of code
+        // and knowing the exact layout of the ascii.anm textures.
+        // For now, let's just log and see if we can do something better.
+        // utils::Log("TextHelper: Rendering '%s' to texture %d at %d,%d", string, outTexture->handle, xPos, yPos);
+        
+        // PS3 Simple latin fallback for score/menus
+        if (!outTexture->textureData) {
+            outTexture->textureData = new u8[outTexture->width * outTexture->height * 4];
+            memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
+        }
+        
+        const char* p = string;
+        int curX = xPos;
+        // utils::Log("TextHelper: PS3 Fallback rendering '%s' at %d,%d", string, xPos, yPos);
+        while (*p && curX < outTexture->width) {
+            char c = *p++;
+            if (c < 32 || c > 126) {
+                if (c == ' ') curX += 8;
+                continue;
+            }
+            
+            // Map character to sprite in ascii.anm (offset by what's in AsciiManager.cpp)
+            // In AsciiManager::DrawStrings: this->vm0.sprite = &g_AnmManager->sprites[*text - 0x15];
+            // 0x15 = 21. ' ' is 32. 32-21 = 11.
+            if ((int)c - 0x15 < 0 || (int)c - 0x15 >= 2048) { curX += 8; continue; }
+            AnmLoadedSprite* s = &g_AnmManager->sprites[c - 0x15];
+            if (s->sourceFileIndex >= 0 && s->sourceFileIndex < 264 && g_AnmManager->textures[s->sourceFileIndex].textureData) {
+                TextureData* srcTex = &g_AnmManager->textures[s->sourceFileIndex];
+                int srcX = (int)s->startPixelInclusive.x;
+                int srcY = (int)s->startPixelInclusive.y;
+                int w = (int)s->widthPx;
+                int h = (int)s->heightPx;
+                
+                for (int y = 0; y < h && (yPos + y) < (int)outTexture->height; y++) {
+                    for (int x = 0; x < w && (curX + x) < (int)outTexture->width; x++) {
+                        u8* src = srcTex->textureData + ((srcY + y) * srcTex->width + (srcX + x)) * 4;
+                        u8* dst = outTexture->textureData + ((yPos + y) * outTexture->width + (curX + x)) * 4;
+                        // Simple alpha blend or just copy if alpha > 0
+                        if (src[3] > 128) {
+                            dst[0] = (textColor >> 16) & 0xFF;
+                            dst[1] = (textColor >> 8) & 0xFF;
+                            dst[2] = textColor & 0xFF;
+                            dst[3] = 0xFF;
+                        }
+                    }
+                }
+                curX += w;
+            } else {
+                curX += 8; // Fallback spacing
+            }
+        }
+        
+        g_AnmManager->SetCurrentTexture(outTexture->handle);
+        g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, outTexture->width, outTexture->height, GL_RGBA, GL_UNSIGNED_BYTE, outTexture->textureData);
+#endif
+        return;
+    }
     
 #ifndef __PS3__
     char convertedText[1024];

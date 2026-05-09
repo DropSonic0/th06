@@ -356,24 +356,51 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 #endif
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
     //supervisordlog("CopySurfaceToBackBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: CopySurfaceToBackBuffer(0)...");
+#endif
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
     //supervisordlog("SDL_GL_SwapWindow");
+#ifdef __PS3__
+    utils::Log("Supervisor: psglSwap(1)...");
+    g_glFuncTable.glFinish();
+    cellSysutilCheckCallback();
+#endif
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+#ifdef __PS3__
+    g_glFuncTable.glFinish();
+    utils::Log("Supervisor: psglSwap(1) done.");
+#endif
 
     //
     //supervisordlog("CopySurfaceToBackBuffer 2");
+#ifdef __PS3__
+    utils::Log("Supervisor: CopySurfaceToBackBuffer 2...");
+#endif
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
     //
 
     //supervisordlog("SDL_GL_SwapWindow 2");
+#ifdef __PS3__
+    utils::Log("Supervisor: psglSwap(2)...");
+    g_glFuncTable.glFinish();
+    cellSysutilCheckCallback();
+#endif
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+#ifdef __PS3__
+    g_glFuncTable.glFinish();
+    utils::Log("Supervisor: psglSwap(2) done.");
+#endif
 
     //supervisordlog("ReleaseSurface");
+#ifdef __PS3__
+    utils::Log("Supervisor: ReleaseSurface(0)...");
+#endif
     g_AnmManager->ReleaseSurface(0);
 
     //supervisordlog("set startupTimeBeforeMenuMusic");
@@ -392,7 +419,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     g_SoundPlayer.InitSoundBuffers();
     //supervisordlog("g_AnmManager->LoadAnm");
 #ifdef __PS3__
-    utils::Log("Supervisor: LoadAnm(data/text.anm)...");
+    utils::Log("Supervisor: LoadAnm(data/text.anm, offset %d)...", ANM_OFFSET_TEXT);
 #endif
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
@@ -400,6 +427,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     }
 
     //supervisordlog("AsciiManager::RegisterChain");
+#ifdef __PS3__
+    utils::Log("Supervisor: AsciiManager::RegisterChain...");
+#endif
     if (AsciiManager::RegisterChain() != 0)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_ASCIIMANAGER_INIT_FAILED);
@@ -408,9 +438,15 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
     s->unk198 = 0;
     //supervisordlog("g_AnmManager->SetupVertexBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: g_AnmManager->SetupVertexBuffer...");
+#endif
     g_AnmManager->SetupVertexBuffer();
 
     //supervisordlog("TextHelper::CreateTextBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: TextHelper::CreateTextBuffer...");
+#endif
     if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
     {
         return ZUN_ERROR;

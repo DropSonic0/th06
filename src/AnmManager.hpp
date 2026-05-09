@@ -201,7 +201,7 @@ struct AnmManager
             this->UpdateDirtyStates();
         }
 
-        g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        this->gfxBackend->Draw();
     }
 
     // We need to do checks in these because they're called nearly every ANM draw call and otherwise
@@ -355,6 +355,7 @@ struct AnmManager
         if (!std::memcmp(&this->transformMatrices[type], &matrix, sizeof(matrix)))
         {
             this->dirtyFlags &= ~(1 << (DIRTY_MODEL_MATRIX + (DirtyRenderStateBitShifts)type));
+            return;
         }
 
         this->dirtyFlags |= 1 << (DIRTY_MODEL_MATRIX + (DirtyRenderStateBitShifts)type);
@@ -441,12 +442,14 @@ struct AnmManager
     struct PS3Surface {
         u8* pixels;
         int w, h;
+        GLuint textureHandle;
     } *surfaces[32];
 #endif
     //    SDL_Surface *surfacesBis[32];
     //    D3DXIMAGE_INFO surfaceSourceInfo[32];
     GLuint currentTextureHandle;
     GLuint dummyTextureHandle;
+    GLuint persistentVbo;
     u8 currentBlendMode;
     ProjectionMode projectionMode;
     const AnmLoadedSprite *currentSprite;

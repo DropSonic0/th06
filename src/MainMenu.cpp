@@ -1020,6 +1020,9 @@ ZunResult MainMenu::BeginStartup()
                (3000 > time - g_Supervisor.startupTimeBeforeMenuMusic))
         {
             time = SDL_GetTicks();
+#ifdef __PS3__
+            cellSysutilCheckCallback();
+#endif
         }
         g_Supervisor.startupTimeBeforeMenuMusic = 0;
         g_Supervisor.PlayAudio("bgm/th06_01.mid");

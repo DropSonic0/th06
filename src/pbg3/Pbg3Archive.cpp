@@ -1,4 +1,4 @@
-﻿#ifndef __PS3__
+#ifndef __PS3__
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -29,7 +29,7 @@ i32 Pbg3Archive::ParseHeader()
 {
     u32 magic = this->parser->ReadMagic();
 #ifdef __PS3__
-    utils::Log("Pbg3Archive: Read magic 0x%08x (expected 0x33474250)", magic);
+    // utils::Log("Pbg3Archive: Read magic 0x%08x (expected 0x33474250)", magic);
 #endif
     if (magic != 0x33474250)
     {
@@ -126,7 +126,7 @@ i32 Pbg3Archive::FindEntry(const char *path)
         if (res == 0)
         {
 #ifdef __PS3__
-            utils::Log("Pbg3Archive: Found entry %s at index %d (size=%u)", entryFilename, entryIdx, this->entries[entryIdx].uncompressedSize);
+            // utils::Log("Pbg3Archive: Found entry %s at index %d (size=%u)", entryFilename, entryIdx, this->entries[entryIdx].uncompressedSize);
 #endif
             return entryIdx;
         }
@@ -366,7 +366,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
     }
 
 #ifdef __PS3__
-    utils::Log("Pbg3Archive: Successfully decompressed %s", filename);
+    // utils::Log("Pbg3Archive: Successfully decompressed %s", filename);
 #endif
     return out;
 }

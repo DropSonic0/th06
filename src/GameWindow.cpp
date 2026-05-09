@@ -94,11 +94,7 @@ RenderResult GameWindow::Render()
                 //gamewindowdlog("viewport.Set");
                 viewport.Set();
                 //gamewindowdlog("g_glFuncTable.glClearColor");
-                g_glFuncTable.glClearColor(
-                    ((g_Stage.skyFog.color >> 16) & 0xFF) / 255.0f, ((g_Stage.skyFog.color >> 8) & 0xFF) / 255.0f,
-                    (g_Stage.skyFog.color & 0xFF) / 255.0f, (g_Stage.skyFog.color >> 24) / 255.0f);
-                //gamewindowdlog("g_glFuncTable.glClear");
-                g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                g_AnmManager->gfxBackend->Clear(g_Stage.skyFog.color);
                 //gamewindowdlog("SetProjectionMode");
                 g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
                 //gamewindowdlog("viewport.Set");
@@ -234,7 +230,9 @@ void GameWindow::Present()
 #ifndef __PS3__
     SDL_GL_SwapWindow(g_GameWindow.window);
 #else
+    utils::Log("GameWindow: psglSwap()...");
     psglSwap();
+    utils::Log("GameWindow: psglSwap() done.");
 #endif
 
     //gamewindowdlog("present finish");
@@ -341,8 +339,8 @@ void GameWindow::CreateGameWindow()
     memset(&initOptions, 0, sizeof(PSGLinitOptions));
     initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
     initOptions.maxSPUs = 1;
-    initOptions.initializeSPUs = GL_FALSE;
-    initOptions.hostMemorySize = 8 * 1024 * 1024; // 8MB
+    initOptions.initializeSPUs = GL_TRUE;
+    initOptions.hostMemorySize = 128 * 1024 * 1024; // 128MB
     psglInit(&initOptions);
     utils::Log("PSGL: psglInit done.");
 
@@ -356,7 +354,7 @@ void GameWindow::CreateGameWindow()
                     PSGL_DEVICE_PARAMETERS_RESC_ADJUST_ASPECT_RATIO | PSGL_DEVICE_PARAMETERS_RESC_RATIO_MODE;
     params.bufferingMode = PSGL_BUFFERING_MODE_TRIPLE;
     params.colorFormat = GL_ARGB_SCE;
-    params.depthFormat = GL_NONE;
+    params.depthFormat = GL_DEPTH_COMPONENT24;
     params.multisamplingMode = GL_MULTISAMPLING_NONE_SCE;
     params.rescRatioMode = RESC_RATIO_MODE_FULLSCREEN;
     g_GameWindow.device = psglCreateDeviceExtended(&params);

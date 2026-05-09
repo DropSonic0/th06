@@ -43,23 +43,40 @@ FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
     FILE *f = fopen(resolvedPath, mode);
     if (f == NULL && (::strncmp(mode, "r", 1) == 0))
     {
-        // Fallback for .dat vs .DAT
+        // Fallback for case-sensitivity on PS3 filesystem
         char altPath[512];
         ::strncpy(altPath, filepath, sizeof(altPath) - 1);
         altPath[sizeof(altPath) - 1] = '\0';
-        char *dot = ::strrchr(altPath, '.');
-        if (dot && (::strlen(dot) == 4) && (::tolower(dot[1]) == 'd') && (::tolower(dot[2]) == 'a') && (::tolower(dot[3]) == 't'))
-        {
-            if (::isupper(dot[1]))
-            {
-                dot[1] = 'd'; dot[2] = 'a'; dot[3] = 't';
-            }
-            else
-            {
-                dot[1] = 'D'; dot[2] = 'A'; dot[3] = 'T';
-            }
+        
+        char *p = altPath;
+        // Try all lowercase
+        while (*p) { *p = (char)::tolower(*p); p++; }
+        GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), altPath);
+        f = fopen(resolvedPath, mode);
+        
+        if (f == NULL) {
+            // Try all uppercase
+            p = altPath;
+            while (*p) { *p = (char)::toupper(*p); p++; }
             GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), altPath);
             f = fopen(resolvedPath, mode);
+        }
+        
+        if (f == NULL) {
+            // Original logic for .dat/.wav toggling
+            ::strncpy(altPath, filepath, sizeof(altPath) - 1);
+            char *dot = ::strrchr(altPath, '.');
+            if (dot && ::strlen(dot) == 4) {
+                if (::tolower(dot[1]) == 'd' && ::tolower(dot[2]) == 'a' && ::tolower(dot[3]) == 't') {
+                    if (::isupper(dot[1])) { dot[1] = 'd'; dot[2] = 'a'; dot[3] = 't'; }
+                    else { dot[1] = 'D'; dot[2] = 'A'; dot[3] = 'T'; }
+                } else if (::tolower(dot[1]) == 'w' && ::tolower(dot[2]) == 'a' && ::tolower(dot[3]) == 'v') {
+                    if (::isupper(dot[1])) { dot[1] = 'w'; dot[2] = 'a'; dot[3] = 'v'; }
+                    else { dot[1] = 'W'; dot[2] = 'A'; dot[3] = 'V'; }
+                }
+                GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), altPath);
+                f = fopen(resolvedPath, mode);
+            }
         }
     }
     return f;
@@ -160,7 +177,7 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
         if (entryIdx < 0)
         {
 #ifdef __PS3__
-            utils::Log("FileSystem: %s (entry: %s) not found in any PBG3 archive", filepath, entryname);
+            // utils::Log("FileSystem: %s (entry: %s) not found in any PBG3 archive", filepath, entryname);
 #endif
             return NULL;
         }

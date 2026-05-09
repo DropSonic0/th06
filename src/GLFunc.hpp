@@ -49,6 +49,12 @@
 #ifndef GL_PRIMARY_COLOR
 #define GL_PRIMARY_COLOR 0x8577
 #endif
+#ifndef GL_ARRAY_BUFFER
+#define GL_ARRAY_BUFFER 0x8892
+#endif
+#ifndef GL_STATIC_DRAW
+#define GL_STATIC_DRAW 0x88E4
+#endif
 #endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows
@@ -67,11 +73,14 @@ struct GLFuncTable
     // Function pointers for functions shared between GL and GLES
     void (GLAPIENTRY *glAlphaFunc)(GLenum func, GLclampf ref);
     void (GLAPIENTRY *glBindTexture)(GLenum target, GLuint texture);
+    void (GLAPIENTRY *glBindBuffer)(GLenum target, GLuint buffer);
     void (GLAPIENTRY *glBlendFunc)(GLenum sfactor, GLenum dfactor);
+    void (GLAPIENTRY *glBufferData)(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
     void (GLAPIENTRY *glClear)(GLbitfield mask);
     void (GLAPIENTRY *glClearColor)(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     void (GLAPIENTRY *glColorPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
     void (GLAPIENTRY *glDeleteTextures)(GLsizei n, const GLuint *textures);
+    void (GLAPIENTRY *glDeleteBuffers)(GLsizei n, const GLuint *buffers);
     void (GLAPIENTRY *glDepthFunc)(GLenum func);
     void (GLAPIENTRY *glDepthMask)(GLboolean flag);
     void (GLAPIENTRY *glDisable)(GLenum cap);
@@ -79,9 +88,12 @@ struct GLFuncTable
     void (GLAPIENTRY *glDrawArrays)(GLenum mode, GLint first, GLsizei count);
     void (GLAPIENTRY *glEnable)(GLenum cap);
     void (GLAPIENTRY *glEnableClientState)(GLenum cap);
+    void (GLAPIENTRY *glFinish)(void);
+    void (GLAPIENTRY *glFlush)(void);
     void (GLAPIENTRY *glFogf)(GLenum pname, GLfloat param);
     void (GLAPIENTRY *glFogfv)(GLenum pname, const GLfloat *params);
     void (GLAPIENTRY *glGenTextures)(GLsizei n, GLuint *textures);
+    void (GLAPIENTRY *glGenBuffers)(GLsizei n, GLuint *buffers);
     GLenum (GLAPIENTRY *glGetError)(void);
     void (GLAPIENTRY *glGetFloatv)(GLenum pname, GLfloat *params);
     void (GLAPIENTRY *glGetIntegerv)(GLenum pname, GLint *params);

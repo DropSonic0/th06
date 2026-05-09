@@ -40,6 +40,10 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #if __has_builtin(__builtin_clz)
 inline u32 BitCeil(u32 n)
 {
+    if (n == 0)
+    {
+        return 1;
+    }
     // Check if n is a power of 2
     if (((n - 1) & n) == 0)
     {
