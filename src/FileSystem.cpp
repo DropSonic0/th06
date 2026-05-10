@@ -184,6 +184,9 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     }
     if (entryIdx >= 0)
     {
+#ifdef __PS3__
+        utils::Log("FileSystem: %s Decode from PBG3 ... ", entryname);
+#endif
         utils::DebugPrint2("%s Decode ... \n", entryname);
         data = g_Pbg3Archives[pbg3Idx]->ReadDecompressEntry(entryIdx, entryname);
         g_LastFileSize = g_Pbg3Archives[pbg3Idx]->GetEntrySize(entryIdx);
@@ -193,7 +196,8 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
         #ifdef __ANDROID__
         file = fopen(resolvedPath.c_str(), "rb");
         #elif defined(__PS3__)
-        utils::DebugPrint2("FileSystem: %s Load from Disk ... \n", resolvedPath);
+        utils::Log("FileSystem: %s Load from Disk ... ", resolvedPath);
+        utils::DebugPrint2("%s Load ... \n", resolvedPath);
         file = fopen(resolvedPath, "rb");
         #else
         utils::DebugPrint2("%s Load ... \n", resolvedPath);
@@ -201,12 +205,11 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
         #endif
         if (file == NULL)
         {
+#ifdef __PS3__
+            utils::Log("FileSystem: FAILED to load %s", resolvedPath);
+#endif
             #ifndef __ANDROID__
-            #ifdef __PS3__
-            utils::DebugPrint2("FileSystem: FAILED to load %s\n", resolvedPath);
-            #else
             utils::DebugPrint2("error : %s is not found.\n", resolvedPath);
-            #endif
             #endif
             return NULL;
         }
