@@ -66,24 +66,15 @@ ZunResult EclManager::Load(const char *eclPath)
 
     // Byte-swap instructions in each sub
     for (int i = 0; i < header->subCount; i++) {
-        utils::Log("EclManager: Swapping sub %d (offset: %u)", i, header->subOffsets[i]);
         EclRawInstr *instr = (EclRawInstr *)(((u8 *)header) + header->subOffsets[i]);
-        int instrCount = 0;
         while (instr) {
             u32 off = (u32)((u8 *)instr - (u8 *)header);
-            if (off + 8 > eclFileSize) {
-                utils::Log("EclManager:   Reached end of file at offset %u (sub %d, instr %d)", off, i, instrCount);
-                break;
-            }
+            if (off + 8 > eclFileSize) break;
 
             instr->time = (i32)utils::Swap32((u32)instr->time);
             instr->opCode = (i16)utils::Swap16((u16)instr->opCode);
             instr->offsetToNext = (i16)utils::Swap16((u16)instr->offsetToNext);
             
-            if (instrCount % 100 == 0) {
-                utils::Log("EclManager:   Sub %d, Instr %d, Opcode %d, OffsetToNext %d", i, instrCount, instr->opCode, instr->offsetToNext);
-            }
-
             // Instruction arguments swapping based on opcode
             switch(instr->opCode) {
                 case ECL_OPCODE_SETINT:
@@ -216,12 +207,8 @@ ZunResult EclManager::Load(const char *eclPath)
                     break;
             }
 
-            if (instr->offsetToNext == 0) {
-                utils::Log("EclManager:   Sub %d finished (offsetToNext is 0)", i);
-                break;
-            }
+            if (instr->offsetToNext == 0) break;
             instr = (EclRawInstr *)((u8 *)instr + instr->offsetToNext);
-            instrCount++;
         }
     }
 #endif

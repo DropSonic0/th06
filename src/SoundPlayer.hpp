@@ -90,9 +90,11 @@ struct MusicStream
     u32 fadeoutProgress;
 #ifdef __PS3__
     i16 *streamCache;
-    u32 streamCacheSize; // in frames
+    u32 streamCacheSize; // in frames (per buffer)
     u32 streamCachePos;  // in frames
-    u32 streamCacheValid; // in frames
+    u32 streamCacheValid[2]; // in frames
+    u32 activeBuffer;    // 0 or 1
+    bool bufferBusy[2];
     double fraction;
     i16 lastSamples[2];
     i16 nextSamples[2];
@@ -112,6 +114,7 @@ struct SoundPlayer
     void PlaySoundByIdx(SoundIdx idx);
     ZunResult PlayBGM(bool isLooping);
     void StopBGM();
+    void StopBGM_NoLock();
     void FadeOut(f32 seconds);
 
     ZunResult LoadWav(const char *path);
@@ -128,8 +131,11 @@ struct SoundPlayer
     std::atomic_bool terminateFlag;
 #else
     sys_mutex_t soundBufMutex;
+    sys_mutex_t bgmIoMutex;
+    sys_mutex_t bgmStateMutex;
     uint32_t audioPortNum;
     sys_ppu_thread_t backgroundMusicThreadHandle;
+    sys_ppu_thread_t bgmIoThreadHandle;
     volatile bool terminateFlag;
     u64 ps3_startUs;
     u64 ps3_samplesSent;
