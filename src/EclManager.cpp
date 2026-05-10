@@ -66,28 +66,17 @@ ZunResult EclManager::Load(const char *eclPath)
 
     // Byte-swap instructions in each sub
     for (int i = 0; i < header->subCount; i++) {
-        if (i % 20 == 0) utils::Log("EclManager: Swapping sub %d/%d at offset %08x", i, header->subCount, header->subOffsets[i]);
         EclRawInstr *instr = (EclRawInstr *)(((u8 *)header) + header->subOffsets[i]);
         while (instr) {
-            u8 *ptr = (u8 *)instr;
-            u32 off = (u32)(ptr - (u8 *)header);
+            u32 off = (u32)((u8 *)instr - (u8 *)header);
             if (off + 8 > eclFileSize) break;
 
-            // Unaligned-safe swapping
-            i32 time; memcpy(&time, ptr, 4);
-            time = (i32)utils::Swap32((u32)time);
-            memcpy(ptr, &time, 4);
-
-            i16 opCode; memcpy(&opCode, ptr + 4, 2);
-            opCode = (i16)utils::Swap16((u16)opCode);
-            memcpy(ptr + 4, &opCode, 2);
-
-            i16 offsetToNext; memcpy(&offsetToNext, ptr + 6, 2);
-            offsetToNext = (i16)utils::Swap16((u16)offsetToNext);
-            memcpy(ptr + 6, &offsetToNext, 2);
+            instr->time = (i32)utils::Swap32((u32)instr->time);
+            instr->opCode = (i16)utils::Swap16((u16)instr->opCode);
+            instr->offsetToNext = (i16)utils::Swap16((u16)instr->offsetToNext);
             
             // Instruction arguments swapping based on opcode
-            switch(opCode) {
+            switch(instr->opCode) {
                 case ECL_OPCODE_SETINT:
                 case ECL_OPCODE_SETFLOAT:
                 case ECL_OPCODE_SETINTRAND:
@@ -117,12 +106,9 @@ ZunResult EclManager::Load(const char *eclPath)
                 case ECL_OPCODE_ENEMYFLAGINVISIBLE:
                 case ECL_OPCODE_BOSSTIMERCLEAR:
                 case ECL_OPCODE_SPELLCARDFLAGTIMEOUT:
-                case ECL_OPCODE_BOSSSET: {
-                    i32 val; memcpy(&val, ptr + 8, 4);
-                    val = (i32)utils::Swap32((u32)val);
-                    memcpy(ptr + 8, &val, 4);
+                case ECL_OPCODE_BOSSSET:
+                    instr->args.setInt = (i32)utils::Swap32((u32)instr->args.setInt);
                     break;
-                }
                 case ECL_OPCODE_JUMP:
                 case ECL_OPCODE_JUMPDEC:
                 case ECL_OPCODE_JUMPLSS:
@@ -130,13 +116,11 @@ ZunResult EclManager::Load(const char *eclPath)
                 case ECL_OPCODE_JUMPEQU:
                 case ECL_OPCODE_JUMPGRE:
                 case ECL_OPCODE_JUMPGEQ:
-                case ECL_OPCODE_JUMPNEQ: {
-                    i32 val; 
-                    memcpy(&val, ptr + 8, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 8, &val, 4); // time
-                    memcpy(&val, ptr + 12, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 12, &val, 4); // offset
-                    memcpy(&val, ptr + 16, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 16, &val, 4); // var
+                case ECL_OPCODE_JUMPNEQ:
+                    instr->args.jump.time = (i32)utils::Swap32((u32)instr->args.jump.time);
+                    instr->args.jump.offset = (i32)utils::Swap32((u32)instr->args.jump.offset);
+                    instr->args.jump.var = (EclVarId)utils::Swap32((u32)instr->args.jump.var);
                     break;
-                }
                 case ECL_OPCODE_MOVEPOSITION:
                 case ECL_OPCODE_MOVEAXISVELOCITY:
                 case ECL_OPCODE_MOVEVELOCITY:
@@ -147,13 +131,11 @@ ZunResult EclManager::Load(const char *eclPath)
                 case ECL_OPCODE_MOVERAND:
                 case ECL_OPCODE_MOVERANDINBOUND:
                 case ECL_OPCODE_SHOOTOFFSET:
-                case ECL_OPCODE_ENEMYSETHITBOX: {
-                    f32 fval;
-                    memcpy(&fval, ptr + 8, 4); fval = utils::SwapF32(fval); memcpy(ptr + 8, &fval, 4);
-                    memcpy(&fval, ptr + 12, 4); fval = utils::SwapF32(fval); memcpy(ptr + 12, &fval, 4);
-                    memcpy(&fval, ptr + 16, 4); fval = utils::SwapF32(fval); memcpy(ptr + 16, &fval, 4);
+                case ECL_OPCODE_ENEMYSETHITBOX:
+                    instr->args.move.pos.x = utils::SwapF32(instr->args.move.pos.x);
+                    instr->args.move.pos.y = utils::SwapF32(instr->args.move.pos.y);
+                    instr->args.move.pos.z = utils::SwapF32(instr->args.move.pos.z);
                     break;
-                }
                 case ECL_OPCODE_BULLETFANAIMED:
                 case ECL_OPCODE_BULLETFAN:
                 case ECL_OPCODE_BULLETCIRCLEAIMED:
@@ -162,58 +144,47 @@ ZunResult EclManager::Load(const char *eclPath)
                 case ECL_OPCODE_BULLETOFFSETCIRCLE:
                 case ECL_OPCODE_BULLETRANDOMANGLE:
                 case ECL_OPCODE_BULLETRANDOMSPEED:
-                case ECL_OPCODE_BULLETRANDOM: {
-                    i16 sval;
-                    memcpy(&sval, ptr + 8, 2); sval = (i16)utils::Swap16((u16)sval); memcpy(ptr + 8, &sval, 2); // sprite
-                    memcpy(&sval, ptr + 10, 2); sval = (i16)utils::Swap16((u16)sval); memcpy(ptr + 10, &sval, 2); // color
-                    i32 val;
-                    memcpy(&val, ptr + 12, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 12, &val, 4); // count1
-                    memcpy(&val, ptr + 16, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 16, &val, 4); // count2
-                    f32 fval;
-                    memcpy(&fval, ptr + 20, 4); fval = utils::SwapF32(fval); memcpy(ptr + 20, &fval, 4); // speed1
-                    memcpy(&fval, ptr + 24, 4); fval = utils::SwapF32(fval); memcpy(ptr + 24, &fval, 4); // speed2
-                    memcpy(&fval, ptr + 28, 4); fval = utils::SwapF32(fval); memcpy(ptr + 28, &fval, 4); // angle1
-                    memcpy(&fval, ptr + 32, 4); fval = utils::SwapF32(fval); memcpy(ptr + 32, &fval, 4); // angle2
-                    memcpy(&val, ptr + 36, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 36, &val, 4); // flags
+                case ECL_OPCODE_BULLETRANDOM:
+                    instr->args.bullet.sprite = (i16)utils::Swap16((u16)instr->args.bullet.sprite);
+                    instr->args.bullet.color = (i16)utils::Swap16((u16)instr->args.bullet.color);
+                    instr->args.bullet.count1 = (EclVarId)utils::Swap32((u32)instr->args.bullet.count1);
+                    instr->args.bullet.count2 = (EclVarId)utils::Swap32((u32)instr->args.bullet.count2);
+                    instr->args.bullet.speed1 = utils::SwapF32(instr->args.bullet.speed1);
+                    instr->args.bullet.speed2 = utils::SwapF32(instr->args.bullet.speed2);
+                    instr->args.bullet.angle1 = utils::SwapF32(instr->args.bullet.angle1);
+                    instr->args.bullet.angle2 = utils::SwapF32(instr->args.bullet.angle2);
+                    instr->args.bullet.flags = (i32)utils::Swap32((u32)instr->args.bullet.flags);
                     break;
-                }
                 case ECL_OPCODE_LASERCREATE:
-                case ECL_OPCODE_LASERCREATEAIMED: {
-                    i16 sval;
-                    memcpy(&sval, ptr + 8, 2); sval = (i16)utils::Swap16((u16)sval); memcpy(ptr + 8, &sval, 2); // sprite
-                    memcpy(&sval, ptr + 10, 2); sval = (i16)utils::Swap16((u16)sval); memcpy(ptr + 10, &sval, 2); // color
-                    f32 fval;
-                    memcpy(&fval, ptr + 12, 4); fval = utils::SwapF32(fval); memcpy(ptr + 12, &fval, 4); // angle
-                    memcpy(&fval, ptr + 16, 4); fval = utils::SwapF32(fval); memcpy(ptr + 16, &fval, 4); // speed
-                    memcpy(&fval, ptr + 20, 4); fval = utils::SwapF32(fval); memcpy(ptr + 20, &fval, 4); // startOffset
-                    memcpy(&fval, ptr + 24, 4); fval = utils::SwapF32(fval); memcpy(ptr + 24, &fval, 4); // endOffset
-                    memcpy(&fval, ptr + 28, 4); fval = utils::SwapF32(fval); memcpy(ptr + 28, &fval, 4); // startLength
-                    memcpy(&fval, ptr + 32, 4); fval = utils::SwapF32(fval); memcpy(ptr + 32, &fval, 4); // width
-                    i32 val;
-                    memcpy(&val, ptr + 36, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 36, &val, 4); // startTime
-                    memcpy(&val, ptr + 40, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 40, &val, 4); // duration
-                    memcpy(&val, ptr + 44, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 44, &val, 4); // stopTime
-                    memcpy(&val, ptr + 48, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 48, &val, 4); // grazeDelay
-                    memcpy(&val, ptr + 52, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 52, &val, 4); // grazeDistance
-                    memcpy(&val, ptr + 56, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 56, &val, 4); // flags
+                case ECL_OPCODE_LASERCREATEAIMED:
+                    instr->args.laser.sprite = (i16)utils::Swap16((u16)instr->args.laser.sprite);
+                    instr->args.laser.color = (i16)utils::Swap16((u16)instr->args.laser.color);
+                    instr->args.laser.angle = utils::SwapF32(instr->args.laser.angle);
+                    instr->args.laser.speed = utils::SwapF32(instr->args.laser.speed);
+                    instr->args.laser.startOffset = utils::SwapF32(instr->args.laser.startOffset);
+                    instr->args.laser.endOffset = utils::SwapF32(instr->args.laser.endOffset);
+                    instr->args.laser.startLength = utils::SwapF32(instr->args.laser.startLength);
+                    instr->args.laser.width = utils::SwapF32(instr->args.laser.width);
+                    instr->args.laser.startTime = (i32)utils::Swap32((u32)instr->args.laser.startTime);
+                    instr->args.laser.duration = (i32)utils::Swap32((u32)instr->args.laser.duration);
+                    instr->args.laser.stopTime = (i32)utils::Swap32((u32)instr->args.laser.stopTime);
+                    instr->args.laser.grazeDelay = (i32)utils::Swap32((u32)instr->args.laser.grazeDelay);
+                    instr->args.laser.grazeDistance = (i32)utils::Swap32((u32)instr->args.laser.grazeDistance);
+                    instr->args.laser.flags = (i32)utils::Swap32((u32)instr->args.laser.flags);
                     break;
-                }
                 case ECL_OPCODE_CALL:
                 case ECL_OPCODE_CALLLSS:
                 case ECL_OPCODE_CALLLEQ:
                 case ECL_OPCODE_CALLEQU:
                 case ECL_OPCODE_CALLGRE:
                 case ECL_OPCODE_CALLGEQ:
-                case ECL_OPCODE_CALLNEQ: {
-                    i32 val;
-                    memcpy(&val, ptr + 8, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 8, &val, 4); // eclSub
-                    memcpy(&val, ptr + 12, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 12, &val, 4); // var0
-                    f32 fval;
-                    memcpy(&fval, ptr + 16, 4); fval = utils::SwapF32(fval); memcpy(ptr + 16, &fval, 4); // float0
-                    memcpy(&val, ptr + 20, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 20, &val, 4); // cmpLhs
-                    memcpy(&val, ptr + 24, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 24, &val, 4); // cmpRhs
+                case ECL_OPCODE_CALLNEQ:
+                    instr->args.call.eclSub = (i32)utils::Swap32((u32)instr->args.call.eclSub);
+                    instr->args.call.var0 = (i32)utils::Swap32((u32)instr->args.call.var0);
+                    instr->args.call.float0 = utils::SwapF32(instr->args.call.float0);
+                    instr->args.call.cmpLhs = (EclVarId)utils::Swap32((u32)instr->args.call.cmpLhs);
+                    instr->args.call.cmpRhs = (i32)utils::Swap32((u32)instr->args.call.cmpRhs);
                     break;
-                }
                 case ECL_OPCODE_RET:
                     break;
                 case ECL_OPCODE_MATHINTADD:
@@ -229,23 +200,19 @@ ZunResult EclManager::Load(const char *eclPath)
                 case ECL_OPCODE_SETINTRANDMIN:
                 case ECL_OPCODE_SETFLOATRANDMIN:
                 case ECL_OPCODE_CMPINT:
-                case ECL_OPCODE_CMPFLOAT: {
-                    i32 val;
-                    memcpy(&val, ptr + 8, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 8, &val, 4); // res
-                    memcpy(&val, ptr + 12, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 12, &val, 4); // arg1
-                    memcpy(&val, ptr + 16, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 16, &val, 4); // arg2
+                case ECL_OPCODE_CMPFLOAT:
+                    instr->args.alu.res = (EclVarId)utils::Swap32((u32)instr->args.alu.res);
+                    instr->args.alu.arg1.id = (EclVarId)utils::Swap32((u32)instr->args.alu.arg1.id);
+                    instr->args.alu.arg2.id = (EclVarId)utils::Swap32((u32)instr->args.alu.arg2.id);
                     break;
-                }
             }
 
-            if (offsetToNext == 0) break;
-            instr = (EclRawInstr *)(ptr + offsetToNext);
+            if (instr->offsetToNext == 0) break;
+            instr = (EclRawInstr *)((u8 *)instr + instr->offsetToNext);
         }
     }
-    utils::Log("EclManager: Byte-swapping complete");
 #endif
 
-    utils::Log("EclManager: Initializing timeline and subTable");
     this->timelinePtrs[0] = (EclTimelineInstr *)(((u8 *)this->eclFile) + this->eclFile->timelineOffsets[0]);
 
     this->subTable = (EclRawInstr **)malloc(sizeof(EclRawInstr *) * this->eclFile->subCount);
@@ -256,7 +223,6 @@ ZunResult EclManager::Load(const char *eclPath)
     }
 
     this->timeline = this->timelinePtrs[0];
-    utils::Log("EclManager: Load %s finished successfully", eclPath);
     return ZUN_SUCCESS;
 }
 

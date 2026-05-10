@@ -306,62 +306,53 @@ ChainCallbackResult EffectManager::OnDraw(EffectManager *mgr)
 
 ZunResult EffectManager::AddedCallback(EffectManager *mgr)
 {
-    utils::Log("EffectManager: AddedCallback for stage %d", g_GameManager.currentStage);
     mgr->Reset();
     switch (g_GameManager.currentStage)
     {
     case 0:
     case 1:
-        utils::Log("EffectManager: Loading data/eff01.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff01.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 2:
-        utils::Log("EffectManager: Loading data/eff02.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff02.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 3:
-        utils::Log("EffectManager: Loading data/eff03.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff03.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 4:
-        utils::Log("EffectManager: Loading data/eff04.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff04.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 5:
-        utils::Log("EffectManager: Loading data/eff05.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff05.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 6:
-        utils::Log("EffectManager: Loading data/eff05.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff05.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     case 7:
-        utils::Log("EffectManager: Loading data/eff04.anm");
         if (g_AnmManager->LoadAnm(ANM_FILE_EFFECTS, "data/eff04.anm", ANM_OFFSET_EFFECTS) != ZUN_SUCCESS)
         {
             return ZUN_ERROR;
         }
         break;
     }
-    utils::Log("EffectManager: AddedCallback finished successfully");
     return ZUN_SUCCESS;
 }
 
@@ -374,7 +365,6 @@ ZunResult EffectManager::DeletedCallback(EffectManager *p)
 
 ZunResult EffectManager::RegisterChain()
 {
-    utils::Log("EffectManager: RegisterChain");
     EffectManager *mgr = &g_EffectManager;
     mgr->Reset();
 

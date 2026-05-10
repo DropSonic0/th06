@@ -418,7 +418,6 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
     u32 sizeVmArr;
     u32 padding1, padding2, padding3, padding4, padding5, padding6;
 
-    utils::Log("Stage: Loading stage data. ANM: %s, STD: %s", anmpath, stdpath);
     if (g_AnmManager->LoadAnm(ANM_FILE_STAGEBG, anmpath, ANM_OFFSET_STAGEBG) != ZUN_SUCCESS)
     {
         return ZUN_ERROR;
@@ -436,7 +435,6 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
     RawStageHeader *header = (RawStageHeader *)this->stdData;
     header->nbObjects = (i16)utils::Swap16((u16)header->nbObjects);
     header->nbFaces = (i16)utils::Swap16((u16)header->nbFaces);
-    utils::Log("Stage: STD Header - nbObjects: %d, nbFaces: %d", header->nbObjects, header->nbFaces);
     header->facesOffset = (i32)utils::Swap32((u32)header->facesOffset);
     header->scriptOffset = (i32)utils::Swap32((u32)header->scriptOffset);
     header->unk_c = (i32)utils::Swap32((u32)header->unk_c);
@@ -447,7 +445,6 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
     }
 
     for (int i = 0; i < header->nbObjects; i++) {
-        if (i % 20 == 0) utils::Log("Stage: Swapping object %d/%d", i, header->nbObjects);
         RawStageObject *obj = (RawStageObject *)((u8 *)header + objectOffsets[i]);
         obj->id = (i16)utils::Swap16((u16)obj->id);
         obj->position.x = utils::SwapF32(obj->position.x);
@@ -458,16 +455,10 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         obj->size.z = utils::SwapF32(obj->size.z);
 
         RawStageQuadBasic *quad = &obj->firstQuad;
-        int qidx = 0;
         while (true) {
             quad->type = (i16)utils::Swap16((u16)quad->type);
             quad->byteSize = (i16)utils::Swap16((u16)quad->byteSize);
             if (quad->type < 0) break;
-            if (quad->byteSize == 0) {
-                utils::Log("Stage: ERROR: quad %d has byteSize 0!", qidx);
-                break;
-            }
-            qidx++;
             
             quad->anmScript = (i16)utils::Swap16((u16)quad->anmScript);
             quad->vmIdx = (i16)utils::Swap16((u16)quad->vmIdx);
@@ -481,10 +472,8 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         }
     }
 
-    utils::Log("Stage: Swapping object instances");
     RawStageObjectInstance *instances = (RawStageObjectInstance *)((u8 *)header + header->facesOffset);
     for (int i = 0; ; i++) {
-        if (i % 100 == 0) utils::Log("Stage: Swapping instance %d", i);
         instances[i].id = (i16)utils::Swap16((u16)instances[i].id);
         if (instances[i].id < 0) break;
 
@@ -494,59 +483,31 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         instances[i].position.z = utils::SwapF32(instances[i].position.z);
     }
 
-    utils::Log("Stage: Swapping script instructions");
     RawStageInstr *instr = (RawStageInstr *)((u8 *)header + header->scriptOffset);
-    int insIdx = 0;
     while ((u8 *)instr - (u8 *)header < (int)stdFileSize) {
-        if (insIdx % 100 == 0) utils::Log("Stage: Swapping instruction %d at offset %08x", insIdx, (u32)((u8 *)instr - (u8 *)header));
-        insIdx++;
-        u8 *ptr = (u8 *)instr;
-
-        i32 frame; memcpy(&frame, ptr, 4);
-        frame = (i32)utils::Swap32((u32)frame);
-        memcpy(ptr, &frame, 4);
-
-        i16 opcode; memcpy(&opcode, ptr + 4, 2);
-        opcode = (i16)utils::Swap16((u16)opcode);
-        memcpy(ptr + 4, &opcode, 2);
-
-        i16 size; memcpy(&size, ptr + 6, 2);
-        size = (i16)utils::Swap16((u16)size);
-        memcpy(ptr + 6, &size, 2);
+        instr->frame = (i32)utils::Swap32((u32)instr->frame);
+        instr->opcode = (i16)utils::Swap16((u16)instr->opcode);
+        instr->size = (i16)utils::Swap16((u16)instr->size);
         
-        switch (opcode) {
-            case STDOP_FOG: {
-                i32 arg0; memcpy(&arg0, ptr + 8, 4);
-                arg0 = (i32)utils::Swap32((u32)arg0);
-                memcpy(ptr + 8, &arg0, 4);
-
-                f32 arg1; memcpy(&arg1, ptr + 12, 4);
-                arg1 = utils::SwapF32(arg1);
-                memcpy(ptr + 12, &arg1, 4);
-
-                f32 arg2; memcpy(&arg2, ptr + 16, 4);
-                arg2 = utils::SwapF32(arg2);
-                memcpy(ptr + 16, &arg2, 4);
+        switch (instr->opcode) {
+            case STDOP_FOG:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
+                ((f32 *)instr->args)[1] = utils::SwapF32(((f32 *)instr->args)[1]);
+                ((f32 *)instr->args)[2] = utils::SwapF32(((f32 *)instr->args)[2]);
                 break;
-            }
             case STDOP_CAMERA_FACING_INTERP_LINEAR:
-            case STDOP_FOG_INTERP: {
-                i32 arg0; memcpy(&arg0, ptr + 8, 4);
-                arg0 = (i32)utils::Swap32((u32)arg0);
-                memcpy(ptr + 8, &arg0, 4);
+            case STDOP_FOG_INTERP:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
                 break;
-            }
-            default: {
-                i32 val;
-                memcpy(&val, ptr + 8, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 8, &val, 4);
-                memcpy(&val, ptr + 12, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 12, &val, 4);
-                memcpy(&val, ptr + 16, 4); val = (i32)utils::Swap32((u32)val); memcpy(ptr + 16, &val, 4);
+            default:
+                instr->args[0] = (i32)utils::Swap32((u32)instr->args[0]);
+                instr->args[1] = (i32)utils::Swap32((u32)instr->args[1]);
+                instr->args[2] = (i32)utils::Swap32((u32)instr->args[2]);
                 break;
-            }
         }
 
-        if (size == 0) break;
-        instr = (RawStageInstr *)(ptr + size);
+        if (instr->size == 0) break;
+        instr = (RawStageInstr *)((u8 *)instr + instr->size);
     }
 #endif
 
@@ -563,7 +524,6 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + objectOffsets2[idx]);
     }
 
-    utils::Log("Stage: Initializing quads and VMs");
     sizeVmArr = this->quadCount * sizeof(AnmVm);
     this->quadVms = (AnmVm *)malloc(sizeVmArr);
     for (idx = 0, vmIdx = 0; idx < this->objectsCount; idx++)
@@ -578,7 +538,6 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
             curQuad = (RawStageQuadBasic *)((u8 *)curQuad + curQuad->byteSize);
         }
     }
-    utils::Log("Stage: LoadStageData finished successfully");
     return ZUN_SUCCESS;
 }
 

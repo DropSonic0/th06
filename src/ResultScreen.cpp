@@ -108,15 +108,8 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
             remainingData--;
             bytesShifted++;
         }
-#ifdef __PS3__
-        if (utils::Swap16(scoreRaw->csum) != checksum)
-#else
         if (scoreRaw->csum != checksum)
-#endif
         {
-#ifdef __PS3__
-            utils::DebugPrint2("ResultScreen: checksum mismatch for %s (expected %u, got %u)\n", path, scoreRaw->csum, checksum);
-#endif
             free(scoreRaw);
             goto FAILED_TO_READ;
         }
@@ -124,46 +117,6 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
 #ifdef __PS3__
         scoreRaw->dataOffset = utils::Swap32(scoreRaw->dataOffset);
         scoreRaw->fileLen = utils::Swap32(scoreRaw->fileLen);
-        scoreRaw->csum = utils::Swap16(scoreRaw->csum);
-        scoreRaw->unk_8 = utils::Swap16(scoreRaw->unk_8);
-
-        Th6k *node = scoreRaw->ShiftBytes(scoreRaw->dataOffset);
-        i32 bytesRemaining = scoreRaw->fileLen - scoreRaw->dataOffset;
-        while (bytesRemaining >= (i32)sizeof(Th6k))
-        {
-            node->magic = utils::Swap32(node->magic);
-            node->th6kLen = utils::Swap16(node->th6kLen);
-            node->unkLen = utils::Swap16(node->unkLen);
-
-            if (node->magic == HSCR_MAGIC)
-            {
-                Hscr *h = (Hscr *)node;
-                h->score = utils::Swap32(h->score);
-            }
-            else if (node->magic == CATK_MAGIC)
-            {
-                Catk *c = (Catk *)node;
-                c->captureScore = utils::Swap32(c->captureScore);
-                c->idx = utils::Swap16(c->idx);
-                c->unk_14 = utils::Swap32(c->unk_14);
-                c->unk_38 = utils::Swap32(c->unk_38);
-                c->numAttempts = utils::Swap16(c->numAttempts);
-                c->numSuccess = utils::Swap16(c->numSuccess);
-            }
-            else if (node->magic == PSCR_MAGIC)
-            {
-                Pscr *p = (Pscr *)node;
-                p->score = utils::Swap32(p->score);
-            }
-
-            u16 len = node->th6kLen;
-            if (len < sizeof(Th6k) || len > (u32)bytesRemaining)
-            {
-                break;
-            }
-            bytesRemaining -= len;
-            node = node->ShiftBytes(len);
-        }
 #endif
 
         fileLen = scoreRaw->fileLen;
@@ -171,13 +124,15 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
         fileLen -= scoreRaw->dataOffset;
         while (fileLen > 0)
         {
+#ifdef __PS3__
+            decryptedFilePointer->magic = utils::Swap32(decryptedFilePointer->magic);
+            decryptedFilePointer->th6kLen = utils::Swap16(decryptedFilePointer->th6kLen);
+#endif
             if (decryptedFilePointer->magic == TH6K_MAGIC)
                 break;
 
-            if (decryptedFilePointer->th6kLen < sizeof(Th6k))
-                break;
-            fileLen = fileLen - decryptedFilePointer->th6kLen;
             decryptedFilePointer = decryptedFilePointer->ShiftBytes(decryptedFilePointer->th6kLen);
+            fileLen = fileLen - decryptedFilePointer->th6kLen;
         }
         if (fileLen <= 0)
         {
@@ -220,6 +175,11 @@ u32 ResultScreen::GetHighScore(ScoreDat *scoreDat, ScoreListNode *node, u32 char
 
     while (remainingSize > 0)
     {
+#ifdef __PS3__
+        highScore->base.magic = utils::Swap32(highScore->base.magic);
+        highScore->base.th6kLen = utils::Swap16(highScore->base.th6kLen);
+        highScore->score = utils::Swap32(highScore->score);
+#endif
         if (highScore->base.magic == HSCR_MAGIC && highScore->base.version == TH6K_VERSION &&
             highScore->character == character && highScore->difficulty == difficulty)
         {
@@ -311,6 +271,13 @@ ZunResult ResultScreen::ParseCatk(ScoreDat *scoreDat, Catk *outCatk)
     cursor = header->fileLen - header->dataOffset;
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedCatk->base.magic = utils::Swap32(parsedCatk->base.magic);
+        parsedCatk->base.th6kLen = utils::Swap16(parsedCatk->base.th6kLen);
+        parsedCatk->idx = utils::Swap16(parsedCatk->idx);
+        parsedCatk->numAttempts = utils::Swap16(parsedCatk->numAttempts);
+        parsedCatk->numSuccess = utils::Swap16(parsedCatk->numSuccess);
+#endif
         if (parsedCatk->base.magic == CATK_MAGIC && parsedCatk->base.version == TH6K_VERSION)
         {
             if (parsedCatk->idx >= CATK_NUM_CAPTURES)
@@ -359,6 +326,10 @@ ZunResult ResultScreen::ParseClrd(ScoreDat *scoreDat, Clrd *outClrd)
     cursor = header->fileLen - header->dataOffset;
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedClrd->base.magic = utils::Swap32(parsedClrd->base.magic);
+        parsedClrd->base.th6kLen = utils::Swap16(parsedClrd->base.th6kLen);
+#endif
         if (parsedClrd->base.magic == CLRD_MAGIC && parsedClrd->base.version == TH6K_VERSION)
         {
             if (parsedClrd->characterShotType >= CLRD_NUM_CHARACTERS)
@@ -413,6 +384,11 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
 
     while (cursor > 0)
     {
+#ifdef __PS3__
+        parsedPscr->base.magic = utils::Swap32(parsedPscr->base.magic);
+        parsedPscr->base.th6kLen = utils::Swap16(parsedPscr->base.th6kLen);
+        parsedPscr->score = utils::Swap32(parsedPscr->score);
+#endif
         if (parsedPscr->base.magic == PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
         {
             pscr = parsedPscr;
@@ -555,7 +531,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         }
     }
     scoreRaw = (ScoreRaw *)fileBuffer;
-    scoreRaw->dataOffset = sizeof(ScoreRaw);
+    scoreRaw->dataOffset = sizeof(Pscr);
     scoreRaw->fileLen = sizeOfFile;
     scoreRaw->csum = 0;
 
@@ -563,62 +539,10 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
     scoreRaw->unk[0] = g_Rng.GetRandomU16InRange(0x100);
     scoreRaw->unk_8 = 0x10;
 
-#ifdef __PS3__
-    // Full file byte-swap back to Little Endian for storage
-    {
-        Th6k *node = scoreRaw->ShiftBytes(scoreRaw->dataOffset);
-        i32 bytesRemaining = sizeOfFile - scoreRaw->dataOffset;
-        while (bytesRemaining >= (i32)sizeof(Th6k))
-        {
-            u16 len = node->th6kLen;
-
-            node->magic = utils::Swap32(node->magic);
-            node->th6kLen = utils::Swap16(node->th6kLen);
-            node->unkLen = utils::Swap16(node->unkLen);
-
-            if (utils::Swap32(node->magic) == HSCR_MAGIC)
-            {
-                Hscr *h = (Hscr *)node;
-                h->score = utils::Swap32(h->score);
-            }
-            else if (utils::Swap32(node->magic) == CATK_MAGIC)
-            {
-                Catk *c = (Catk *)node;
-                c->captureScore = utils::Swap32(c->captureScore);
-                c->idx = utils::Swap16(c->idx);
-                c->unk_14 = utils::Swap32(c->unk_14);
-                c->unk_38 = utils::Swap32(c->unk_38);
-                c->numAttempts = utils::Swap16(c->numAttempts);
-                c->numSuccess = utils::Swap16(c->numSuccess);
-            }
-            else if (utils::Swap32(node->magic) == PSCR_MAGIC)
-            {
-                Pscr *p = (Pscr *)node;
-                p->score = utils::Swap32(p->score);
-            }
-
-            if (len < sizeof(Th6k) || len > (u32)bytesRemaining)
-            {
-                break;
-            }
-            bytesRemaining -= len;
-            node = node->ShiftBytes(len);
-        }
-    }
-    scoreRaw->dataOffset = utils::Swap32(scoreRaw->dataOffset);
-    scoreRaw->fileLen = utils::Swap32(scoreRaw->fileLen);
-    scoreRaw->unk_8 = utils::Swap16(scoreRaw->unk_8);
-#endif
-
     for (remainingSize = 4; remainingSize < sizeOfFile; remainingSize++)
     {
         scoreRaw->csum += fileBuffer[remainingSize];
     }
-
-#ifdef __PS3__
-    scoreRaw->csum = utils::Swap16(scoreRaw->csum);
-#endif
-
     xorValue = 0;
     originalByte = 0;
 
@@ -637,7 +561,6 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         bytes++;
         remainingSize--;
     }
-
     FileSystem::WriteDataToFile("score.dat", fileBuffer, sizeOfFile);
     std::free(fileBuffer);
 }
@@ -701,12 +624,14 @@ i32 ResultScreen::HandleResultKeyboard()
 
         this->hscr.base.unk_9 = 1;
         
+        SDL_Log("strcpy 1");
         std::strcpy(this->hscr.name, "        ");
 
         if (this->LinkScoreEx(&this->hscr, this->diffSelected, this->charUsed * 2 + g_GameManager.shotType) >= 10)
             goto RETURN_TO_STATS_SCREEN_WITHOUT_SOUND;
 
         this->cursor = 0;
+        SDL_Log("strcpy 2");
         std::strcpy(this->replayName, "");
     }
     if (this->frameTimer < 30)
@@ -847,7 +772,9 @@ i32 ResultScreen::HandleResultKeyboard()
         {
             sprite->pendingInterrupt = 2;
         }
+        SDL_Log("strcpy 3");
         std::snprintf(this->replayName, sizeof(this->replayName), "%s", this->hscr.name);
+//        std::strcpy(this->replayName, this->hscr.name);
     }
     return 0;
 }
@@ -1901,6 +1828,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                         {
                             g_AsciiManager.color = 0xfff0f0ff;
 
+                            SDL_Log("strcpy 4");
                             std::strcpy(name, "        ");
                             name[8] = 0;
 
@@ -1948,6 +1876,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                         {
                             g_AsciiManager.color = 0xfffff0f0;
 
+                            SDL_Log("strcpy 5");
                             std::strcpy(name, "        ");
                             name[8] = 0;
 
@@ -2125,6 +2054,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                                              resultScreen->defaultReplay.score);
                 g_AsciiManager.color = 0xfff0f0ff;
 
+                SDL_Log("strcpy 6");
                 std::strcpy(name, "        ");
 
                 name[8] = 0;
@@ -2230,6 +2160,7 @@ ZunResult ResultScreen::AddedCallback(ResultScreen *resultScreen)
 
                 resultScreen->LinkScoreEx(resultScreen->defaultScore[i][characterShot] + slot, i, characterShot);
 
+                SDL_Log("strcpy 7");
                 std::strcpy(resultScreen->defaultScore[i][characterShot][slot].name, DEFAULT_HIGH_SCORE_NAME);
             }
         }

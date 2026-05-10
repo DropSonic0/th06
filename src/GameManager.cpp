@@ -401,46 +401,38 @@ ZunResult GameManager::AddedCallback(GameManager *mgr)
     }
     g_Rng.generationCount = 0;
     mgr->randomSeed = g_Rng.seed;
-    utils::Log("GameManager: Initializing Stage...");
     if (Stage::RegisterChain(mgr->currentStage) != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_STAGE);
         return ZUN_ERROR;
     }
 
-    utils::Log("GameManager: Initializing Player...");
     if (Player::RegisterChain(0) != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_PLAYER);
         return ZUN_ERROR;
     }
-    utils::Log("GameManager: Initializing BulletManager...");
     if (BulletManager::RegisterChain("data/etama.anm") != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_BULLETMANAGER);
         return ZUN_ERROR;
     }
-    utils::Log("GameManager: Initializing EnemyManager...");
     if (EnemyManager::RegisterChain(g_AnmStageFiles[mgr->currentStage].file1,
                                     g_AnmStageFiles[mgr->currentStage].file2) != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_ENEMYMANAGER);
         return ZUN_ERROR;
     }
-    utils::Log("GameManager: Initializing EclManager...");
     if (g_EclManager.Load(g_EclFiles[mgr->currentStage]) != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_ECLMANAGER);
         return ZUN_ERROR;
     }
-    utils::Log("GameManager: EclManager::Load finished successfully");
-    utils::Log("GameManager: Initializing EffectManager...");
     if (EffectManager::RegisterChain() != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_EFFECTMANAGER);
         return ZUN_ERROR;
     }
-    utils::Log("GameManager: Initializing Gui...");
     if (Gui::RegisterChain() != ZUN_SUCCESS)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_GAMEMANAGER_FAILED_TO_INITIALIZE_GUI);

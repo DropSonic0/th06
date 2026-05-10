@@ -818,8 +818,9 @@ ZunResult Supervisor::LoadConfig(const char *path)
         }
 #endif
         if ((g_Supervisor.cfg.lifeCount >= 5) || (g_Supervisor.cfg.bombCount >= 4) ||
-            (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 3) ||
-            (g_Supervisor.cfg.defaultDifficulty >= 5) || (g_Supervisor.cfg.playSounds >= 2) ||
+            (g_Supervisor.cfg.colorMode16bit >= 2 && g_Supervisor.cfg.colorMode16bit != 0xff) ||
+            (g_Supervisor.cfg.musicMode >= 3) || (g_Supervisor.cfg.defaultDifficulty >= 5) ||
+            (g_Supervisor.cfg.playSounds >= 2) ||
             (g_Supervisor.cfg.windowed >= 2) || (g_Supervisor.cfg.frameskipConfig >= 3) ||
             (g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
         {

@@ -671,7 +671,7 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
 #ifdef __PS3__
-    utils::Log("AnmManager: LoadAnm(%s)...", path);
+    // utils::Log("AnmManager: LoadAnm(%s)...", path);
 #endif
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
@@ -689,7 +689,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     // Byte-swap header
     anm->numSprites = utils::Swap32(anm->numSprites);
     anm->numScripts = utils::Swap32(anm->numScripts);
-    utils::Log("AnmManager: Header swapped. Sprites: %d, Scripts: %d, FileSize: %u", anm->numSprites, anm->numScripts, anmFileSize);
+    // utils::Log("AnmManager: Header swapped. Sprites: %d, Scripts: %d, FileSize: %u", anm->numSprites, anm->numScripts, anmFileSize);
     if (anm->numSprites < 0 || anm->numSprites > 10000 || anm->numScripts < 0 || anm->numScripts > 10000) {
         utils::Log("AnmManager: Error: invalid sprite/script count");
         return ZUN_ERROR;
@@ -724,7 +724,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 
     const char *anmName = (char *)((u8 *)anm + anm->nameOffset);
 #ifdef __PS3__
-    utils::Log("AnmManager: anmName = %s, textureIdx = %d, size = %dx%d, format = %d", anmName, anm->textureIdx, anm->width, anm->height, anm->format);
+    // utils::Log("AnmManager: anmName = %s, textureIdx = %d, size = %dx%d, format = %d", anmName, anm->textureIdx, anm->width, anm->height, anm->format);
 #endif
 
     // D3D seems to treat unknown texture format as a wildcard, but SDL treats it as an error
@@ -775,7 +775,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     if (swappedMap) memset(swappedMap, 0, anmFileSize);
 #endif
 
-    utils::Log("AnmManager: Processing %d sprites...", anm->numSprites);
+    // utils::Log("AnmManager: Processing %d sprites...", anm->numSprites);
     for (index = 0; index < (i32)anm->numSprites; index++, curSpriteOffset++)
     {
         u32 spriteDataOff = *curSpriteOffset;
@@ -814,13 +814,13 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     }
 
 #ifdef __PS3__
-    utils::Log("AnmManager: Processing %d scripts...", anm->numScripts);
+    // utils::Log("AnmManager: Processing %d scripts...", anm->numScripts);
 #endif
 
     for (index = 0; index < (i32)anm->numScripts; index++, curSpriteOffset += 2)
     {
         if (index % 100 == 0) {
-            utils::Log("AnmManager: Script %d/%d...", index, anm->numScripts);
+            // utils::Log("AnmManager: Script %d/%d...", index, anm->numScripts);
 #ifdef __PS3__
             cellSysutilCheckCallback();
 #endif
@@ -845,10 +845,8 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         // Byte-swap instructions until we hit an exit opcode or similar
         int safety = 0;
         while (instr && swappedMap && safety < 10000) {
-            if (safety % 500 == 0 && safety > 0) utils::Log("AnmManager: Swapping instruction %d in script %d (offset %08x, align %d)", safety, scriptId, (u32)((u8 *)instr - (u8 *)anm), (u32)((uptr)instr % 4));
             safety++;
-            u8 *ptr = (u8 *)instr;
-            u32 off = (u32)(ptr - (u8 *)anm);
+            u32 off = (u32)((u8 *)instr - (u8 *)anm);
             if (off + 4 > anmFileSize) break;
             if (swappedMap[off]) {
                 // If we hit an already swapped instruction, we can stop following this path
@@ -856,38 +854,29 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
             }
             swappedMap[off] = 1;
 
-            // Unaligned-safe byte swapping
-            u16 time;
-            memcpy(&time, ptr, 2);
-            time = utils::Swap16(time);
-            memcpy(ptr, &time, 2);
-
-            u8 opcode = ptr[2];
-            u8 argsCount = ptr[3];
+            instr->time = (i16)utils::Swap16((u16)instr->time);
+            // opcode and argsCount are u8, no swap needed
             
             // Safety check for args swapping
-            if (off + 4 + argsCount > anmFileSize) {
-                utils::Log("AnmManager: Args for opcode %d exceed file size at off %u", opcode, off);
+            if (off + 4 + instr->argsCount > anmFileSize) {
+                utils::Log("AnmManager: Args for opcode %d exceed file size at off %u", instr->opcode, off);
                 break;
             }
 
             // Only swap the arguments that are actually present
-            for (int i = 0; i < (int)((argsCount + 3) / 4); ++i) {
-                u32 arg;
-                memcpy(&arg, ptr + 4 + i * 4, 4);
-                arg = utils::Swap32(arg);
-                memcpy(ptr + 4 + i * 4, &arg, 4);
+            for (int i = 0; i < (int)((instr->argsCount + 3) / 4); ++i) {
+                instr->args[i] = utils::Swap32(instr->args[i]);
             }
-            if (opcode == AnmOpcode_Exit || opcode == AnmOpcode_ExitHide) {
+            if (instr->opcode == AnmOpcode_Exit || instr->opcode == AnmOpcode_ExitHide) {
                 break;
             }
-            if (argsCount == 0 && opcode == 0 && time == 0) {
+            if (instr->argsCount == 0 && instr->opcode == 0 && instr->time == 0) {
                 // Potential null/invalid instruction
                 break;
             }
             
             // Move to next instruction
-            instr = (AnmRawInstr *)(ptr + 4 + argsCount);
+            instr = (AnmRawInstr *)((u8 *)instr->args + instr->argsCount);
         }
         if (safety >= 10000) {
             utils::Log("AnmManager: Safety limit reached for script %d", scriptId);
