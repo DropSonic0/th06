@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 #include "Chain.hpp"
 #include "ChainPriorities.hpp"
 #include "ReplayData.hpp"
@@ -17,7 +19,16 @@ struct ReplayManager
     static ZunResult DeletedCallback(ReplayManager *mgr);
     static void StopRecording();
     static void SaveReplay(const char *replay_path, char *param_2);
-    static ZunResult ValidateReplayData(const ReplayHeader *data, i32 fileSize);
+    static ZunResult ValidateReplayData(const ReplayHeaderRaw *data, i32 fileSize);
+
+    static inline StageReplayData *AllocateStageReplayData(size_t size)
+    {
+        return (StageReplayData *)std::malloc(size);
+    }
+    static inline void ReleaseStageReplayData(StageReplayData *data)
+    {
+        std::free(data);
+    }
 
     ReplayManager()
     {

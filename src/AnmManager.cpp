@@ -49,13 +49,7 @@ static const u8 g_TextureFormatBytesPerPixel[6] = {0, 4, 2, 2, 3, 2};
 
 void AnmManager::CreateTextureObject()
 {
-#ifdef __PS3__
-    // utils::Log("AnmManager: CreateTextureObject...");
-#endif
     g_glFuncTable.glGenTextures(1, &this->currentTextureHandle);
-#ifdef __PS3__
-    // utils::Log("AnmManager: glGenTextures -> %d", this->currentTextureHandle);
-#endif
     g_glFuncTable.glBindTexture(GL_TEXTURE_2D, this->currentTextureHandle);
 
     g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -107,10 +101,13 @@ SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_Pixel
 
     return imageTargetSurface;
 }
+#endif
 
 u8 *AnmManager::ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth)
 {
+#ifndef __PS3__
     SDL_LockSurface(src);
+#endif
 
     const i32 dstPitch = src->w * pixelDepth;
     const i32 srcPitch = src->pitch;
@@ -126,7 +123,9 @@ u8 *AnmManager::ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth)
         srcPtr += srcPitch;
     }
 
+#ifndef __PS3__
     SDL_UnlockSurface(src);
+#endif
 
     return pixelData;
 }
@@ -142,7 +141,9 @@ void AnmManager::FlipSurface(SDL_Surface *surface)
         return;
     }
 
+#ifndef __PS3__
     SDL_LockSurface(surface);
+#endif
 
     copyBuf = new u8[surface->h / 2 * surface->pitch];
 
@@ -160,11 +161,12 @@ void AnmManager::FlipSurface(SDL_Surface *surface)
         highPtr -= surface->pitch;
     }
 
+#ifndef __PS3__
     SDL_UnlockSurface(surface);
+#endif
 
     delete[] copyBuf;
 }
-#endif
 
 void AnmManager::ReleaseSurfaces(void)
 {
@@ -175,8 +177,11 @@ void AnmManager::ReleaseSurfaces(void)
 #ifndef __PS3__
             SDL_FreeSurface(this->surfaces[idx]);
 #else
-            // PS3 implementation might need free() or similar if surfaces are raw pixels
-            // free(this->surfaces[idx]);
+            if (this->surfaces[idx]->textureHandle != 0) {
+                g_glFuncTable.glDeleteTextures(1, &this->surfaces[idx]->textureHandle);
+            }
+            stbi_image_free(this->surfaces[idx]->pixels);
+            free(this->surfaces[idx]);
 #endif
             this->surfaces[idx] = NULL;
         }
@@ -226,15 +231,13 @@ AnmManager::~AnmManager()
 
 AnmManager::AnmManager()
 {
-    std::memset(&this->sprites, 0, sizeof(AnmManager) - offsetof(AnmManager, sprites));
-
 #ifndef __PS3__
     IMG_Init(IMG_INIT_JPG | IMG_INIT_PNG);
-#else
-    utils::Log("AnmManager: Constructor...");
 #endif
 
     this->maybeLoadedSpriteCount = 0;
+
+    std::memset(this, 0, sizeof(AnmManager));
 
     this->depthMask = true;
     this->dirtyDepthMask = true;
@@ -279,9 +282,7 @@ AnmManager::AnmManager()
     this->CreateTextureObject();
     this->dummyTextureHandle = this->currentTextureHandle;
 #ifdef __PS3__
-    utils::Log("AnmManager: dummyTextureHandle = %d", this->dummyTextureHandle);
     g_glFuncTable.glGenBuffers(1, &this->persistentVbo);
-    utils::Log("AnmManager: persistentVbo = %d", this->persistentVbo);
 #endif
     u8 dummyTex[4] = {0,0,0,0};
     g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, dummyTex);
@@ -289,9 +290,6 @@ AnmManager::AnmManager()
     //    this->vertexBuffer = NULL;
     this->currentBlendMode = 0;
     this->screenshotTextureId = -1;
-#ifdef __PS3__
-    utils::Log("AnmManager: Constructor done.");
-#endif
     this->projectionMode = PROJECTION_MODE_PERSPECTIVE;
 
     this->dirtyFlags = 0;
@@ -305,9 +303,6 @@ AnmManager::AnmManager()
 
 void AnmManager::SetupVertexBuffer()
 {
-#ifdef __PS3__
-    utils::Log("AnmManager: SetupVertexBuffer...");
-#endif
     this->vertexBufferContents[2].position.x = -128;
     this->vertexBufferContents[0].position.x = -128;
     this->vertexBufferContents[3].position.x = 128;
@@ -463,7 +458,6 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     
     u32 potWidth = BitCeil(width);
     u32 potHeight = BitCeil(height);
-    // utils::Log("AnmManager: %s image: %dx%d (%d channels) -> POT: %dx%d", textureName, width, height, channels, potWidth, potHeight);
     
     u8* potPixels = new u8[potWidth * potHeight * 4];
     if (!potPixels) {
@@ -638,8 +632,6 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
     this->textures[textureIdx].width = BitCeil(width);
     this->textures[textureIdx].height = BitCeil(height);
     this->textures[textureIdx].format = TEX_FMT_A8R8G8B8;
-
-    // utils::Log("AnmManager: CreateEmptyTexture %dx%d (POT %dx%d)", width, height, this->textures[textureIdx].width, this->textures[textureIdx].height);
     
     g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
                                textures[textureIdx].width, textures[textureIdx].height, 0,
@@ -670,12 +662,8 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
-#ifdef __PS3__
-    // utils::Log("AnmManager: LoadAnm(%s)...", path);
-#endif
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
-    u32 anmFileSize = g_LastFileSize;
 
     AnmRawEntry *anm = this->anmFiles[anmIdx];
 
@@ -685,47 +673,9 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         return ZUN_ERROR;
     }
 
-#ifdef __PS3__
-    // Byte-swap header
-    anm->numSprites = utils::Swap32(anm->numSprites);
-    anm->numScripts = utils::Swap32(anm->numScripts);
-    // utils::Log("AnmManager: Header swapped. Sprites: %d, Scripts: %d, FileSize: %u", anm->numSprites, anm->numScripts, anmFileSize);
-    if (anm->numSprites < 0 || anm->numSprites > 10000 || anm->numScripts < 0 || anm->numScripts > 10000) {
-        utils::Log("AnmManager: Error: invalid sprite/script count");
-        return ZUN_ERROR;
-    }
-    anm->textureIdx = utils::Swap32(anm->textureIdx);
-    anm->width = utils::Swap32(anm->width);
-    anm->height = utils::Swap32(anm->height);
-    anm->format = utils::Swap32(anm->format);
-    anm->colorKey = utils::Swap32(anm->colorKey);
-    anm->nameOffset = utils::Swap32(anm->nameOffset);
-    anm->spriteIdxOffset = utils::Swap32(anm->spriteIdxOffset);
-    anm->alphaNameOffset = utils::Swap32(anm->alphaNameOffset);
-    anm->version = utils::Swap32(anm->version);
-    anm->unk1 = utils::Swap32(anm->unk1);
-    anm->textureOffset = utils::Swap32(anm->textureOffset);
-    anm->hasData = utils::Swap32(anm->hasData);
-    anm->nextOffset = utils::Swap32(anm->nextOffset);
-    anm->unk2 = utils::Swap32(anm->unk2);
-
-    u32 totalOffsets = anm->numSprites + 2 * anm->numScripts;
-    // Safety check for offsets table
-    if (offsetof(AnmRawEntry, spriteOffsets) + totalOffsets * 4 > anmFileSize) {
-        utils::Log("AnmManager: Error: offsets table exceeds file size");
-        return ZUN_ERROR;
-    }
-    for (u32 i = 0; i < totalOffsets; ++i) {
-        anm->spriteOffsets[i] = utils::Swap32(anm->spriteOffsets[i]);
-    }
-#endif
-
     anm->textureIdx = anmIdx;
 
     const char *anmName = (char *)((u8 *)anm + anm->nameOffset);
-#ifdef __PS3__
-    // utils::Log("AnmManager: anmName = %s, textureIdx = %d, size = %dx%d, format = %d", anmName, anm->textureIdx, anm->width, anm->height, anm->format);
-#endif
 
     // D3D seems to treat unknown texture format as a wildcard, but SDL treats it as an error
     //   This is a hack to avoid that for now
@@ -740,9 +690,6 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     }
     else if (this->LoadTexture(anm->textureIdx, anmName, anm->format, anm->colorKey) != ZUN_SUCCESS)
     {
-#ifdef __PS3__
-        utils::Log("AnmManager: LoadTexture failed for %s", anmName);
-#endif
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_ANMMANAGER_TEXTURE_CORRUPTED, anmName);
         return ZUN_ERROR;
     }
@@ -753,7 +700,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
     anm->height = this->textures[anm->textureIdx].height;
 #endif
 
-    if (anm->alphaNameOffset != 0)
+    if (anm->alphaNameOffset != 0u)
     {
         anmName = (char *)((u8 *)anm + anm->alphaNameOffset);
         if (this->LoadTextureAlphaChannel(anm->textureIdx, anmName, anm->format, anm->colorKey) != ZUN_SUCCESS)
@@ -765,127 +712,31 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 
     anm->spriteIdxOffset = spriteIdxOffset;
 
-    const u32 *curSpriteOffset = anm->spriteOffsets;
+    const LE<u32> *curSpriteOffset = anm->spriteOffsets;
 
     i32 index;
-    AnmRawSprite *rawSprite;
+    const AnmRawSprite *rawSprite;
 
-#ifdef __PS3__
-    u8 *swappedMap = (u8 *)malloc(anmFileSize);
-    if (swappedMap) memset(swappedMap, 0, anmFileSize);
-#endif
-
-    // utils::Log("AnmManager: Processing %d sprites...", anm->numSprites);
-    for (index = 0; index < (i32)anm->numSprites; index++, curSpriteOffset++)
+    for (index = 0; index < anm->numSprites; index++, curSpriteOffset++)
     {
-        u32 spriteDataOff = *curSpriteOffset;
-        if (spriteDataOff + sizeof(AnmRawSprite) > anmFileSize) {
-             utils::Log("AnmManager: Warning: sprite %d data offset %u exceeds file size", index, spriteDataOff);
-             continue;
-        }
-
-        rawSprite = (AnmRawSprite *)((u8 *)anm + spriteDataOff);
-
-#ifdef __PS3__
-        if (swappedMap && spriteDataOff < anmFileSize && !swappedMap[spriteDataOff]) {
-            swappedMap[spriteDataOff] = 1;
-            rawSprite->id = utils::Swap32(rawSprite->id);
-            // Note: bitcast f32 to u32 for Swap32
-            *(u32*)&rawSprite->offset.x = utils::Swap32(*(u32*)&rawSprite->offset.x);
-            *(u32*)&rawSprite->offset.y = utils::Swap32(*(u32*)&rawSprite->offset.y);
-            *(u32*)&rawSprite->size.x = utils::Swap32(*(u32*)&rawSprite->size.x);
-            *(u32*)&rawSprite->size.y = utils::Swap32(*(u32*)&rawSprite->size.y);
-        }
-#endif
-        if (rawSprite->id + spriteIdxOffset >= 2048) {
-            utils::Log("AnmManager: Error: sprite id %d + offset %d exceeds 2048", rawSprite->id, spriteIdxOffset);
-            continue;
-        }
+        rawSprite = (AnmRawSprite *)((u8 *)anm + *curSpriteOffset);
 
         AnmLoadedSprite loadedSprite;
         loadedSprite.sourceFileIndex = this->anmFiles[anmIdx]->textureIdx;
         loadedSprite.startPixelInclusive.x = rawSprite->offset.x;
         loadedSprite.startPixelInclusive.y = rawSprite->offset.y;
-        loadedSprite.endPixelInclusive.x = rawSprite->offset.x + rawSprite->size.x;
-        loadedSprite.endPixelInclusive.y = rawSprite->offset.y + rawSprite->size.y;
+        loadedSprite.endPixelInclusive.x = (f32)rawSprite->offset.x + (f32)rawSprite->size.x;
+        loadedSprite.endPixelInclusive.y = (f32)rawSprite->offset.y + (f32)rawSprite->size.y;
         loadedSprite.textureWidth = (float)anm->width;
         loadedSprite.textureHeight = (float)anm->height;
         this->LoadSprite(rawSprite->id + spriteIdxOffset, &loadedSprite);
     }
 
-#ifdef __PS3__
-    // utils::Log("AnmManager: Processing %d scripts...", anm->numScripts);
-#endif
-
-    for (index = 0; index < (i32)anm->numScripts; index++, curSpriteOffset += 2)
+    for (index = 0; index < anm->numScripts; index++, curSpriteOffset += 2)
     {
-        if (index % 100 == 0) {
-            // utils::Log("AnmManager: Script %d/%d...", index, anm->numScripts);
-#ifdef __PS3__
-            cellSysutilCheckCallback();
-#endif
-        }
-        u32 scriptId = curSpriteOffset[0];
-        u32 scriptOffset = curSpriteOffset[1];
-        if (scriptId + spriteIdxOffset >= 2048) {
-            utils::Log("AnmManager: Script index %d exceeds 2048", scriptId + spriteIdxOffset);
-            continue;
-        }
-
-        if (scriptOffset + 4 > anmFileSize) {
-            utils::Log("AnmManager: Script offset %d exceeds file size", scriptOffset);
-            continue;
-        }
-
-        AnmRawInstr *instr = (AnmRawInstr *)((u8 *)anm + scriptOffset);
-        this->scripts[scriptId + spriteIdxOffset] = instr;
-        this->spriteIndices[scriptId + spriteIdxOffset] = spriteIdxOffset;
-
-#ifdef __PS3__
-        // Byte-swap instructions until we hit an exit opcode or similar
-        int safety = 0;
-        while (instr && swappedMap && safety < 10000) {
-            safety++;
-            u32 off = (u32)((u8 *)instr - (u8 *)anm);
-            if (off + 4 > anmFileSize) break;
-            if (swappedMap[off]) {
-                // If we hit an already swapped instruction, we can stop following this path
-                break;
-            }
-            swappedMap[off] = 1;
-
-            instr->time = (i16)utils::Swap16((u16)instr->time);
-            // opcode and argsCount are u8, no swap needed
-            
-            // Safety check for args swapping
-            if (off + 4 + instr->argsCount > anmFileSize) {
-                utils::Log("AnmManager: Args for opcode %d exceed file size at off %u", instr->opcode, off);
-                break;
-            }
-
-            // Only swap the arguments that are actually present
-            for (int i = 0; i < (int)((instr->argsCount + 3) / 4); ++i) {
-                instr->args[i] = utils::Swap32(instr->args[i]);
-            }
-            if (instr->opcode == AnmOpcode_Exit || instr->opcode == AnmOpcode_ExitHide) {
-                break;
-            }
-            if (instr->argsCount == 0 && instr->opcode == 0 && instr->time == 0) {
-                // Potential null/invalid instruction
-                break;
-            }
-            
-            // Move to next instruction
-            instr = (AnmRawInstr *)((u8 *)instr->args + instr->argsCount);
-        }
-        if (safety >= 10000) {
-            utils::Log("AnmManager: Safety limit reached for script %d", scriptId);
-        }
-#endif
+        this->scripts[curSpriteOffset[0] + spriteIdxOffset] = (AnmRawInstr *)((u8 *)anm + curSpriteOffset[1]);
+        this->spriteIndices[curSpriteOffset[0] + spriteIdxOffset] = spriteIdxOffset;
     }
-#ifdef __PS3__
-    if (swappedMap) free(swappedMap);
-#endif
 
     this->anmFilesSpriteIndexOffsets[anmIdx] = spriteIdxOffset;
 
@@ -896,13 +747,13 @@ void AnmManager::ReleaseAnm(i32 anmIdx)
 {
     if (this->anmFiles[anmIdx] != NULL)
     {
-        const i32 *spriteIdx;
+        const LE<i32> *spriteIdx;
         i32 i;
         i32 spriteIdxOffset = this->anmFilesSpriteIndexOffsets[anmIdx];
-        const u32 *byteOffset = this->anmFiles[anmIdx]->spriteOffsets;
+        const LE<u32> *byteOffset = this->anmFiles[anmIdx]->spriteOffsets;
         for (i = 0; i < this->anmFiles[anmIdx]->numSprites; i++, byteOffset++)
         {
-            spriteIdx = (i32 *)((u8 *)this->anmFiles[anmIdx] + *byteOffset);
+            spriteIdx = (LE<i32> *)((u8 *)this->anmFiles[anmIdx] + *byteOffset);
             memset(&this->sprites[*spriteIdx + spriteIdxOffset], 0,
                    sizeof(this->sprites[*spriteIdx + spriteIdxOffset]));
             this->sprites[*spriteIdx + spriteIdxOffset].sourceFileIndex = -1;
@@ -1647,17 +1498,10 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
     return ZUN_SUCCESS;
 }
 
-#define AnmF32Arg(index) (*(f32 *)&curInstr->args[index])
-#define AnmI32Arg(index) (*(i32 *)&curInstr->args[index])
-#define AnmU32Arg(index) (*(u32 *)&curInstr->args[index])
-#ifdef __PS3__
-// On big endian, the 16-bit value is in the high bits if it was loaded from little-endian memory into a 32-bit register.
-// But since we swap the 32-bit args, the 16-bit value is now in the low bits (or high depending on original layout).
-// Original layout: [low][high]... so after Swap32 [high][low]... the i16 at index 0 is at offset +2.
-#define AnmI16Arg(index) (*(i16 *)((u8 *)&curInstr->args[index] + 2))
-#else
-#define AnmI16Arg(index) (*(i16 *)&curInstr->args[index])
-#endif
+#define AnmF32Arg(index) (*(LE<f32> *)&curInstr->args[index])
+#define AnmI32Arg(index) (*(LE<i32> *)&curInstr->args[index])
+#define AnmU32Arg(index) (*(LE<u32> *)&curInstr->args[index])
+#define AnmI16Arg(index) (*(LE<i16> *)&curInstr->args[index])
 
 i32 AnmManager::ExecuteScript(AnmVm *vm)
 {
@@ -1719,7 +1563,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->scaleX *= -1.f;
             break;
         case AnmOpcode_UsePosOffset:
-            vm->flags.usePosOffset = AnmI32Arg(0);
+            vm->flags.usePosOffset = (i32)AnmI32Arg(0);
             break;
         case AnmOpcode_FlipY:
             vm->flags.flip ^= 2;
@@ -1744,7 +1588,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->scaleInterpFinalX = AnmF32Arg(0);
             vm->scaleInterpFinalY = AnmF32Arg(1);
 
-            vm->scaleInterpEndTime = AnmI16Arg(2);
+            vm->scaleInterpEndTime = (i16)AnmI16Arg(2);
             vm->scaleInterpTime.InitializeForPopup();
 
             vm->scaleInterpInitialX = vm->scaleX;
@@ -1753,7 +1597,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         case AnmOpcode_Fade:
             vm->alphaInterpInitial = vm->color;
             vm->alphaInterpFinal = COLOR_SET_ALPHA2(vm->color, AnmU32Arg(0));
-            vm->alphaInterpEndTime = AnmU32Arg(1);
+            vm->alphaInterpEndTime = (i16)AnmU32Arg(1);
             vm->alphaInterpTime.InitializeForPopup();
             break;
         case AnmOpcode_SetBlendAdditive:
@@ -1806,7 +1650,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
 #else
             vm->posInterpFinal.x = AnmF32Arg(0); vm->posInterpFinal.y = AnmF32Arg(1); vm->posInterpFinal.z = AnmF32Arg(2);
 #endif
-            vm->posInterpEndTime = AnmI32Arg(3);
+            vm->posInterpEndTime = (i16)AnmI32Arg(3);
             vm->posInterpTime.InitializeForPopup();
             break;
         case AnmOpcode_StopHide:
@@ -1821,10 +1665,10 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         yolo:
             nextInstr = NULL;
             curInstr = vm->beginingOfScript;
-            while ((curInstr->opcode != AnmOpcode_InterruptLabel || vm->pendingInterrupt != AnmI32Arg(0)) &&
+            while ((curInstr->opcode != AnmOpcode_InterruptLabel || vm->pendingInterrupt != (i32)AnmI32Arg(0)) &&
                    curInstr->opcode != AnmOpcode_Exit && curInstr->opcode != AnmOpcode_ExitHide)
             {
-                if (curInstr->opcode == AnmOpcode_InterruptLabel && AnmI32Arg(0) == -1)
+                if (curInstr->opcode == AnmOpcode_InterruptLabel && (i32)AnmI32Arg(0) == -1)
                 {
                     nextInstr = curInstr;
                 }
@@ -1849,13 +1693,13 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->flags.isVisible = 1;
             continue;
         case AnmOpcode_SetVisibility:
-            vm->flags.isVisible = AnmI32Arg(0);
+            vm->flags.isVisible = (u32)AnmI32Arg(0);
             break;
         case AnmOpcode_AnchorTopLeft:
             vm->flags.anchor = AnmVmAnchor_TopLeft;
             break;
         case AnmOpcode_SetAutoRotate:
-            vm->autoRotate = AnmI32Arg(0);
+            vm->autoRotate = (i16)AnmI32Arg(0);
             break;
         case AnmOpcode_UVScrollX:
             vm->uvScrollPos.x += AnmF32Arg(0);
@@ -1880,7 +1724,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             }
             break;
         case AnmOpcode_SetZWriteDisable:
-            vm->flags.zWriteDisable = AnmI32Arg(0);
+            vm->flags.zWriteDisable = (u32)AnmI32Arg(0);
             break;
         case AnmOpcode_Nop:
         case AnmOpcode_InterruptLabel:
@@ -2048,9 +1892,9 @@ void AnmManager::DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowCol
     va_start(argptr, fmt);
     vsprintf(buffer, fmt, argptr);
     va_end(argptr);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                             vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                             fontWidth, vm->fontHeight, textColor, shadowColor, buffer);
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                             (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                             (i32)fontWidth, (i32)vm->fontHeight, textColor, shadowColor, buffer);
     vm->flags.isVisible = true;
     return;
 }
@@ -2066,13 +1910,13 @@ void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadow
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                          vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                          fontWidth, vm->fontHeight, textColor, shadowColor, " ");
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                          (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                          fontWidth, (i32)vm->fontHeight, textColor, shadowColor, " ");
     secondPartStartX =
-        vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
-                          vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
+        (i32)vm->sprite->startPixelInclusive.x + (i32)vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
+                          (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, fontWidth, (i32)vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
     return;
@@ -2089,13 +1933,13 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                          vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                          fontWidth, vm->fontHeight, textColor, shadowColor, " ");
-    secondPartStartX = vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth / 2.0f -
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                          (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                          fontWidth, (i32)vm->fontHeight, textColor, shadowColor, " ");
+    secondPartStartX = (i32)vm->sprite->startPixelInclusive.x + (i32)vm->sprite->textureWidth / 2.0f -
                        ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
-                          vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
+                          (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, fontWidth, (i32)vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
     return;
@@ -2348,7 +2192,7 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[3].textureUV.x = (float)(rectLeft + rectWidth) / textureWidth; verts[3].textureUV.y = (float)(rectTop + rectHeight) / textureHeight;
 
     g_glFuncTable.glBindBuffer(GL_ARRAY_BUFFER, this->persistentVbo);
-    g_glFuncTable.glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STREAM_DRAW);
+    g_glFuncTable.glBufferData(GL_ARRAY_BUFFER, sizeof(verts), (void*)verts, GL_STREAM_DRAW);
 
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, position));
@@ -2545,10 +2389,10 @@ void AnmManager::ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &src
 
     VertexTex1DiffuseXyz verts[4];
 
-    verts[0].position = ZunVec3(dstRect.x, dstRect.y, 0.0f);
-    verts[1].position = ZunVec3(dstRect.x + dstRect.w, dstRect.y, 0.0f);
-    verts[2].position = ZunVec3(dstRect.x, dstRect.y + dstRect.h, 0.0f);
-    verts[3].position = ZunVec3(dstRect.x + dstRect.w, dstRect.y + dstRect.h, 0.0f);
+    verts[0].position = ZunVec3((f32)dstRect.x, (f32)dstRect.y, 0.0f);
+    verts[1].position = ZunVec3((f32)dstRect.x + (f32)dstRect.w, (f32)dstRect.y, 0.0f);
+    verts[2].position = ZunVec3((f32)dstRect.x, (f32)dstRect.y + (f32)dstRect.h, 0.0f);
+    verts[3].position = ZunVec3((f32)dstRect.x + (f32)dstRect.w, (f32)dstRect.y + (f32)dstRect.h, 0.0f);
 
     verts[0].textureUV = ZunVec2(0.0f, 0.0f);
     verts[1].textureUV = ZunVec2(((f32)src->w) / textureWidth, 0.0f);

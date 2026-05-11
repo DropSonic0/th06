@@ -1283,19 +1283,40 @@ i32 MainMenu::ReplayHandling()
                 for (cur = 0; cur < 15; cur++)
                 {
                     std::sprintf(replayFilePath, "./replay/th6_%.2d.rpy", cur + 1);
-                    replayData = (ReplayHeader *)FileSystem::OpenPath(replayFilePath, 1);
-                    if (replayData == NULL)
+                    ReplayHeaderRaw *rawReplayData = (ReplayHeaderRaw *)FileSystem::OpenPath(replayFilePath, 1);
+                    if (rawReplayData == NULL)
                     {
-                        std::free(replayData);
                         continue;
                     }
-                    if (!ReplayManager::ValidateReplayData(replayData, g_LastFileSize))
+                    if (ReplayManager::ValidateReplayData(rawReplayData, g_LastFileSize) == ZUN_SUCCESS)
                     {
-                        this->replayFileData[replayFileIdx].header = replayData;
+                        replayData = (ReplayHeader *)std::malloc(sizeof(ReplayHeader));
+                        std::memcpy(replayData->magic, rawReplayData->magic, 4);
+                        replayData->version = rawReplayData->version;
+                        replayData->shottypeChara = rawReplayData->shottypeChara;
+                        replayData->difficulty = rawReplayData->difficulty;
+                        replayData->checksum = rawReplayData->checksum;
+                        replayData->rngValue1 = rawReplayData->rngValue1;
+                        replayData->rngValue2 = rawReplayData->rngValue2;
+                        replayData->key = rawReplayData->key;
+                        replayData->rngValue3 = rawReplayData->rngValue3;
+                        std::memcpy(replayData->date, rawReplayData->date, 9);
+                        std::memcpy(replayData->name, rawReplayData->name, 8);
+                        replayData->score = rawReplayData->score;
+                        replayData->slowdownRate2 = rawReplayData->slowdownRate2;
+                        replayData->slowdownRate = rawReplayData->slowdownRate;
+                        replayData->slowdownRate3 = rawReplayData->slowdownRate3;
+                        for (int i = 0; i < 7; i++)
+                        {
+                            replayData->stageReplayDataOffsets[i] = rawReplayData->stageReplayDataOffsets[i];
+                        }
+
+                        this->replayFileData[replayFileIdx] = replayData;
                         std::strcpy(this->replayFilePaths[replayFileIdx], replayFilePath);
                         std::sprintf(this->replayFileName[replayFileIdx], "No.%.2d", cur + 1);
                         replayFileIdx++;
                     }
+                    std::free(rawReplayData);
                 }
                 //                _mkdir("./replay");
                 //                _chdir("./replay");
@@ -1368,24 +1389,54 @@ i32 MainMenu::ReplayHandling()
                 this->cursor = 0;
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT);
                 this->currentReplay = (ReplayData *)std::malloc(sizeof(ReplayData));
-                this->currentReplay->header =
-                    (ReplayHeader *)FileSystem::OpenPath(this->replayFilePaths[this->chosenReplay], 1);
-                ReplayManager::ValidateReplayData(this->currentReplay->header, g_LastFileSize);
+
+                ReplayHeaderRaw *rawHeader =
+                    (ReplayHeaderRaw *)FileSystem::OpenPath(this->replayFilePaths[this->chosenReplay], 1);
+                ReplayManager::ValidateReplayData(rawHeader, g_LastFileSize);
+
+                this->currentReplay->header = (ReplayHeader *)std::malloc(sizeof(ReplayHeader));
+                std::memcpy(this->currentReplay->header->magic, rawHeader->magic, 4);
+                this->currentReplay->header->version = rawHeader->version;
+                this->currentReplay->header->shottypeChara = rawHeader->shottypeChara;
+                this->currentReplay->header->difficulty = rawHeader->difficulty;
+                this->currentReplay->header->checksum = rawHeader->checksum;
+                this->currentReplay->header->rngValue1 = rawHeader->rngValue1;
+                this->currentReplay->header->rngValue2 = rawHeader->rngValue2;
+                this->currentReplay->header->key = rawHeader->key;
+                this->currentReplay->header->rngValue3 = rawHeader->rngValue3;
+                std::memcpy(this->currentReplay->header->date, rawHeader->date, 9);
+                std::memcpy(this->currentReplay->header->name, rawHeader->name, 8);
+                this->currentReplay->header->score = rawHeader->score;
+                this->currentReplay->header->slowdownRate2 = rawHeader->slowdownRate2;
+                this->currentReplay->header->slowdownRate = rawHeader->slowdownRate;
+                this->currentReplay->header->slowdownRate3 = rawHeader->slowdownRate3;
+
                 for (cur = 0; cur < ARRAY_SIZE_SIGNED(this->currentReplay->stageReplayData); cur++)
                 {
-                    if (this->currentReplay->header->stageReplayDataOffsets[cur] != 0)
+                    if (rawHeader->stageReplayDataOffsets[cur] != 0)
                     {
+                        StageReplayDataRaw *rawStage =
+                            (StageReplayDataRaw *)(((u8 *)rawHeader) + (u32)rawHeader->stageReplayDataOffsets[cur]);
                         this->currentReplay->stageReplayData[cur] =
-                            (StageReplayData *)(((u8 *)this->currentReplay->header) +
-                                                (this->currentReplay->header->stageReplayDataOffsets[cur]));
+                            ReplayManager::AllocateStageReplayData(sizeof(StageReplayData));
+                        this->currentReplay->stageReplayData[cur]->score = rawStage->score;
+                        this->currentReplay->stageReplayData[cur]->randomSeed = rawStage->randomSeed;
+                        this->currentReplay->stageReplayData[cur]->pointItemsCollected = rawStage->pointItemsCollected;
+                        this->currentReplay->stageReplayData[cur]->power = rawStage->power;
+                        this->currentReplay->stageReplayData[cur]->livesRemaining = rawStage->livesRemaining;
+                        this->currentReplay->stageReplayData[cur]->bombsRemaining = rawStage->bombsRemaining;
+                        this->currentReplay->stageReplayData[cur]->rank = rawStage->rank;
+                        this->currentReplay->stageReplayData[cur]->powerItemCountForScore =
+                            rawStage->powerItemCountForScore;
                     }
                     else
                     {
                         this->currentReplay->stageReplayData[cur] = NULL;
                     }
                 }
+                std::free(rawHeader);
 
-                while (this->replayFileData[this->chosenReplay].header->stageReplayDataOffsets[this->cursor] == 0)
+                while (this->replayFileData[this->chosenReplay]->stageReplayDataOffsets[this->cursor] == 0)
                 {
                     this->cursor = this->cursor + 1;
 
@@ -1417,7 +1468,7 @@ i32 MainMenu::ReplayHandling()
         cur = MoveCursor(this, 7);
         if (cur < 0)
         {
-            while (this->replayFileData[this->chosenReplay].header->stageReplayDataOffsets[this->cursor] == 0)
+            while (this->replayFileData[this->chosenReplay]->stageReplayDataOffsets[this->cursor] == 0)
             {
                 this->cursor--;
                 if (this->cursor < 0)
@@ -1428,7 +1479,7 @@ i32 MainMenu::ReplayHandling()
         }
         else if (cur > 0)
         {
-            while (this->replayFileData[this->chosenReplay].header->stageReplayDataOffsets[this->cursor] == 0)
+            while (this->replayFileData[this->chosenReplay]->stageReplayDataOffsets[this->cursor] == 0)
             {
                 this->cursor++;
                 if (this->cursor >= 7)
@@ -1528,9 +1579,9 @@ ZunResult MainMenu::DrawReplayMenu() const
         }
 
         g_AsciiManager.AddFormatText(&vmRef->pos, "%s %8s  %8s %7s  %7s", this->replayFileName[i],
-                                     this->replayFileData[i].header->name, this->replayFileData[i].header->date,
-                                     g_ShortCharacterList[this->replayFileData[i].header->shottypeChara],
-                                     g_DifficultyList[this->replayFileData[i].header->difficulty]);
+                                     this->replayFileData[i]->name, this->replayFileData[i]->date,
+                                     g_ShortCharacterList[this->replayFileData[i]->shottypeChara],
+                                     g_DifficultyList[this->replayFileData[i]->difficulty]);
     }
     if (this->gameState == STATE_REPLAY_SELECT && this->currentReplay)
     {
@@ -2282,7 +2333,6 @@ ZunResult MainMenu::AddedCallback(MainMenu *m)
 ZunResult MainMenu::DeletedCallback(MainMenu *menu)
 {
     AnmManager *mgr;
-    void *replay;
     i32 i1, i2;
 
     MainMenu::ReleaseTitleAnm();
@@ -2302,8 +2352,31 @@ ZunResult MainMenu::DeletedCallback(MainMenu *menu)
     g_Chain.Cut(menu->chainDraw);
     menu->chainDraw = NULL;
 
-    replay = menu->currentReplay;
-    free(replay);
+    if (menu->currentReplay != NULL)
+    {
+        if (menu->currentReplay->header != NULL)
+        {
+            std::free(menu->currentReplay->header);
+        }
+        for (i1 = 0; i1 < 7; i1++)
+        {
+            if (menu->currentReplay->stageReplayData[i1] != NULL)
+            {
+                ReplayManager::ReleaseStageReplayData(menu->currentReplay->stageReplayData[i1]);
+            }
+        }
+        std::free(menu->currentReplay);
+        menu->currentReplay = NULL;
+    }
+
+    for (i1 = 0; i1 < 60; i1++)
+    {
+        if (menu->replayFileData[i1] != NULL)
+        {
+            std::free(menu->replayFileData[i1]);
+            menu->replayFileData[i1] = NULL;
+        }
+    }
     return ZUN_SUCCESS;
 }
 

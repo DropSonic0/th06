@@ -8,6 +8,7 @@
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
+#include "ZunEndian.hpp"
 
 struct AnmLoadedSprite
 {
@@ -58,11 +59,15 @@ struct AnmLoadedSprite
 
 struct AnmRawInstr
 {
-    i16 time;
+    LE<i16> time;
     u8 opcode;
     u8 argsCount;
     u32 args[10];
-};
+}
+#ifdef __GNUC__
+__attribute__((packed))
+#endif
+;
 
 enum AnmVmFlagsEnum
 {

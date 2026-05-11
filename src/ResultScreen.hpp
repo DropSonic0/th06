@@ -77,6 +77,15 @@ struct Th6k
     u8 unk_9;
 };
 
+struct Th6kRaw
+{
+    LE<u32> magic;
+    LE<u16> th6kLen;
+    LE<u16> unkLen;
+    u8 version;
+    u8 unk_9;
+};
+
 struct Catk
 {
     Th6k base;
@@ -91,9 +100,31 @@ struct Catk
     u16 numSuccess;
 };
 
+struct CatkRaw
+{
+    Th6kRaw base;
+    LE<i32> captureScore;
+    LE<u16> idx;
+    u8 nameCsum;
+    u8 characterShotType;
+    LE<u32> unk_14;
+    char name[32];
+    LE<u32> unk_38;
+    LE<u16> numAttempts;
+    LE<u16> numSuccess;
+};
+
 struct Clrd
 {
     Th6k base;
+    u8 difficultyClearedWithRetries[5];
+    u8 difficultyClearedWithoutRetries[5];
+    u8 characterShotType;
+};
+
+struct ClrdRaw
+{
+    Th6kRaw base;
     u8 difficultyClearedWithRetries[5];
     u8 difficultyClearedWithoutRetries[5];
     u8 characterShotType;
@@ -118,6 +149,15 @@ struct Pscr
     u8 stage;
 };
 
+struct PscrRaw
+{
+    Th6kRaw base;
+    LE<i32> score;
+    u8 character;
+    u8 difficulty;
+    u8 stage;
+};
+
 struct Hscr
 {
     Hscr *ShiftBytes(i32 value) const
@@ -127,6 +167,16 @@ struct Hscr
 
     Th6k base;
     u32 score;
+    u8 character;
+    u8 difficulty;
+    u8 stage;
+    char name[9];
+};
+
+struct HscrRaw
+{
+    Th6kRaw base;
+    LE<u32> score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -166,6 +216,17 @@ struct ScoreRaw
     u32 dataOffset;
     u32 padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
     u32 fileLen;
+};
+
+struct ScoreRawRaw
+{
+    u8 xorseed[2];
+    LE<u16> csum;
+    LE<u16> unk_8;
+    u8 unk[2];
+    LE<u32> dataOffset;
+    LE<u32> padding;
+    LE<u32> fileLen;
 };
 
 struct ScoreDat

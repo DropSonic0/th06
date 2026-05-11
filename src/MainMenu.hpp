@@ -107,7 +107,7 @@ struct MainMenu
     ChainElem *chainDraw;
     char replayFilePaths[60][512];
     char replayFileName[60][8];
-    ReplayData replayFileData[60];
+    ReplayHeader *replayFileData[60];
     ReplayData *currentReplay;
     i32 timeRelatedArrSize;
     f32 timeRelatedArr[16];

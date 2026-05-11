@@ -3,6 +3,7 @@
 #include "GLFunc.hpp"
 #include "GameWindow.hpp"
 #include "inttypes.hpp"
+#include "ZunEndian.hpp"
 #ifdef __PS3__
 #include <PSGL/psgl.h>
 #ifndef static_assert
@@ -115,7 +116,6 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
 #define ZUN_RINTF(n) (std::rintf((f32)(n)))
 #else
-#include <math.h>
 #define ZUN_SINF(angle) (sinf((f32)(angle)))
 #define ZUN_COSF(angle) (cosf((f32)(angle)))
 #define ZUN_TANF(angle) (tanf((f32)(angle)))
@@ -129,13 +129,19 @@ inline u16 RotateLeft16(u16 n, u8 s)
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
-// Replacing all former uses of D3DXVECTOR2
+struct ZunVec2Raw
+{
+    LE<f32> x;
+    LE<f32> y;
+};
+
 struct ZunVec2POD
 {
     f32 x;
     f32 y;
 };
 
+// Replacing all former uses of D3DXVECTOR2
 struct ZunVec2 : ZunVec2POD
 {
     ZunVec2()
@@ -148,15 +154,9 @@ struct ZunVec2 : ZunVec2POD
         this->y = y;
     }
 
-    ZunVec2(const ZunVec2POD &pod)
-    {
-        this->x = pod.x;
-        this->y = pod.y;
-    }
-
     f32 VectorLength() const
     {
-        return std::sqrt((f64)(this->x * this->x + this->y * this->y));
+        return ZUN_SQRTF((f64)(this->x * this->x + this->y * this->y));
     }
 
     f64 VectorLengthF64() const
@@ -164,9 +164,15 @@ struct ZunVec2 : ZunVec2POD
         return (f64)this->VectorLength();
     }
 };
-static_assert(sizeof(ZunVec2) == 0x08, "ZunVec2 has additional padding between struct members!");
+static_assert(sizeof(ZunVec2) == 0x08 && sizeof(ZunVec2Raw) == 0x08, "ZunVec2 has additional padding between struct members!");
 
-// Replacing all former uses of D3DXVECTOR3
+struct ZunVec3Raw
+{
+    LE<f32> x;
+    LE<f32> y;
+    LE<f32> z;
+};
+
 struct ZunVec3POD
 {
     f32 x;
@@ -174,6 +180,7 @@ struct ZunVec3POD
     f32 z;
 };
 
+// Replacing all former uses of D3DXVECTOR3
 struct ZunVec3 : ZunVec3POD
 {
     ZunVec3()
@@ -192,6 +199,15 @@ struct ZunVec3 : ZunVec3POD
         this->x = pod.x;
         this->y = pod.y;
         this->z = pod.z;
+    }
+
+    inline ZunVec3 &operator=(const ZunVec3Raw &a)
+    {
+        this->x = a.x;
+        this->y = a.y;
+        this->z = a.z;
+
+        return *this;
     }
 
     ZunVec3 operator-() const
@@ -286,13 +302,11 @@ struct ZunVec3 : ZunVec3POD
     {
         topLeftCorner->x = centerPosition->x - size->x / 2.0f;
         topLeftCorner->y = centerPosition->y - size->y / 2.0f;
-        topLeftCorner->z = 0.0f;
         bottomRightCorner->x = size->x / 2.0f + centerPosition->x;
         bottomRightCorner->y = size->y / 2.0f + centerPosition->y;
-        bottomRightCorner->z = 0.0f;
     }
 };
-static_assert(sizeof(ZunVec3) == 0x0C, "ZunVec3 has additional padding between struct members!");
+static_assert(sizeof(ZunVec3) == 0x0C && sizeof(ZunVec3Raw) == 0x0C, "ZunVec3 has additional padding between struct members!");
 
 struct ZunVec4POD
 {
@@ -513,14 +527,14 @@ struct ZunViewport
 
 inline void fsincos_wrapper(f32 *out_sine, f32 *out_cosine, f32 angle)
 {
-    *out_sine = std::sin(angle);
-    *out_cosine = std::cos(angle);
+    *out_sine = ZUN_SINF(angle);
+    *out_cosine = ZUN_COSF(angle);
 }
 
 inline void sincosmul(ZunVec3 *out_vel, f32 input, f32 multiplier)
 {
-    out_vel->x = std::cos(input) * multiplier;
-    out_vel->y = std::sin(input) * multiplier;
+    out_vel->x = ZUN_COSF(input) * multiplier;
+    out_vel->y = ZUN_SINF(input) * multiplier;
 }
 
 inline f32 invertf(f32 x)
