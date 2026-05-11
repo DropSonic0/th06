@@ -487,14 +487,21 @@ struct ZunViewport
                                      g_GameWindow.VIEWPORT_OFF_Y,
                                  this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE, this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE);
         g_glFuncTable.glDepthRangef(this->minZ, this->maxZ);
+
+        g_GameWindow.viewportTracker.x = this->x;
+        g_GameWindow.viewportTracker.y = this->y;
+        g_GameWindow.viewportTracker.width = this->width;
+        g_GameWindow.viewportTracker.height = this->height;
+        g_GameWindow.viewportTracker.minZ = this->minZ;
+        g_GameWindow.viewportTracker.maxZ = this->maxZ;
     }
 
     void Get()
     {
+#ifndef __PS3__
         GLint viewPortGet[4];
         GLfloat depthRangeGet[2];
 
-#ifndef __PS3__
         g_glFuncTable.glGetIntegerv(GL_VIEWPORT, viewPortGet);
         g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRangeGet);
 
@@ -505,13 +512,12 @@ struct ZunViewport
         this->minZ = depthRangeGet[0];
         this->maxZ = depthRangeGet[1];
 #else
-        // PSGL implementation or use current values
-        this->x = 0;
-        this->y = 0;
-        this->width = GAME_WINDOW_WIDTH;
-        this->height = GAME_WINDOW_HEIGHT;
-        this->minZ = 0.0f;
-        this->maxZ = 1.0f;
+        this->x = g_GameWindow.viewportTracker.x;
+        this->y = g_GameWindow.viewportTracker.y;
+        this->width = g_GameWindow.viewportTracker.width;
+        this->height = g_GameWindow.viewportTracker.height;
+        this->minZ = g_GameWindow.viewportTracker.minZ;
+        this->maxZ = g_GameWindow.viewportTracker.maxZ;
 #endif
 
         // Convert from OpenGL to D3D conventions

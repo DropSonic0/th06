@@ -55,6 +55,12 @@
 #ifndef GL_STATIC_DRAW
 #define GL_STATIC_DRAW 0x88E4
 #endif
+#ifndef GL_VIEWPORT
+#define GL_VIEWPORT 0x0BA2
+#endif
+#ifndef GL_DEPTH_RANGE
+#define GL_DEPTH_RANGE 0x0B70
+#endif
 #endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows
