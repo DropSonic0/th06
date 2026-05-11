@@ -308,5 +308,6 @@ void WebGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
 
 void WebGL::Draw()
 {
+    g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 #endif

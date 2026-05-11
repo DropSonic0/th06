@@ -123,16 +123,6 @@ enum DirtyRenderStateBitShifts
     DIRTY_TEXTURE_MATRIX = 9,
 };
 
-struct ZunVec2Raw
-{
-    LE<f32> x;
-    LE<f32> y;
-}
-#ifdef __GNUC__
-__attribute__((packed))
-#endif
-;
-
 struct AnmRawSprite
 {
     LE<u32> id;
@@ -222,7 +212,7 @@ struct AnmManager
             this->UpdateDirtyStates();
         }
 
-        g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        this->gfxBackend->Draw();
     }
 
     // We need to do checks in these because they're called nearly every ANM draw call and otherwise
@@ -439,10 +429,12 @@ struct AnmManager
 
 #ifndef __PS3__
     static SDL_Surface *LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData);
-#endif
     static u8 *ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth);
     static void FlipSurface(SDL_Surface *surface);
+#endif
+#ifndef __PS3__
     void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect);
+#endif
     // Creates, binds, and set parameters for a new texture
     void CreateTextureObject();
     void UpdateDirtyStates();
@@ -462,9 +454,10 @@ struct AnmManager
 #else
     struct PS3Surface {
         u8* pixels;
-        int w, h;
+        i32 w, h;
         GLuint textureHandle;
-    } *surfaces[32];
+    };
+    PS3Surface *surfaces[32];
 #endif
     //    SDL_Surface *surfacesBis[32];
     //    D3DXIMAGE_INFO surfaceSourceInfo[32];

@@ -28,6 +28,9 @@ void FixedFunctionGL::SetContextFlags()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    // Optional attributes only
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 #endif
 }
 
@@ -317,17 +320,17 @@ void FixedFunctionGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &
     // utils::Log("FixedFunctionGL: SetTransformMatrix(type=%d)...", type);
 #endif
     // This is not going to work for modelview
-    GLenum matrixEnum[4] = {GL_MODELVIEW, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE};
+    GLenum modes[4] = {GL_MODELVIEW, GL_MODELVIEW, GL_PROJECTION, GL_TEXTURE};
 
-    g_glFuncTable.glMatrixMode(matrixEnum[type]);
-    
+    g_glFuncTable.glMatrixMode(modes[type]);
+
 #ifdef __PS3__
     // Rule out alignment issues
     float alignedMatrix[16];
-    memcpy(alignedMatrix, &matrix, sizeof(alignedMatrix));
+    memcpy(alignedMatrix, &matrix.m, sizeof(alignedMatrix));
     g_glFuncTable.glLoadMatrixf((const GLfloat *)alignedMatrix);
 #else
-    g_glFuncTable.glLoadMatrixf((const GLfloat *)&matrix);
+    g_glFuncTable.glLoadMatrixf((const GLfloat *)&matrix.m);
 #endif
 
 #ifdef __PS3__
