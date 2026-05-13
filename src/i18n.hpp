@@ -2,9 +2,10 @@
 
 #define TH_LANG TH_EN
 
+#ifndef THEN
 // JP
 #define TH_JP_CONFIG_FILE "東方紅魔郷.cfg"
-#define TH_JP_WINDOW_TITLE "東方紅魔郷　～ the Embodiment of Scarlet Devil"
+#define TH_JP_WINDOW_TITLE "東方紅魔郷　〜 the Embodiment of Scarlet Devil"
 #define TH_JP_DBG_MAINMENU_VRAM "Debug : title 開始 VRAM = %d\n"
 #define TH_JP_DBG_RESULTSCREEN_COUNAT "counat = %d\n"
 #define TH_JP_ERR_ALREADY_RUNNING "二つは起動できません\n"
@@ -23,7 +24,7 @@
 #define TH_JP_ERR_CANT_CHANGE_REFRESH_RATE_FORCE_VSYNC "リフレッシュレートが変更できません、vsync 非同期に変更します\n"
 #define TH_JP_USING_REF_MODE "REF で動作しますが、重すぎて恐らくゲームになりません...\n"
 #define TH_JP_USING_HAL_MODE "HAL で動作します\n"
-#define TH_JP_USING_TL_HAL_MODE "T&L HAL で動作しま～す\n"
+#define TH_JP_USING_TL_HAL_MODE "T&L HAL で動作しま〜す\n"
 #define TH_JP_ERR_NO_SUPPORT_FOR_D3DTEXOPCAPS_ADD                                                                      \
     "D3DTEXOPCAPS_ADD をサポートしていません、色加算エミュレートモードで動作します\n"
 #define TH_JP_ERR_CANT_FORCE_60FPS_NO_ASYNC_FLIP                                                                       \
@@ -92,22 +93,16 @@
 
 #define TH_JP_UNKNOWN_SPELLCARD "？？？？？"
 
-#ifndef __PS3__
 #define TH_JP_CM_DAT_FILE "紅魔郷CM.dat"
 #define TH_JP_ED_DAT_FILE "紅魔郷ED.DAT"
 #define TH_JP_IN_DAT_FILE "紅魔郷IN.dat"
 #define TH_JP_MD_DAT_FILE "紅魔郷MD.dat"
 #define TH_JP_ST_DAT_FILE "紅魔郷ST.dat"
 #define TH_JP_TL_DAT_FILE "紅魔郷TL.dat"
-#else
-#define TH_JP_CM_DAT_FILE "CM.DAT"
-#define TH_JP_ED_DAT_FILE "ED.DAT"
-#define TH_JP_IN_DAT_FILE "IN.DAT"
-#define TH_JP_MD_DAT_FILE "MD.DAT"
-#define TH_JP_ST_DAT_FILE "ST.DAT"
-#define TH_JP_TL_DAT_FILE "TL.DAT"
+
 #endif
 
+#ifndef THJP
 // EN
 #define TH_EN_CONFIG_FILE "th06.cfg"
 #define TH_EN_WINDOW_TITLE "Touhou Koumakyou ~ the Embodiment of Scarlet Devil"
@@ -197,21 +192,15 @@
 
 #define TH_EN_UNKNOWN_SPELLCARD "??????"
 
-#ifndef __PS3__
-#define TH_EN_CM_DAT_FILE "紅魔郷CM.dat"
-#define TH_EN_ED_DAT_FILE "紅魔郷ED.dat"
-#define TH_EN_IN_DAT_FILE "紅魔郷IN.dat"
-#define TH_EN_MD_DAT_FILE "紅魔郷MD.dat"
-#define TH_EN_ST_DAT_FILE "紅魔郷ST.dat"
-#define TH_EN_TL_DAT_FILE "紅魔郷TL.dat"
-#else
-#define TH_EN_CM_DAT_FILE "CM.DAT"
-#define TH_EN_ED_DAT_FILE "ED.DAT"
-#define TH_EN_IN_DAT_FILE "IN.DAT"
-#define TH_EN_MD_DAT_FILE "MD.DAT"
-#define TH_EN_ST_DAT_FILE "ST.DAT"
-#define TH_EN_TL_DAT_FILE "TL.DAT"
+#define TH_EN_CM_DAT_FILE "CM.dat"
+#define TH_EN_ED_DAT_FILE "ED.dat"
+#define TH_EN_IN_DAT_FILE "IN.dat"
+#define TH_EN_MD_DAT_FILE "MD.dat"
+#define TH_EN_ST_DAT_FILE "ST.dat"
+#define TH_EN_TL_DAT_FILE "TL.dat"
+
 #endif
+
 #define TH_CONCAT_HELPER(x, y) x##y
 
 #define TH_MAKE_LANG_STR(lang, id) TH_CONCAT_HELPER(lang, id)
@@ -311,3 +300,4 @@
 // and mixing encodings breaks the decoder.
 #define TH_SONG_NAME "\x01%s"
 #define TH_FONT_NAME "ＭＳ ゴシック"
+

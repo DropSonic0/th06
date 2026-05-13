@@ -316,10 +316,9 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 
     if (!isUTF8Encoded(string))
     {
-        char outputUtf[1024];
-        memset(outputUtf, 0, sizeof(outputUtf));
+        std::string outputUtf;
     	sjis_to_utf8(string, (size_t)strlen(string), outputUtf);
-        strncpy(convertedText, outputUtf, sizeof(convertedText));
+        strncpy(convertedText, outputUtf.c_str(), sizeof(convertedText));
     }
     else
     {
