@@ -117,7 +117,8 @@ restart:
     g_GameWindow.curFrame = 0;
 
     dlog("Into loop game event");
-    bool firstRender = true;
+    bool firstRender;
+    firstRender = true;
     while (true)
     {
 #ifndef __PS3__
