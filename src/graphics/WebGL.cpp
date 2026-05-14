@@ -1,7 +1,12 @@
 #include "WebGL.hpp"
 #include "Supervisor.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#else
+#include <PSGL/psgl.h>
+#define SDL_GL_ExtensionSupported(x) false
+#endif
 #include <new>
 #include <unordered_set>
 
@@ -123,9 +128,11 @@ bool linkProgram(GLuint programHandle)
 
 void WebGL::SetContextFlags()
 {
+#ifndef __PS3__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#endif
 }
 
 GfxInterface *WebGL::Create()
@@ -304,4 +311,11 @@ void WebGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix)
 
 void WebGL::Draw()
 {
+}
+
+void WebGL::Clear(ZunColor color)
+{
+    g_glFuncTable.glClearColor(((color >> 16) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
+                               (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f);
+    g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }

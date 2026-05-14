@@ -14,15 +14,148 @@
 #include <cstring>
 #include <new>
 
+#ifndef __PS3__
 #include <SDL_image.h>
 #include <SDL_rwops.h>
 #include <SDL_surface.h>
+#else
+// On PS3, we don't have SDL_image or SDL_surface, so we use stb_image.
+#include <PSGL/psgl.h>
+#define STBI_NO_STDIO
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_NO_LINEAR
+#define STBI_NO_HDR
+#include "stb_image.h"
+
+#define SDL_FreeSurface(s) { if(s) { if((s)->must_free_pixels) free((s)->pixels); delete s; } }
+#define SDL_LockSurface(s)
+#define SDL_UnlockSurface(s)
+static inline SDL_Surface* SDL_CreateRGBSurfaceWithFormat(u32 flags, int w, int h, int depth, u32 format) {
+    SDL_Surface* s = new SDL_Surface;
+    s->w = w; s->h = h; s->format = format; s->pitch = w * (depth / 8);
+    s->pixels = malloc(s->pitch * h);
+    s->must_free_pixels = true;
+    return s;
+}
+static inline SDL_Surface* SDL_ConvertSurfaceFormat(SDL_Surface* src, u32 pixel_format, u32 flags) {
+    if (!src) return NULL;
+    int bpp = 32;
+    if (pixel_format == SDL_PIXELFORMAT_ARGB1555 || pixel_format == SDL_PIXELFORMAT_ARGB4444 || pixel_format == SDL_PIXELFORMAT_RGB565) bpp = 16;
+    else if (pixel_format == SDL_PIXELFORMAT_RGB24) bpp = 24;
+
+    SDL_Surface* dst = SDL_CreateRGBSurfaceWithFormat(0, src->w, src->h, bpp, pixel_format);
+    if (!dst) return NULL;
+
+    if (src->format == pixel_format) {
+        for (int y = 0; y < src->h; y++) {
+            memcpy((u8*)dst->pixels + y * dst->pitch, (u8*)src->pixels + y * src->pitch, src->w * (bpp / 8));
+        }
+        return dst;
+    }
+
+    if (src->format == SDL_PIXELFORMAT_ARGB8888) {
+        if (pixel_format == SDL_PIXELFORMAT_ARGB1555) {
+            for (int y = 0; y < src->h; y++) {
+                u32* src_p = (u32*)((u8*)src->pixels + y * src->pitch);
+                u16* dst_p = (u16*)((u8*)dst->pixels + y * dst->pitch);
+                for (int x = 0; x < src->w; x++) {
+                    u32 c = src_p[x];
+                    u8 a = (c >> 24) & 0xFF; u8 r = (c >> 16) & 0xFF; u8 g = (c >> 8) & 0xFF; u8 b = c & 0xFF;
+                    dst_p[x] = ((a >> 7) << 15) | ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+                }
+            }
+            return dst;
+        } else if (pixel_format == SDL_PIXELFORMAT_ARGB4444) {
+            for (int y = 0; y < src->h; y++) {
+                u32* src_p = (u32*)((u8*)src->pixels + y * src->pitch);
+                u16* dst_p = (u16*)((u8*)dst->pixels + y * dst->pitch);
+                for (int x = 0; x < src->w; x++) {
+                    u32 c = src_p[x];
+                    u8 a = (c >> 24) & 0xFF; u8 r = (c >> 16) & 0xFF; u8 g = (c >> 8) & 0xFF; u8 b = c & 0xFF;
+                    dst_p[x] = ((a >> 4) << 12) | ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+                }
+            }
+            return dst;
+        } else if (pixel_format == SDL_PIXELFORMAT_RGB565) {
+            for (int y = 0; y < src->h; y++) {
+                u32* src_p = (u32*)((u8*)src->pixels + y * src->pitch);
+                u16* dst_p = (u16*)((u8*)dst->pixels + y * dst->pitch);
+                for (int x = 0; x < src->w; x++) {
+                    u32 c = src_p[x];
+                    u8 r = (c >> 16) & 0xFF; u8 g = (c >> 8) & 0xFF; u8 b = c & 0xFF;
+                    dst_p[x] = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+                }
+            }
+            return dst;
+        } else if (pixel_format == SDL_PIXELFORMAT_RGB24) {
+            for (int y = 0; y < src->h; y++) {
+                u32* src_p = (u32*)((u8*)src->pixels + y * src->pitch);
+                u8* dst_p = (u8*)((u8*)dst->pixels + y * dst->pitch);
+                for (int x = 0; x < src->w; x++) {
+                    u32 c = src_p[x];
+                    dst_p[x * 3 + 0] = (c >> 16) & 0xFF; // R
+                    dst_p[x * 3 + 1] = (c >> 8) & 0xFF;  // G
+                    dst_p[x * 3 + 2] = c & 0xFF;         // B
+                }
+            }
+            return dst;
+        }
+    }
+
+    // Fallback: simple copy if no conversion implemented (might be wrong)
+    for (int y = 0; y < src->h; y++) {
+        memcpy((u8*)dst->pixels + y * dst->pitch, (u8*)src->pixels + y * src->pitch, src->w * (bpp / 8));
+    }
+    return dst;
+}
+static inline void SDL_BlitScaled(SDL_Surface* src, const SDL_Rect* srcrect, SDL_Surface* dst, const SDL_Rect* dstrect) {
+    if (!src || !dst) return;
+    int src_x = srcrect ? srcrect->x : 0;
+    int src_y = srcrect ? srcrect->y : 0;
+    int src_w = srcrect ? srcrect->w : src->w;
+    int src_h = srcrect ? srcrect->h : src->h;
+    int dst_x = dstrect ? dstrect->x : 0;
+    int dst_y = dstrect ? dstrect->y : 0;
+    int dst_w = dstrect ? dstrect->w : dst->w;
+    int dst_h = dstrect ? dstrect->h : dst->h;
+
+    int src_bpp = src->pitch / src->w;
+    int dst_bpp = dst->pitch / dst->w;
+
+    for (int y = 0; y < dst_h; y++) {
+        for (int x = 0; x < dst_w; x++) {
+            int sx = src_x + (x * src_w / dst_w);
+            int sy = src_y + (y * src_h / dst_h);
+            if (sx < src->w && sy < src->h && (dst_x + x) < dst->w && (dst_y + y) < dst->h) {
+                u8* sp = (u8*)src->pixels + sy * src->pitch + sx * src_bpp;
+                u8* dp = (u8*)dst->pixels + (dst_y + y) * dst->pitch + (dst_x + x) * dst_bpp;
+                memcpy(dp, sp, dst_bpp < src_bpp ? dst_bpp : src_bpp);
+            }
+        }
+    }
+}
+static inline SDL_Surface* SDL_CreateRGBSurfaceWithFormatFrom(void* pixels, int w, int h, int depth, int pitch, u32 format) {
+    SDL_Surface* s = new SDL_Surface;
+    s->w = w; s->h = h; s->format = format; s->pitch = pitch; s->pixels = pixels;
+    s->must_free_pixels = false;
+    return s;
+}
+static inline int SDL_SoftStretchLinear(SDL_Surface* src, const SDL_Rect* srcrect, SDL_Surface* dst, const SDL_Rect* dstrect) {
+    SDL_BlitScaled(src, srcrect, dst, dstrect);
+    return 0;
+}
+#define IMG_Init(flags) 0
+#define IMG_Quit()
+#define IMG_INIT_JPG 1
+#define IMG_INIT_PNG 2
+#endif
 
 VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
 VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4];
 VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4];
 AnmManager *g_AnmManager;
 
+#ifndef __PS3__
 SDL_PixelFormatEnum g_TextureFormatSDLMapping[6] = {SDL_PIXELFORMAT_UNKNOWN,  SDL_PIXELFORMAT_RGBA32,
                                                     SDL_PIXELFORMAT_RGBA5551, SDL_PIXELFORMAT_RGB565,
                                                     SDL_PIXELFORMAT_RGB24,    SDL_PIXELFORMAT_RGBA4444};
@@ -35,6 +168,54 @@ GLenum g_TextureFormatGLTypeMapping[6] = {0,
                                           GL_UNSIGNED_SHORT_5_6_5,
                                           GL_UNSIGNED_BYTE,
                                           GL_UNSIGNED_SHORT_4_4_4_4};
+#else
+#ifndef GL_RGBA
+#define GL_RGBA 0x1908
+#endif
+#ifndef GL_UNSIGNED_BYTE
+#define GL_UNSIGNED_BYTE 0x1401
+#endif
+#ifndef GL_UNSIGNED_SHORT_5_5_5_1
+#define GL_UNSIGNED_SHORT_5_5_5_1 0x8034
+#endif
+#ifndef GL_UNSIGNED_SHORT_5_6_5
+#define GL_UNSIGNED_SHORT_5_6_5 0x8363
+#endif
+#ifndef GL_UNSIGNED_SHORT_4_4_4_4
+#define GL_UNSIGNED_SHORT_4_4_4_4 0x8033
+#endif
+#ifndef GL_ARGB_SCE
+#define GL_ARGB_SCE 0x6007
+#endif
+#ifndef GL_UNSIGNED_INT_8_8_8_8
+#define GL_UNSIGNED_INT_8_8_8_8 0x8035
+#endif
+#ifndef GL_UNSIGNED_SHORT_1_5_5_5_REV
+#define GL_UNSIGNED_SHORT_1_5_5_5_REV 0x8366
+#endif
+#ifndef GL_UNSIGNED_SHORT_5_6_5_REV
+#define GL_UNSIGNED_SHORT_5_6_5_REV 0x8364
+#endif
+#ifndef GL_UNSIGNED_SHORT_4_4_4_4_REV
+#define GL_UNSIGNED_SHORT_4_4_4_4_REV 0x8365
+#endif
+#ifndef GL_RGB
+#define GL_RGB 0x1907
+#endif
+
+SDL_PixelFormatEnum g_TextureFormatSDLMapping[6] = {SDL_PIXELFORMAT_UNKNOWN,  SDL_PIXELFORMAT_ARGB8888,
+                                                    SDL_PIXELFORMAT_ARGB1555, SDL_PIXELFORMAT_RGB565,
+                                                    SDL_PIXELFORMAT_RGB24,    SDL_PIXELFORMAT_ARGB4444};
+
+GLenum g_TextureFormatGLFormatMapping[6] = {0, GL_ARGB_SCE, GL_ARGB_SCE, GL_RGB, GL_RGB, GL_ARGB_SCE};
+
+GLenum g_TextureFormatGLTypeMapping[6] = {0,
+                                          GL_UNSIGNED_INT_8_8_8_8,
+                                          GL_UNSIGNED_SHORT_1_5_5_5_REV,
+                                          GL_UNSIGNED_SHORT_5_6_5_REV,
+                                          GL_UNSIGNED_BYTE,
+                                          GL_UNSIGNED_SHORT_4_4_4_4_REV};
+#endif
 
 u8 g_TextureFormatBytesPerPixel[6] = {0, 4, 2, 2, 3, 2};
 
@@ -46,6 +227,7 @@ void AnmManager::CreateTextureObject()
     g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 }
 
+#ifndef __PS3__
 SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData)
 {
     u8 *data;
@@ -91,9 +273,63 @@ SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_Pixel
 
     return imageTargetSurface;
 }
+#else
+SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, int format, u8 **fileData)
+{
+    u8 *data;
+    int x, y, n;
+    stbi_uc *pixels;
+
+    data = FileSystem::OpenPath(filename, 0);
+    if (data == NULL) return NULL;
+
+    pixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, STBI_rgb_alpha);
+    if (pixels == NULL)
+    {
+        std::free(data);
+        return NULL;
+    }
+
+    // stb_image loads in RGBA (Little Endian bytes: R, G, B, A)
+    // PS3 (Big Endian) GL_ARGB_SCE expects A, R, G, B in each 32-bit word.
+    // So we swizzle RGBA -> ARGB.
+    u32 *p = (u32 *)pixels;
+    for (int i = 0; i < x * y; i++)
+    {
+        u8 r = pixels[i * 4 + 0];
+        u8 g = pixels[i * 4 + 1];
+        u8 b = pixels[i * 4 + 2];
+        u8 a = pixels[i * 4 + 3];
+        p[i] = (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    SDL_Surface *srcSurface = new SDL_Surface;
+    srcSurface->w = x;
+    srcSurface->h = y;
+    srcSurface->format = SDL_PIXELFORMAT_ARGB8888;
+    srcSurface->pitch = x * 4;
+    srcSurface->pixels = pixels;
+    srcSurface->must_free_pixels = true;
+
+    SDL_Surface *targetSurface = SDL_ConvertSurfaceFormat(srcSurface, format, 0);
+    SDL_FreeSurface(srcSurface);
+
+    if (targetSurface != NULL && fileData != NULL)
+    {
+        *fileData = data;
+    }
+    else
+    {
+        std::free(data);
+    }
+
+    return targetSurface;
+}
+#endif
 
 u8 *AnmManager::ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth)
 {
+    if (src == NULL) return NULL;
     SDL_LockSurface(src);
 
     const i32 dstPitch = src->w * pixelDepth;
@@ -121,7 +357,7 @@ void AnmManager::FlipSurface(SDL_Surface *surface)
     u8 *highPtr;
     u32 lowIndex;
 
-    if (surface->h < 2)
+    if (surface == NULL || surface->h < 2)
     {
         return;
     }
@@ -237,7 +473,11 @@ AnmManager::AnmManager()
     // texture is necessary to ensure the texture can't be considered incomplete in these cases.
     this->CreateTextureObject();
     this->dummyTextureHandle = this->currentTextureHandle;
+#ifndef __PS3__
     g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+#else
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_ARGB_SCE, 1, 1, 0, GL_ARGB_SCE, GL_UNSIGNED_INT_8_8_8_8, NULL);
+#endif
 
     //    this->vertexBuffer = NULL;
     this->currentBlendMode = 0;
@@ -438,7 +678,12 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
 
             for (x = 0; x < textureDesc->width; x++, srcData8 += 4, dstData8 += 4)
             {
+#ifndef __PS3__
                 dstData8[3] = srcData8[0];
+#else
+                // Source is also swizzled to ARGB on PS3
+                dstData8[0] = srcData8[1]; // Source Red channel (at index 1 in ARGB) is used as Alpha mask
+#endif
             }
         }
         break;
@@ -453,8 +698,14 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
 
             for (x = 0; x < textureDesc->width; x++, srcData16++, dstData16++)
             {
+#ifndef __PS3__
                 *dstData16 &= 0xfffe;
                 *dstData16 |= (*srcData16 & 0x8000) >> 15;
+#else
+                // ARGB1555 on Big Endian: Alpha is bit 15, Red is bits 10-14 (MSB is 14)
+                *dstData16 &= 0x7fff;
+                *dstData16 |= (*srcData16 & 0x4000) << 1;
+#endif
             }
         }
         break;
@@ -467,8 +718,14 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
 
             for (x = 0; x < textureDesc->width; x++, srcData16++, dstData16++)
             {
+#ifndef __PS3__
                 *dstData16 &= 0xfff0;
                 *dstData16 |= (*srcData16 & 0xf000) >> 12;
+#else
+                // ARGB4444 on Big Endian: Alpha is bits 12-15, Red is bits 8-11
+                *dstData16 &= 0x0fff;
+                *dstData16 |= (*srcData16 & 0x0f00) << 4;
+#endif
             }
         }
         break;
@@ -478,8 +735,10 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
     SDL_FreeSurface(alphaSurface);
 
     this->SetCurrentTexture(this->textures[textureIdx].handle);
-    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureDesc->width, textureDesc->height, 0, GL_RGBA,
-                               g_TextureFormatGLTypeMapping[textureFormat], textureDesc->textureData);
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, g_TextureFormatGLFormatMapping[textureDesc->format],
+                               textureDesc->width, textureDesc->height, 0,
+                               g_TextureFormatGLFormatMapping[textureDesc->format],
+                               g_TextureFormatGLTypeMapping[textureDesc->format], textureDesc->textureData);
 
     return ZUN_SUCCESS;
 }
@@ -847,7 +1106,7 @@ void AnmManager::UpdateDirtyStates()
     }
 }
 
-ZunResult AnmManager::DrawOrthographic(AnmVm *vm, bool roundToPixel)
+ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
 {
     if (roundToPixel)
     {
@@ -945,7 +1204,7 @@ ZunResult AnmManager::DrawOrthographic(AnmVm *vm, bool roundToPixel)
     return ZUN_SUCCESS;
 }
 
-ZunResult AnmManager::DrawNoRotation(AnmVm *vm)
+ZunResult AnmManager::DrawNoRotation(const AnmVm *vm)
 {
     float fVar2;
     float fVar3;
@@ -997,7 +1256,7 @@ void AnmManager::TranslateRotation(VertexTex1Xyzrhw *param_1, f32 x, f32 y, f32 
     return;
 }
 
-ZunResult AnmManager::Draw(AnmVm *vm)
+ZunResult AnmManager::Draw(const AnmVm *vm)
 {
     f32 zSine;
     f32 zCosine;
@@ -1056,7 +1315,7 @@ ZunResult AnmManager::Draw(AnmVm *vm)
     return this->DrawOrthographic(vm, false);
 }
 
-ZunResult AnmManager::DrawFacingCamera(AnmVm *vm)
+ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
 {
     f32 centerX;
     f32 centerY;
@@ -1101,7 +1360,7 @@ ZunResult AnmManager::DrawFacingCamera(AnmVm *vm)
     return this->DrawOrthographic(vm, false);
 }
 
-ZunResult AnmManager::Draw3(AnmVm *vm)
+ZunResult AnmManager::Draw3(const AnmVm *vm)
 {
     ZunMatrix worldTransformMatrix;
     ZunMatrix rotationMatrix;
@@ -1229,7 +1488,7 @@ ZunResult AnmManager::Draw3(AnmVm *vm)
     return ZUN_SUCCESS;
 }
 
-ZunResult AnmManager::Draw2(AnmVm *vm)
+ZunResult AnmManager::Draw2(const AnmVm *vm)
 {
     ZunMatrix worldTransformMatrix;
     ZunMatrix unusedMatrix;
@@ -1478,7 +1737,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         case AnmOpcode_Stop:
             if (vm->pendingInterrupt == 0)
             {
-                vm->flags.flag13 = 1;
+                vm->flags.isStopped = 1;
                 vm->currentTimeInScript.Decrement(1);
                 goto stop;
             }
@@ -1496,7 +1755,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             }
 
             vm->pendingInterrupt = 0;
-            vm->flags.flag13 = 0;
+            vm->flags.isStopped = 0;
             if (curInstr->opcode != AnmOpcode_InterruptLabel)
             {
                 if (nextInstr == NULL)
@@ -1681,7 +1940,7 @@ stop:
 
 void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight,
                                   i32 fontWidth, i32 fontHeight, ZunColor textColor, ZunColor shadowColor,
-                                  char *strToPrint)
+                                  const char *strToPrint)
 {
     if (fontWidth <= 0)
     {
@@ -1701,7 +1960,7 @@ void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spr
     return;
 }
 
-void AnmManager::DrawVmTextFmt(AnmManager *anmMgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
+void AnmManager::DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
 {
     u32 fontWidth;
     char buffer[64];
@@ -1711,14 +1970,14 @@ void AnmManager::DrawVmTextFmt(AnmManager *anmMgr, AnmVm *vm, ZunColor textColor
     va_start(argptr, fmt);
     vsprintf(buffer, fmt, argptr);
     va_end(argptr);
-    anmMgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
                              vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
                              fontWidth, vm->fontHeight, textColor, shadowColor, buffer);
     vm->flags.isVisible = true;
     return;
 }
 
-void AnmManager::DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
+void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
 {
     char buf[64];
     va_list args;
@@ -1729,19 +1988,19 @@ void AnmManager::DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
                           vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
                           fontWidth, vm->fontHeight, textColor, shadowColor, " ");
     secondPartStartX =
         vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
-    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
                           vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
     return;
 }
 
-void AnmManager::DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
+void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
 {
     char buf[64];
     va_list args;
@@ -1752,12 +2011,12 @@ void AnmManager::DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColo
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
                           vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
                           fontWidth, vm->fontHeight, textColor, shadowColor, " ");
     secondPartStartX = vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth / 2.0f -
                        ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f);
-    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
                           vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
@@ -1990,6 +2249,7 @@ void AnmManager::TakeScreenshot(i32 textureId, i32 left, i32 top, i32 width, i32
     backBufferPixels =
         new u8[((u32)(width * g_GameWindow.WIDTH_RESOLUTION_SCALE + 1)) * ((u32)(height * g_GameWindow.HEIGHT_RESOLUTION_SCALE + 1)) * 4];
 
+#ifndef __PS3__
     g_glFuncTable.glReadPixels(left * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X,
                                g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((top + height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE) - g_GameWindow.VIEWPORT_OFF_Y,
                                width * g_GameWindow.WIDTH_RESOLUTION_SCALE, height * g_GameWindow.HEIGHT_RESOLUTION_SCALE, GL_RGBA,
@@ -2000,6 +2260,18 @@ void AnmManager::TakeScreenshot(i32 textureId, i32 left, i32 top, i32 width, i32
                                                             width * g_GameWindow.WIDTH_RESOLUTION_SCALE * 4, SDL_PIXELFORMAT_RGBA32);
     stretchedSurface = SDL_CreateRGBSurfaceWithFormat(0, this->textures[textureId].width,
                                                       this->textures[textureId].height, 32, SDL_PIXELFORMAT_RGBA32);
+#else
+    g_glFuncTable.glReadPixels(left * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X,
+                               g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((top + height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE) - g_GameWindow.VIEWPORT_OFF_Y,
+                               width * g_GameWindow.WIDTH_RESOLUTION_SCALE, height * g_GameWindow.HEIGHT_RESOLUTION_SCALE, GL_ARGB_SCE,
+                               GL_UNSIGNED_INT_8_8_8_8, backBufferPixels);
+
+    unstretchedSurface = SDL_CreateRGBSurfaceWithFormatFrom(backBufferPixels, width * g_GameWindow.WIDTH_RESOLUTION_SCALE,
+                                                            height * g_GameWindow.HEIGHT_RESOLUTION_SCALE, 32,
+                                                            width * g_GameWindow.WIDTH_RESOLUTION_SCALE * 4, SDL_PIXELFORMAT_ARGB8888);
+    stretchedSurface = SDL_CreateRGBSurfaceWithFormat(0, this->textures[textureId].width,
+                                                      this->textures[textureId].height, 32, SDL_PIXELFORMAT_ARGB8888);
+#endif
 
     if (unstretchedSurface == NULL || stretchedSurface == NULL)
     {

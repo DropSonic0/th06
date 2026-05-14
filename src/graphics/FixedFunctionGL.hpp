@@ -15,4 +15,5 @@ struct FixedFunctionGL : GfxInterface
     virtual void SetTextureFactor(ZunColor factor);
     virtual void SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix);
     virtual void Draw();
+    virtual void Clear(ZunColor color);
 };

@@ -1,9 +1,38 @@
 #pragma once
 
+#if defined(__PS3__) || defined(__CELLOS_LV2__) || defined(__PPU__) || defined(__ppu__) || defined(__SNC__) || defined(SN_TARGET_PS3)
+#ifndef __PS3__
+#define __PS3__
+#endif
+#endif
+
 // #include <d3d8.h>
 // #include <d3dx8math.h>
 
+#ifndef __PS3__
 #include <SDL_video.h>
+#else
+#include <PSGL/psgl.h>
+typedef struct SDL_Surface {
+    int w, h;
+    int pitch;
+    void *pixels;
+    int format;
+    bool must_free_pixels;
+} SDL_Surface;
+typedef int SDL_PixelFormatEnum;
+#define SDL_PIXELFORMAT_UNKNOWN 0
+#define SDL_PIXELFORMAT_RGBA32 1
+#define SDL_PIXELFORMAT_ARGB8888 2
+#define SDL_PIXELFORMAT_RGB24 3
+#define SDL_PIXELFORMAT_RGB565 4
+#define SDL_PIXELFORMAT_ARGB1555 5
+#define SDL_PIXELFORMAT_ARGB4444 6
+typedef struct SDL_Rect {
+    int x, y;
+    int w, h;
+} SDL_Rect;
+#endif
 
 #include "AnmIdx.hpp"
 #include "AnmVm.hpp"
@@ -356,17 +385,17 @@ struct AnmManager
     }
 
     i32 ExecuteScript(AnmVm *vm);
-    ZunResult Draw(AnmVm *vm);
+    ZunResult Draw(const AnmVm *vm);
     void DrawTextToSprite(u32 spriteDstIndex, i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontWidth,
-                          i32 fontHeight, ZunColor textColor, ZunColor shadowColor, char *strToPrint);
-    static void DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
-    static void DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
-    static void DrawVmTextFmt(AnmManager *anm_mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
-    ZunResult DrawNoRotation(AnmVm *vm);
-    ZunResult DrawOrthographic(AnmVm *vm, bool roundToPixel);
-    ZunResult DrawFacingCamera(AnmVm *vm);
-    ZunResult Draw2(AnmVm *vm);
-    ZunResult Draw3(AnmVm *vm);
+                          i32 fontHeight, ZunColor textColor, ZunColor shadowColor, const char *strToPrint);
+    void DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
+    void DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
+    void DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
+    ZunResult DrawNoRotation(const AnmVm *vm);
+    ZunResult DrawOrthographic(const AnmVm *vm, bool roundToPixel);
+    ZunResult DrawFacingCamera(const AnmVm *vm);
+    ZunResult Draw2(const AnmVm *vm);
+    ZunResult Draw3(const AnmVm *vm);
 
     void LoadSprite(u32 spriteIdx, AnmLoadedSprite *sprite);
     ZunResult SetActiveSprite(AnmVm *vm, u32 spriteIdx);
@@ -405,7 +434,11 @@ struct AnmManager
         this->screenshotHeight = GAME_REGION_HEIGHT;
     }
 
+#ifndef __PS3__
     static SDL_Surface *LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData);
+#else
+    static SDL_Surface *LoadToSurfaceWithFormat(const char *filename, int format, u8 **fileData);
+#endif
     static u8 *ExtractSurfacePixels(SDL_Surface *src, u8 pixelDepth);
     static void FlipSurface(SDL_Surface *surface);
     void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect);

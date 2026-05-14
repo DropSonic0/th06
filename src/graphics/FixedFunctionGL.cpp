@@ -1,13 +1,40 @@
 #include "FixedFunctionGL.hpp"
 #include "GLFunc.hpp"
 #include "Supervisor.hpp"
+#ifndef __PS3__
 #include <SDL.h>
+#endif
+
+#ifdef __PS3__
+#define GL_COMBINE 0x8570
+#define GL_COMBINE_RGB 0x8571
+#define GL_COMBINE_ALPHA 0x8572
+#define GL_SRC0_RGB 0x8580
+#define GL_SRC1_RGB 0x8581
+#define GL_SRC2_RGB 0x8582
+#define GL_SRC0_ALPHA 0x8588
+#define GL_SRC1_ALPHA 0x8589
+#define GL_SRC2_ALPHA 0x858A
+#define GL_OPERAND0_RGB 0x8590
+#define GL_OPERAND1_RGB 0x8591
+#define GL_OPERAND2_RGB 0x8592
+#define GL_OPERAND0_ALPHA 0x8598
+#define GL_OPERAND1_ALPHA 0x8599
+#define GL_OPERAND2_ALPHA 0x859A
+#define GL_RGB 0x1907
+#define GL_SRC_COLOR 0x0300
+#define GL_PRIMARY_COLOR 0x8577
+#define GL_CONSTANT 0x8576
+#define GL_PREVIOUS 0x8578
+#endif
 
 void FixedFunctionGL::SetContextFlags()
 {
+#ifndef __PS3__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
 }
 
 GfxInterface *FixedFunctionGL::Init()
@@ -176,3 +203,23 @@ void FixedFunctionGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix
 void FixedFunctionGL::Draw()
 {
 }
+
+void FixedFunctionGL::Clear(ZunColor color)
+{
+    g_glFuncTable.glClearColor(((color >> 16) & 0xFF) / 255.0f, ((color >> 8) & 0xFF) / 255.0f,
+                               (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f);
+    g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+#ifdef __PS3__
+extern "C" void FixedFunctionGL_SetContextFlags_Helper()
+{
+    // On PS3, GL context is initialized via PSGL in GameWindow.cpp, 
+    // so no SDL GL attributes need to be set here.
+}
+
+extern "C" GfxInterface *FixedFunctionGL_Init_Helper()
+{
+    return FixedFunctionGL::Init();
+}
+#endif

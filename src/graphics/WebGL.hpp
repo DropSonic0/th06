@@ -1,7 +1,11 @@
 #pragma once
 
 #include "GfxInterface.hpp"
+#ifndef __PS3__
 #include <SDL_opengl.h>
+#else
+#include <PSGL/psgl.h>
+#endif
 
 enum GlShaderUniform
 {
@@ -34,6 +38,7 @@ struct WebGL : GfxInterface
     virtual void SetTextureFactor(ZunColor factor);
     virtual void SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix);
     virtual void Draw();
+    virtual void Clear(ZunColor color);
 
   private:
     GLuint fragmentShaderHandle;

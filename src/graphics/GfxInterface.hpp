@@ -56,4 +56,5 @@ struct GfxInterface
     virtual void SetTextureFactor(ZunColor factor) = 0;
     virtual void SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix) = 0;
     virtual void Draw() = 0;
+    virtual void Clear(ZunColor color) = 0;
 };

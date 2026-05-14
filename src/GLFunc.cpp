@@ -1,9 +1,12 @@
 #include "GLFunc.hpp"
 
+#ifndef __PS3__
 #include <SDL_video.h>
+#endif
 
 GLFuncTable g_glFuncTable;
 
+#ifndef __PS3__
 #define TRY_RESOLVE_FUNCTION(func) this->func = (decltype(this->func))SDL_GL_GetProcAddress(#func);
 #define TRY_RESOLVE_FUNCTION_GLES(func) this->func##_ptr = (decltype(this->func##_ptr))SDL_GL_GetProcAddress(#func);
 
@@ -88,6 +91,53 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
 
     this->isGlesContext = glesContext;
 }
+#else
+#include <PSGL/psgl.h>
+void GLFuncTable::ResolveFunctions(bool glesContext)
+{
+    this->glAlphaFunc = ::glAlphaFunc;
+    this->glBindTexture = ::glBindTexture;
+    this->glBlendFunc = ::glBlendFunc;
+    this->glClear = ::glClear;
+    this->glClearColor = ::glClearColor;
+    this->glColorPointer = ::glColorPointer;
+    this->glDeleteTextures = ::glDeleteTextures;
+    this->glDepthFunc = ::glDepthFunc;
+    this->glDepthMask = ::glDepthMask;
+    this->glDisable = ::glDisable;
+    this->glDisableClientState = ::glDisableClientState;
+    this->glDrawArrays = ::glDrawArrays;
+    this->glEnable = ::glEnable;
+    this->glEnableClientState = ::glEnableClientState;
+    this->glFogf = ::glFogf;
+    this->glFogfv = ::glFogfv;
+    this->glGenTextures = ::glGenTextures;
+    this->glGetError = ::glGetError;
+    this->glGetFloatv = ::glGetFloatv;
+    this->glGetIntegerv = ::glGetIntegerv;
+    this->glLoadIdentity = ::glLoadIdentity;
+    this->glLoadMatrixf = ::glLoadMatrixf;
+    this->glMatrixMode = ::glMatrixMode;
+    this->glMultMatrixf = ::glMultMatrixf;
+    this->glPopMatrix = ::glPopMatrix;
+    this->glPushMatrix = ::glPushMatrix;
+    this->glReadPixels = ::glReadPixels;
+    this->glShadeModel = ::glShadeModel;
+    this->glTexCoordPointer = ::glTexCoordPointer;
+    this->glTexEnvfv = ::glTexEnvfv;
+    this->glTexEnvi = ::glTexEnvi;
+    this->glTexImage2D = ::glTexImage2D;
+    this->glTexParameteri = ::glTexParameteri;
+    this->glTexSubImage2D = ::glTexSubImage2D;
+    this->glVertexPointer = ::glVertexPointer;
+    this->glViewport = ::glViewport;
+
+    this->glClearDepthf_ptr = ::glClearDepthf;
+    this->glDepthRangef_ptr = ::glDepthRangef;
+
+    this->isGlesContext = true;
+}
+#endif
 
 void GLFuncTable::glClearDepthf(GLclampf depth)
 {
@@ -97,7 +147,9 @@ void GLFuncTable::glClearDepthf(GLclampf depth)
     }
     else
     {
+#ifndef __PS3__
         this->glClearDepth(depth);
+#endif
     }
 }
 
@@ -109,6 +161,8 @@ void GLFuncTable::glDepthRangef(GLclampf near_val, GLclampf far_val)
     }
     else
     {
+#ifndef __PS3__
         this->glDepthRange(near_val, far_val);
+#endif
     }
 }

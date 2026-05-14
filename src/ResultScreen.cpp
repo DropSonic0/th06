@@ -689,7 +689,7 @@ i32 ResultScreen::HandleResultKeyboard()
             sprite->pendingInterrupt = this->diffSelected + 3;
         }
 
-        g_AnmManager->DrawStringFormat2(this->unk_28a0, COLOR_RGB(COLOR_WHITE), COLOR_RGB(COLOR_BLACK),
+        g_AnmManager->DrawStringFormat2(&this->unk_28a0, COLOR_RGB(COLOR_WHITE), COLOR_RGB(COLOR_BLACK),
                                       g_CharacterList[this->charUsed * 2]);
         if (g_GameManager.shotType != SHOT_TYPE_A)
         {
