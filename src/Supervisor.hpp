@@ -1,11 +1,14 @@
 #pragma once
 
+#ifndef __PS3__
 #include <SDL_gamecontroller.h>
 #include <SDL_video.h>
+#endif
 
 #include "Chain.hpp"
 #include "Controller.hpp"
 #include "MidiOutput.hpp"
+#include "ZunEndian.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
@@ -31,15 +34,15 @@ enum GameConfigOptsShifts
 
 struct ControllerMapping
 {
-    i16 shootButton;
-    i16 bombButton;
-    i16 focusButton;
-    i16 menuButton;
-    i16 upButton;
-    i16 downButton;
-    i16 leftButton;
-    i16 rightButton;
-    i16 skipButton;
+    LE<i16> shootButton;
+    LE<i16> bombButton;
+    LE<i16> focusButton;
+    LE<i16> menuButton;
+    LE<i16> upButton;
+    LE<i16> downButton;
+    LE<i16> leftButton;
+    LE<i16> rightButton;
+    LE<i16> skipButton;
 };
 
 enum MusicMode
@@ -53,7 +56,7 @@ struct GameConfiguration
 {
     ControllerMapping controllerMapping;
     // Always 0x102 for 1.02
-    i32 version;
+    LE<i32> version;
     u8 lifeCount;
     u8 bombCount;
     u8 colorMode16bit;
@@ -63,11 +66,11 @@ struct GameConfiguration
     u8 windowed;
     // 0 = fullspeed, 1 = 1/2 speed, 2 = 1/4 speed.
     u8 frameskipConfig;
-    i16 padXAxis;
-    i16 padYAxis;
+    LE<i16> padXAxis;
+    LE<i16> padYAxis;
     i8 unk[16];
     // GameConfigOpts bitfield.
-    u32 opts;
+    LE<u32> opts;
 
     u32 IsSoftwareTexturing()
     {
@@ -107,15 +110,15 @@ struct Supervisor
     static ZunResult DeletedCallback(Supervisor *s);
     static void DrawFpsCounter();
 
-    bool ReadMidiFile(u32 midiFileIdx, char *path);
+    bool ReadMidiFile(u32 midiFileIdx, const char *path);
     ZunResult PlayMidiFile(i32 midiFileIdx);
-    ZunResult PlayAudio(char *path);
+    ZunResult PlayAudio(const char *path);
     ZunResult StopAudio();
     ZunResult FadeOutMusic(f32 fadeOutSeconds);
 
     static ZunResult SetupDInput(Supervisor *s);
 
-    i32 LoadPbg3(i32 pbg3FileIdx, char *filename);
+    i32 LoadPbg3(i32 pbg3FileIdx, const char *filename);
     void ReleasePbg3(i32 pbg3FileIdx);
 
     ZunResult LoadConfig(const char *path);
@@ -147,9 +150,13 @@ struct Supervisor
     //    LPDIRECTINPUT8 dinputIface;
     //    LPDIRECTINPUTDEVICE8A keyboard;
     //    LPDIRECTINPUTDEVICE8A controller;
+#ifndef __PS3__
     SDL_GameController *gameController;
+#endif
     //    DIDEVCAPS controllerCaps;
+#ifndef __PS3__
     SDL_Window *gameWindow;
+#endif
     ZunMatrix viewMatrix;
     ZunMatrix projectionMatrix;
     ZunViewport viewport;
@@ -192,5 +199,9 @@ extern Supervisor g_Supervisor;
 extern u16 g_LastFrameInput;
 extern u16 g_CurFrameInput;
 extern u16 g_IsEigthFrameOfHeldInput;
+#ifndef __PS3__
 extern SDL_Surface *g_TextBufferSurface;
+#else
+extern void *g_TextBufferSurface;
+#endif
 extern u16 g_NumOfFramesInputsWereHeld;

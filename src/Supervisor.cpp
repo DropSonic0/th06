@@ -19,17 +19,23 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL_joystick.h>
 #include <SDL_timer.h>
+#else
+#include <PSGL/psgl.h>
+#endif
 #include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <iostream>
+#include <string>
 void supervisordlog(std::string msg){
     std::cout<<"supervisor : "<<msg<<std::endl;
 }
 
 Supervisor g_Supervisor;
+#ifndef __PS3__
 ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_A,
     (i16)SDL_CONTROLLER_BUTTON_B,
@@ -41,7 +47,17 @@ ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
     (i16)SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
 };
+#else
+// PS3 mapping (arbitrary since we bypass it anyway, but must be initialized)
+ControllerMapping g_ControllerMapping = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8
+};
+#endif
+#ifndef __PS3__
 SDL_Surface *g_TextBufferSurface;
+#else
+void *g_TextBufferSurface;
+#endif
 u16 g_LastFrameInput;
 u16 g_CurFrameInput;
 u16 g_IsEigthFrameOfHeldInput;
@@ -334,7 +350,11 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
     //supervisordlog("SDL_GL_SwapWindow");
+#ifndef __PS3__
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+#else
+    psglSwap();
+#endif
 
     //
     //supervisordlog("CopySurfaceToBackBuffer 2");
@@ -344,7 +364,11 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //
 
     //supervisordlog("SDL_GL_SwapWindow 2");
+#ifndef __PS3__
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+#else
+    psglSwap();
+#endif
 
     //supervisordlog("ReleaseSurface");
     g_AnmManager->ReleaseSurface(0);
@@ -398,6 +422,7 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
 ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
 {
+#ifndef __PS3__
     //    HINSTANCE hInst;
     //
     //    hInst = (HINSTANCE)GetWindowLongA(supervisor->hwndGameWindow, GWL_HINSTANCE);
@@ -479,6 +504,7 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
 
     //    supervisor->dinputIface->EnumDevices(DI8DEVCLASS_GAMECTRL, Supervisor::EnumGameControllersCb, NULL,
     //                                         DIEDFL_ATTACHEDONLY);
+#endif
     //    if (supervisor->controller)
     //    {
     //        supervisor->controller->SetDataFormat(&c_dfDIJoystick2);
@@ -543,11 +569,13 @@ ZunResult Supervisor::DeletedCallback(Supervisor *s)
     //    {
     //        s->controller->Unacquire();
     //    }
+#ifndef __PS3__
     if (s->gameController != NULL)
     {
         SDL_GameControllerClose(s->gameController);
         s->gameController = NULL;
     }
+#endif
     //    if (s->dinputIface != NULL)
     //    {
     //        s->dinputIface->Release();
@@ -640,7 +668,7 @@ void Supervisor::ReleasePbg3(i32 pbg3FileIdx)
     this->pbg3Archives[pbg3FileIdx] = NULL;
 }
 
-i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, char *filename)
+i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, const char *filename)
 {
     if (this->pbg3Archives[pbg3FileIdx] == NULL || strcmp(filename, this->pbg3ArchiveNames[pbg3FileIdx]) != 0)
     {
@@ -682,16 +710,16 @@ ZunResult Supervisor::LoadConfig(const char *path)
     FILE *wavFile2;
 
     std::memset(&g_Supervisor.cfg, 0, sizeof(GameConfiguration));
-    g_Supervisor.cfg.opts = g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
+    g_Supervisor.cfg.opts = (u32)g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
     data = (GameConfiguration *)FileSystem::OpenPath(path, 1);
     if (data == NULL)
     {
         g_Supervisor.cfg.lifeCount = 2;
         g_Supervisor.cfg.bombCount = 3;
         g_Supervisor.cfg.colorMode16bit = 0xff;
-        g_Supervisor.cfg.version = GAME_VERSION;
-        g_Supervisor.cfg.padXAxis = 600;
-        g_Supervisor.cfg.padYAxis = 600;
+        g_Supervisor.cfg.version = (i32)GAME_VERSION;
+        g_Supervisor.cfg.padXAxis = (i16)600;
+        g_Supervisor.cfg.padYAxis = (i16)600;
         wavFile = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
         if (wavFile != NULL)
         {
@@ -717,14 +745,14 @@ ZunResult Supervisor::LoadConfig(const char *path)
             (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 3) ||
             (g_Supervisor.cfg.defaultDifficulty >= 5) || (g_Supervisor.cfg.playSounds >= 2) ||
             (g_Supervisor.cfg.windowed >= 2) || (g_Supervisor.cfg.frameskipConfig >= 3) ||
-            (g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
+            ((i32)g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
         {
             g_Supervisor.cfg.lifeCount = 2;
             g_Supervisor.cfg.bombCount = 3;
             g_Supervisor.cfg.colorMode16bit = 0xff;
-            g_Supervisor.cfg.version = GAME_VERSION;
-            g_Supervisor.cfg.padXAxis = 600;
-            g_Supervisor.cfg.padYAxis = 600;
+            g_Supervisor.cfg.version = (i32)GAME_VERSION;
+            g_Supervisor.cfg.padXAxis = (i16)600;
+            g_Supervisor.cfg.padYAxis = (i16)600;
             wavFile2 = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
             if (wavFile2 != NULL)
             {
@@ -742,7 +770,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
             g_Supervisor.cfg.frameskipConfig = 0;
             g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
             std::memset(&g_Supervisor.cfg.opts, 0, sizeof(GameConfigOptsShifts));
-            g_Supervisor.cfg.opts |= (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
+            g_Supervisor.cfg.opts = (u32)g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
             GameErrorContext::Log(&g_GameErrorContext, TH_ERR_CONFIG_CORRUPTED);
         }
         g_ControllerMapping = g_Supervisor.cfg.controllerMapping;
@@ -807,7 +835,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
     return ZUN_SUCCESS;
 }
 
-bool Supervisor::ReadMidiFile(u32 midiFileIdx, char *path)
+bool Supervisor::ReadMidiFile(u32 midiFileIdx, const char *path)
 {
     // Return conventions seem opposite of normal? But they're never used anyway
     if (g_Supervisor.cfg.musicMode == MIDI)
@@ -840,7 +868,7 @@ ZunResult Supervisor::PlayMidiFile(i32 midiFileIdx)
     return ZUN_ERROR;
 }
 
-ZunResult Supervisor::PlayAudio(char *path)
+ZunResult Supervisor::PlayAudio(const char *path)
 {
     char wavName[256];
     char wavPos[256];

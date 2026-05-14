@@ -237,21 +237,7 @@ stop:
         goto restart;
     }
 
-#ifdef __PS3__
-    GameConfiguration swappedCfgFinal = g_Supervisor.cfg;
-    swappedCfgFinal.version = utils::Swap32(swappedCfgFinal.version);
-    swappedCfgFinal.opts = utils::Swap32(swappedCfgFinal.opts);
-    swappedCfgFinal.padXAxis = (i16)utils::Swap16((u16)swappedCfgFinal.padXAxis);
-    swappedCfgFinal.padYAxis = (i16)utils::Swap16((u16)swappedCfgFinal.padYAxis);
-    
-    i16* swappedMappingFinal = (i16*)&swappedCfgFinal.controllerMapping;
-    for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
-        swappedMappingFinal[i] = (i16)utils::Swap16((u16)swappedMappingFinal[i]);
-    }
-    FileSystem::WriteDataToFile(TH_CONFIG_FILE, &swappedCfgFinal, sizeof(g_Supervisor.cfg));
-#else
     FileSystem::WriteDataToFile(TH_CONFIG_FILE, &g_Supervisor.cfg, sizeof(g_Supervisor.cfg));
-#endif
 
 #ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);

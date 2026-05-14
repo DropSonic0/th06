@@ -19,6 +19,7 @@ typedef std::uint64_t u64;
 typedef std::intptr_t iptr;
 #else
 #include <stdint.h>
+#include <sys/sys_time.h>
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -28,6 +29,9 @@ typedef int32_t i32;
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef intptr_t iptr;
+
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_FALLTHROUGH
 #endif
 typedef float f32;
 typedef double f64;
