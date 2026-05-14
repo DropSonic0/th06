@@ -954,7 +954,7 @@ void AnmManager::SetAndExecuteScript(AnmVm *vm, AnmRawInstr *beginingOfScript)
     }
 }
 
-void AnmManager::SetRenderStateForVm(AnmVm *vm)
+void AnmManager::SetRenderStateForVm(const AnmVm *vm)
 {
     if (this->currentBlendMode != vm->flags.blendMode)
     {

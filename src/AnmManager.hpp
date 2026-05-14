@@ -425,7 +425,7 @@ struct AnmManager
         this->SetAndExecuteScript(vm, this->scripts[anmFileIdx]);
     }
 
-    void SetRenderStateForVm(AnmVm *vm);
+    void SetRenderStateForVm(const AnmVm *vm);
 
     void RequestScreenshot()
     {

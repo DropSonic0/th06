@@ -8,7 +8,6 @@
 #define SDL_GL_ExtensionSupported(x) false
 #endif
 #include <new>
-#include <unordered_set>
 
 // Provided for anyone who wants to recompile with new shaders without rerunning the premake script
 #ifdef USE_C23_EMBED
@@ -27,9 +26,9 @@ static const char vertShaderBytes[] = {
 #define TEX_COORDS_ATTRIBUTE_INDEX 1
 #define DIFFUSE_ATTRIBUTE_INDEX 2
 
-GLuint createShader(const char *source, GLenum type, const char *descString,
-                    std::unordered_set<GlShaderUniform> &omittedUniforms)
+GLuint createShader(const char *source, GLenum type, const char *descString, u32 &omittedUniforms)
 {
+#ifndef __PS3__
     const char *fullShaderSource[32];
     GLint getRet = 0;
     GLuint shaderHandle = g_glFuncTable.glCreateShader(type);
@@ -51,9 +50,9 @@ GLuint createShader(const char *source, GLenum type, const char *descString,
     if (g_Supervisor.cfg.opts & (1 >> GCOS_DONT_USE_FOG))
     {
         fullShaderSource[shaderSourceIndex++] = "#define NO_FOG\n";
-        omittedUniforms.insert(UNIFORM_FOG_NEAR);
-        omittedUniforms.insert(UNIFORM_FOG_FAR);
-        omittedUniforms.insert(UNIFORM_FOG_COLOR);
+        omittedUniforms |= (1 << UNIFORM_FOG_NEAR);
+        omittedUniforms |= (1 << UNIFORM_FOG_FAR);
+        omittedUniforms |= (1 << UNIFORM_FOG_COLOR);
     }
 
     if (g_Supervisor.cfg.opts & (1 >> GCOS_DONT_USE_VERTEX_BUF))
@@ -62,7 +61,7 @@ GLuint createShader(const char *source, GLenum type, const char *descString,
     }
     else
     {
-        omittedUniforms.insert(UNIFORM_ENV_DIFFUSE);
+        omittedUniforms |= (1 << UNIFORM_ENV_DIFFUSE);
     }
 
     fullShaderSource[shaderSourceIndex] = source;
@@ -94,11 +93,13 @@ GLuint createShader(const char *source, GLenum type, const char *descString,
     }
 
 fail:
+#endif
     return 0;
 }
 
 bool linkProgram(GLuint programHandle)
 {
+#ifndef __PS3__
     g_glFuncTable.glLinkProgram(programHandle);
 
     GLint getRet;
@@ -122,6 +123,7 @@ bool linkProgram(GLuint programHandle)
     g_glFuncTable.glGetProgramInfoLog(programHandle, getRet, NULL, log);
     utils::DebugPrint("Program link failed, log: \n%s", log);
     delete[] log;
+#endif
 
     return false;
 }
@@ -149,8 +151,9 @@ GfxInterface *WebGL::Create()
 
 bool WebGL::Init()
 {
+#ifndef __PS3__
     ZunMatrix identityMatrix;
-    std::unordered_set<GlShaderUniform> omittedUniforms;
+    u32 omittedUniforms = 0;
 
     while (g_glFuncTable.glGetError() != GL_NO_ERROR)
     {
@@ -197,7 +200,7 @@ bool WebGL::Init()
 
     for (u32 i = 0; i < ARRAY_SIZE(this->uniforms); i++)
     {
-        if (this->uniforms[i] == -1 && omittedUniforms.count((GlShaderUniform)i) != 0)
+        if (this->uniforms[i] == -1 && (omittedUniforms & (1 << i)) != 0)
         {
             utils::DebugPrint("Get uniform %i location failed!", i);
         }
@@ -221,24 +224,30 @@ fail:
     g_glFuncTable.glDeleteProgram(this->programHandle);
     g_glFuncTable.glDeleteShader(this->vertexShaderHandle);
     g_glFuncTable.glDeleteShader(this->fragmentShaderHandle);
+#endif
 
     return false;
 }
 
 void WebGL::SetFogRange(f32 nearPlane, f32 farPlane)
 {
+#ifndef __PS3__
     g_glFuncTable.glUniform1f(this->uniforms[UNIFORM_FOG_NEAR], nearPlane);
     g_glFuncTable.glUniform1f(this->uniforms[UNIFORM_FOG_FAR], farPlane);
+#endif
 }
 
 void WebGL::SetFogColor(ZunColor color)
 {
+#ifndef __PS3__
     g_glFuncTable.glUniform4f(this->uniforms[UNIFORM_FOG_COLOR], ((color >> 16) & 0xFF) / 255.0f,
                               ((color >> 8) & 0xFF) / 255.0f, (color & 0xFF) / 255.0f, ((color >> 24) & 0xFF) / 255.0f);
+#endif
 }
 
 void WebGL::ToggleVertexAttribute(u8 attr, bool enable)
 {
+#ifndef __PS3__
     if (attr & VERTEX_ATTR_TEX_COORD)
     {
         if (enable)
@@ -266,10 +275,12 @@ void WebGL::ToggleVertexAttribute(u8 attr, bool enable)
             g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_DIFFUSE_FLAG], false);
         }
     }
+#endif
 }
 
 void WebGL::SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr)
 {
+#ifndef __PS3__
     switch (attr)
     {
     case VERTEX_ARRAY_POSITION:
@@ -282,6 +293,7 @@ void WebGL::SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, 
         g_glFuncTable.glVertexAttribPointer(DIFFUSE_ATTRIBUTE_INDEX, 4, GL_UNSIGNED_BYTE, true, stride, ptr);
         break;
     }
+#endif
 }
 
 void WebGL::SetColorOp(TextureOpComponent component, ColorOp op)
@@ -291,22 +303,28 @@ void WebGL::SetColorOp(TextureOpComponent component, ColorOp op)
         return;
     }
 
+#ifndef __PS3__
     g_glFuncTable.glUniform1i(this->uniforms[UNIFORM_COLOR_OP], op);
+#endif
 }
 
 void WebGL::SetTextureFactor(ZunColor factor)
 {
+#ifndef __PS3__
     g_glFuncTable.glUniform4f(this->uniforms[UNIFORM_ENV_DIFFUSE], ((factor >> 16) & 0xFF) / 255.0f,
                               ((factor >> 8) & 0xFF) / 255.0f, (factor & 0xFF) / 255.0f,
                               ((factor >> 24) & 0xFF) / 255.0f);
+#endif
 }
 
 void WebGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix)
 {
+#ifndef __PS3__
     // I should probably just remove the model matrix from the range of possibilies
     u32 matrixUniformEnum[4] = {UNIFORM_MODELVIEW, UNIFORM_MODELVIEW, UNIFORM_PROJECTION, UNIFORM_TEXTURE_MATRIX};
 
     g_glFuncTable.glUniformMatrix4fv(this->uniforms[matrixUniformEnum[type]], 1, false, (GLfloat *)&matrix.m);
+#endif
 }
 
 void WebGL::Draw()

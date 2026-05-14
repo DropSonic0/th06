@@ -57,7 +57,7 @@ struct MainMenu
     ZunResult BeginStartup();
     ZunResult DrawStartMenu();
     u32 OnUpdateOptionsMenu();
-    ZunResult DrawReplayMenu() const;
+    ZunResult DrawReplayMenu();
     ZunResult ChoosePracticeLevel() const;
     bool WeirdSecondInputCheck();
     void ColorMenuItem(AnmVm *, i32, i32, i32) const;

@@ -168,7 +168,7 @@ void AsciiManager::CutChain()
     // to free it!
 }
 
-void AsciiManager::AddString(ZunVec3 *position, char *text)
+void AsciiManager::AddString(ZunVec3 *position, const char *text)
 {
     if (this->numStrings >= 0x100)
     {

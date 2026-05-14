@@ -120,7 +120,7 @@ union AnmVmFlags {
         u32 zWriteDisable : 1;
         u32 flag13 : 1;
         u32 flag14 : 1;
-        u32 flag15 : 1;
+        u32 isStopped : 1;
     };
 };
 
