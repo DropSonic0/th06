@@ -224,9 +224,22 @@ ZunResult SoundPlayer::InitializeDSound()
         goto fail;
     }
 
+    utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue...");
+    res = cellAudioCreateNotifyEventQueue(&this->audioEventQueue, &this->audioEventKey);
+    if (res != CELL_OK)
+    {
+        utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue failed: 0x%08x", res);
+        goto fail;
+    }
+
+    res = cellAudioSetNotifyEventQueue(this->audioEventKey);
+    if (res != CELL_OK)
+    {
+        utils::Log("SoundPlayer: cellAudioSetNotifyEventQueue failed: 0x%08x", res);
+        goto fail;
+    }
+
     utils::Log("SoundPlayer: sys_ppu_thread_create...");
-    this->ps3_startUs = sys_time_get_system_time();
-    this->ps3_samplesSent = 0;
     this->backgroundMusic.streamCacheSize = 8192; // 8k frames (32KB) per buffer
     this->backgroundMusic.streamCache = new i16[this->backgroundMusic.streamCacheSize * 2 * 2]; // Double buffer
     this->backgroundMusic.activeBuffer = 0;
@@ -288,6 +301,7 @@ ZunResult SoundPlayer::Release(void)
 #else
     cellAudioPortStop(this->audioPortNum);
     cellAudioPortClose(this->audioPortNum);
+    cellAudioRemoveNotifyEventQueue(this->audioEventKey);
     cellAudioQuit();
 
     if (this->backgroundMusic.streamCache != NULL) {
@@ -627,8 +641,6 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 #ifdef __PS3__
     sys_mutex_lock(this->soundBufMutex, 0);
     sys_mutex_lock(this->bgmStateMutex, 0);
-    this->ps3_startUs = sys_time_get_system_time();
-    this->ps3_samplesSent = 0;
 #endif
     this->backgroundMusic.srcWav.fileStream = fileStream;
 #ifdef __PS3__
@@ -1260,35 +1272,14 @@ void SoundPlayer::BackgroundMusicPlayerThread()
 {
 #ifdef __PS3__
     utils::Log("SoundPlayer: BackgroundMusicPlayerThread start...");
+    sys_event_t event;
     while (!this->terminateFlag)
     {
+        sys_event_queue_receive(this->audioEventQueue, &event, SYS_NO_TIMEOUT);
 
-        // PS3: High precision calculation using microseconds
-        u64 curUs = sys_time_get_system_time();
-        // 48000 samples per second = 0.048 samples per microsecond
-        // targetSamples: (time elapsed * rate) - samples sent + lead buffer (12288 frames)
-        long long targetSamples = (long long)((double)(curUs - this->ps3_startUs) * 0.048) - (long long)this->ps3_samplesSent + 12288;
-
-        // Safety reset if we drift too far (1 second = 48000 samples)
-        if (targetSamples < -48000 || targetSamples > 48000) {
-            utils::Log("SoundPlayer: Sync lost, resetting. targetSamples=%lld", targetSamples);
-            this->ps3_startUs = curUs;
-            this->ps3_samplesSent = 0;
-            targetSamples = 0;
+        while (this->MixAudio(CELL_AUDIO_BLOCK_SAMPLES * 2) != 0 && !this->terminateFlag) {
+            sys_timer_usleep(1000);
         }
-        
-        while (targetSamples >= 256)
-        {
-            if (this->MixAudio(256 * 2) == 0) {
-                this->ps3_samplesSent += 256;
-                targetSamples -= 256;
-            } else {
-                // If MixAudio fails (e.g. port full), wait a bit and retry
-                break;
-            }
-        }
-
-        sys_timer_usleep(1000);
     }
 #else
     SDL_PauseAudioDevice(this->audioDev, 0);

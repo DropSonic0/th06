@@ -9,6 +9,7 @@
 #else
 #include <cell/audio.h>
 #include <sys/ppu_thread.h>
+#include <sys/event.h>
 #include <stdio.h>
 #endif
 #ifndef __PS3__
@@ -137,8 +138,8 @@ struct SoundPlayer
     sys_ppu_thread_t backgroundMusicThreadHandle;
     sys_ppu_thread_t bgmIoThreadHandle;
     volatile bool terminateFlag;
-    u64 ps3_startUs;
-    u64 ps3_samplesSent;
+    sys_event_queue_t audioEventQueue;
+    sys_ipc_key_t audioEventKey;
 #endif
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;

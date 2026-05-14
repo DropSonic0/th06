@@ -1,38 +1,21 @@
 #include "GLFunc.hpp"
-#include "utils.hpp"
 
-#ifndef __PS3__
 #include <SDL_video.h>
-#endif
 
 GLFuncTable g_glFuncTable;
 
-#ifndef __PS3__
 #define TRY_RESOLVE_FUNCTION(func) this->func = (decltype(this->func))SDL_GL_GetProcAddress(#func);
 #define TRY_RESOLVE_FUNCTION_GLES(func) this->func##_ptr = (decltype(this->func##_ptr))SDL_GL_GetProcAddress(#func);
-#else
-#define TRY_RESOLVE_FUNCTION(func)                                                                                     \
-    this->func = ::func;                                                                                               \
-    if (this->func == NULL) utils::Log("GLFunc: FATAL: %s is NULL!", #func);                                           \
-    else utils::Log("GLFunc: %s = %p", #func, this->func);
-#define TRY_RESOLVE_FUNCTION_GLES(func)                                                                                \
-    this->func##_ptr = ::func;                                                                                         \
-    if (this->func##_ptr == NULL) utils::Log("GLFunc: FATAL: %s (GLES) is NULL!", #func);                              \
-    else utils::Log("GLFunc: %s (GLES) = %p", #func, this->func##_ptr);
-#endif
 
 void GLFuncTable::ResolveFunctions(bool glesContext)
 {
     TRY_RESOLVE_FUNCTION(glAlphaFunc)
     TRY_RESOLVE_FUNCTION(glBindTexture)
-    TRY_RESOLVE_FUNCTION(glBindBuffer)
     TRY_RESOLVE_FUNCTION(glBlendFunc)
-    TRY_RESOLVE_FUNCTION(glBufferData)
     TRY_RESOLVE_FUNCTION(glClear)
     TRY_RESOLVE_FUNCTION(glClearColor)
     TRY_RESOLVE_FUNCTION(glColorPointer)
     TRY_RESOLVE_FUNCTION(glDeleteTextures)
-    TRY_RESOLVE_FUNCTION(glDeleteBuffers)
     TRY_RESOLVE_FUNCTION(glDepthFunc)
     TRY_RESOLVE_FUNCTION(glDepthMask)
     TRY_RESOLVE_FUNCTION(glDisable)
@@ -40,12 +23,9 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
     TRY_RESOLVE_FUNCTION(glDrawArrays)
     TRY_RESOLVE_FUNCTION(glEnable)
     TRY_RESOLVE_FUNCTION(glEnableClientState)
-    TRY_RESOLVE_FUNCTION(glFinish)
-    TRY_RESOLVE_FUNCTION(glFlush)
     TRY_RESOLVE_FUNCTION(glFogf)
     TRY_RESOLVE_FUNCTION(glFogfv)
     TRY_RESOLVE_FUNCTION(glGenTextures)
-    TRY_RESOLVE_FUNCTION(glGenBuffers)
     TRY_RESOLVE_FUNCTION(glGetError)
     TRY_RESOLVE_FUNCTION(glGetFloatv)
     TRY_RESOLVE_FUNCTION(glGetIntegerv)
@@ -79,16 +59,10 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
     }
     else
     {
-#ifdef __PS3__
-        this->glClearDepth = ::glClearDepthf;
-        this->glDepthRange = ::glDepthRangef;
-#else
         TRY_RESOLVE_FUNCTION(glClearDepth)
         TRY_RESOLVE_FUNCTION(glDepthRange)
-#endif
     }
 
-#ifndef __PS3__
     TRY_RESOLVE_FUNCTION(glAttachShader)
     TRY_RESOLVE_FUNCTION(glBindAttribLocation)
     TRY_RESOLVE_FUNCTION(glCompileShader)
@@ -111,7 +85,6 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
     TRY_RESOLVE_FUNCTION(glUniformMatrix4fv)
     TRY_RESOLVE_FUNCTION(glUseProgram)
     TRY_RESOLVE_FUNCTION(glVertexAttribPointer)
-#endif
 
     this->isGlesContext = glesContext;
 }

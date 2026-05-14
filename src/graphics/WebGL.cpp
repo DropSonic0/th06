@@ -1,11 +1,7 @@
 #include "WebGL.hpp"
-
-#ifndef __PS3__
 #include "Supervisor.hpp"
 #include "utils.hpp"
-#ifndef __PS3__
 #include <SDL.h>
-#endif
 #include <new>
 #include <unordered_set>
 
@@ -298,16 +294,14 @@ void WebGL::SetTextureFactor(ZunColor factor)
                               ((factor >> 24) & 0xFF) / 255.0f);
 }
 
-void WebGL::SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
+void WebGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix)
 {
     // I should probably just remove the model matrix from the range of possibilies
-    static const u32 matrixUniformEnum[4] = {UNIFORM_MODELVIEW, UNIFORM_MODELVIEW, UNIFORM_PROJECTION, UNIFORM_TEXTURE_MATRIX};
+    u32 matrixUniformEnum[4] = {UNIFORM_MODELVIEW, UNIFORM_MODELVIEW, UNIFORM_PROJECTION, UNIFORM_TEXTURE_MATRIX};
 
-    g_glFuncTable.glUniformMatrix4fv(this->uniforms[matrixUniformEnum[type]], 1, false, (const GLfloat *)&matrix.m);
+    g_glFuncTable.glUniformMatrix4fv(this->uniforms[matrixUniformEnum[type]], 1, false, (GLfloat *)&matrix.m);
 }
 
 void WebGL::Draw()
 {
-    g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
-#endif

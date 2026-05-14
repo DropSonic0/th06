@@ -1,8 +1,6 @@
 #pragma once
 
 #include "GfxInterface.hpp"
-
-#ifndef __PS3__
 #include <SDL_opengl.h>
 
 enum GlShaderUniform
@@ -34,7 +32,7 @@ struct WebGL : GfxInterface
     virtual void SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr);
     virtual void SetColorOp(TextureOpComponent component, ColorOp op);
     virtual void SetTextureFactor(ZunColor factor);
-    virtual void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix);
+    virtual void SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix);
     virtual void Draw();
 
   private:
@@ -44,4 +42,3 @@ struct WebGL : GfxInterface
 
     GLint uniforms[UNIFORMS_COUNT];
 };
-#endif

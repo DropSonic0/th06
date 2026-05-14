@@ -13,9 +13,9 @@
 #include <cstring>
 
 AsciiManager g_AsciiManager;
-static ChainElem g_AsciiManagerCalcChain;
-static ChainElem g_AsciiManagerOnDrawMenusChain;
-static ChainElem g_AsciiManagerOnDrawPopupsChain;
+ChainElem g_AsciiManagerCalcChain;
+ChainElem g_AsciiManagerOnDrawMenusChain;
+ChainElem g_AsciiManagerOnDrawPopupsChain;
 
 AsciiManager::AsciiManager()
 {
@@ -168,7 +168,7 @@ void AsciiManager::CutChain()
     // to free it!
 }
 
-void AsciiManager::AddString(const ZunVec3 *position, const char *text)
+void AsciiManager::AddString(ZunVec3 *position, char *text)
 {
     if (this->numStrings >= 0x100)
     {
@@ -195,14 +195,15 @@ void AsciiManager::AddString(const ZunVec3 *position, const char *text)
     }
 }
 
-void AsciiManager::AddFormatText(const ZunVec3 *position, const char *fmt, ...)
+void AsciiManager::AddFormatText(ZunVec3 *position, const char *fmt, ...)
 {
     char tmpBuffer[512];
     std::va_list args;
 
     va_start(args, fmt);
     std::vsprintf(tmpBuffer, fmt, args);
-    this->AddString(position, tmpBuffer);
+    AddString(position, tmpBuffer);
+
     va_end(args);
 }
 
@@ -280,7 +281,7 @@ void AsciiManager::DrawStrings(void)
     }
 }
 
-void AsciiManager::CreatePopup1(const ZunVec3 *position, i32 value, ZunColor color)
+void AsciiManager::CreatePopup1(ZunVec3 *position, i32 value, ZunColor color)
 {
     AsciiManagerPopup *popup;
     i32 characterCount;
@@ -321,7 +322,7 @@ void AsciiManager::CreatePopup1(const ZunVec3 *position, i32 value, ZunColor col
     this->nextPopupIndex1++;
 }
 
-void AsciiManager::CreatePopup2(const ZunVec3 *position, i32 value, ZunColor color)
+void AsciiManager::CreatePopup2(ZunVec3 *position, i32 value, ZunColor color)
 {
     AsciiManagerPopup *popup;
     i32 characterCount;
@@ -444,8 +445,8 @@ i32 StageMenu::OnUpdateGameMenu()
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].scaleX = 1.7f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].scaleY = 1.5f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].scaleX = 1.5f;
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].posOffset, -4.0f, -4.0f, 0.0f);
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].posOffset, 0.0f, 0.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
         if (4 <= this->numFrames)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -471,8 +472,8 @@ i32 StageMenu::OnUpdateGameMenu()
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].scaleX = 1.5f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].scaleY = 1.7f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].scaleX = 1.7f;
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].posOffset, 0.0f, 0.0f, 0.0f);
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].posOffset, -4.0f, -4.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_UNPAUSE].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_QUIT].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
         if (4 <= this->numFrames)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -513,8 +514,8 @@ i32 StageMenu::OnUpdateGameMenu()
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].scaleX = 1.7f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].scaleY = 1.5f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].scaleX = 1.5f;
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].posOffset, -4.0f, -4.0f, 0.0f);
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].posOffset, 0.0f, 0.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
         if (4 <= this->numFrames)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -539,8 +540,8 @@ i32 StageMenu::OnUpdateGameMenu()
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].scaleX = 1.5f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].scaleY = 1.7f;
         this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].scaleX = 1.7f;
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].posOffset, 0.0f, 0.0f, 0.0f);
-        VEC3_SET(this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].posOffset, -4.0f, -4.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_YES].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
+        this->menuSprites[GAME_MENU_SPRITE_CURSOR_NO].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
         if (GAME_MENU_SPRITE_CURSOR_YES <= this->numFrames)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -696,8 +697,8 @@ i32 StageMenu::OnUpdateRetryMenu()
         this->menuSprites[RETRY_MENU_SPRITE_YES].scaleX = 1.7f;
         this->menuSprites[RETRY_MENU_SPRITE_NO].scaleY = 1.5f;
         this->menuSprites[RETRY_MENU_SPRITE_NO].scaleX = 1.5f;
-        VEC3_SET(this->menuSprites[RETRY_MENU_SPRITE_YES].posOffset, -4.0f, -4.0f, 0.0f);
-        VEC3_SET(this->menuSprites[RETRY_MENU_SPRITE_NO].posOffset, 0.0f, 0.0f, 0.0f);
+        this->menuSprites[RETRY_MENU_SPRITE_YES].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
+        this->menuSprites[RETRY_MENU_SPRITE_NO].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
         if (4 <= this->numFrames)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -723,8 +724,8 @@ i32 StageMenu::OnUpdateRetryMenu()
         this->menuSprites[RETRY_MENU_SPRITE_YES].scaleX = 1.5f;
         this->menuSprites[RETRY_MENU_SPRITE_NO].scaleY = 1.7f;
         this->menuSprites[RETRY_MENU_SPRITE_NO].scaleX = 1.7f;
-        VEC3_SET(this->menuSprites[RETRY_MENU_SPRITE_NO].posOffset, -4.0f, -4.0f, 0.0f);
-        VEC3_SET(this->menuSprites[RETRY_MENU_SPRITE_YES].posOffset, 0.0f, 0.0f, 0.0f);
+        this->menuSprites[RETRY_MENU_SPRITE_NO].posOffset = ZunVec3(-4.0f, -4.0f, 0.0f);
+        this->menuSprites[RETRY_MENU_SPRITE_YES].posOffset = ZunVec3(0.0f, 0.0f, 0.0f);
         if (this->numFrames >= 30)
         {
             if (WAS_PRESSED(TH_BUTTON_UP) || WAS_PRESSED(TH_BUTTON_DOWN))
@@ -837,8 +838,8 @@ void StageMenu::OnDrawRetryMenu()
 
 void AsciiManager::DrawPopupsWithHwVertexProcessing()
 {
-    const u8 *currentDigit;
-    const AsciiManagerPopup *currentPopup;
+    u8 *currentDigit;
+    AsciiManagerPopup *currentPopup;
     i32 i;
     i32 j;
 
@@ -888,8 +889,8 @@ void AsciiManager::DrawPopupsWithHwVertexProcessing()
 
 void AsciiManager::DrawPopupsWithoutHwVertexProcessing()
 {
-    const u8 *currentDigit;
-    const AsciiManagerPopup *currentPopup;
+    u8 *currentDigit;
+    AsciiManagerPopup *currentPopup;
     i32 i;
     i32 j;
 
