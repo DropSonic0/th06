@@ -202,6 +202,7 @@ void FixedFunctionGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix
 
 void FixedFunctionGL::Draw()
 {
+	g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 void FixedFunctionGL::Clear(ZunColor color)
@@ -214,8 +215,7 @@ void FixedFunctionGL::Clear(ZunColor color)
 #ifdef __PS3__
 extern "C" void FixedFunctionGL_SetContextFlags_Helper()
 {
-    // On PS3, GL context is initialized via PSGL in GameWindow.cpp, 
-    // so no SDL GL attributes need to be set here.
+    FixedFunctionGL::SetContextFlags();
 }
 
 extern "C" GfxInterface *FixedFunctionGL_Init_Helper()

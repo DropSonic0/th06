@@ -1219,19 +1219,20 @@ bgm_done:
 
 #ifndef __PS3__
     {
-        const int mixDivisor = std::max(8, (int)playingChannels);
-        for (u32 i = 0; i < samples; i++) finalBuffer[i] = mixBuffer[i] / mixDivisor;
+        for (u32 i = 0; i < samples; i++) {
+            i32 sample = mixBuffer[i];
+            if (sample > 32767) sample = 32767;
+            else if (sample < -32768) sample = -32768;
+            finalBuffer[i] = (i16)sample;
+        }
         SDL_QueueAudio(this->audioDev, finalBuffer.data(), samples * 2);
     }
     return 0;
 #else
     {
-    // If many channels are playing, we divide to avoid heavy clipping,
-    // but we use a smaller divisor than the full channel count to keep volume punchy.
-    const int mixDivisor = (playingChannels > 4) ? (playingChannels / 2) : 1;
         static float floatBuffer[2048] __attribute__((aligned(16)));
         for (u32 i = 0; i < samples; i++) {
-        floatBuffer[i] = (float)mixBuffer[i] / (mixDivisor * 32768.0f);
+            floatBuffer[i] = (float)mixBuffer[i] / 32768.0f;
             if (floatBuffer[i] > 1.0f) floatBuffer[i] = 1.0f;
             if (floatBuffer[i] < -1.0f) floatBuffer[i] = -1.0f;
         }

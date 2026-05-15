@@ -9,6 +9,9 @@
 #ifndef __PS3__
 #include <SDL_endian.h>
 #else
+#include <sys/sys_time.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_FALLTHROUGH
 #endif
 #ifndef __PS3__
 #include <cstdlib>

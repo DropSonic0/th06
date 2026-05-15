@@ -31,11 +31,14 @@ struct GLFuncTable
     // Function pointers for functions shared between GL and GLES
     void (GLAPIENTRY *glAlphaFunc)(GLenum func, GLclampf ref);
     void (GLAPIENTRY *glBindTexture)(GLenum target, GLuint texture);
+    void (GLAPIENTRY *glBindBuffer)(GLenum target, GLuint buffer);
     void (GLAPIENTRY *glBlendFunc)(GLenum sfactor, GLenum dfactor);
+    void (GLAPIENTRY *glBufferData)(GLenum target, GLsizeiptr size, const GLvoid *data, GLenum usage);
     void (GLAPIENTRY *glClear)(GLbitfield mask);
     void (GLAPIENTRY *glClearColor)(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
     void (GLAPIENTRY *glColorPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
     void (GLAPIENTRY *glDeleteTextures)(GLsizei n, const GLuint *textures);
+    void (GLAPIENTRY *glDeleteBuffers)(GLsizei n, const GLuint *buffers);
     void (GLAPIENTRY *glDepthFunc)(GLenum func);
     void (GLAPIENTRY *glDepthMask)(GLboolean flag);
     void (GLAPIENTRY *glDisable)(GLenum cap);
@@ -43,9 +46,12 @@ struct GLFuncTable
     void (GLAPIENTRY *glDrawArrays)(GLenum mode, GLint first, GLsizei count);
     void (GLAPIENTRY *glEnable)(GLenum cap);
     void (GLAPIENTRY *glEnableClientState)(GLenum cap);
+    void (GLAPIENTRY *glFinish)(void);
+    void (GLAPIENTRY *glFlush)(void);
     void (GLAPIENTRY *glFogf)(GLenum pname, GLfloat param);
     void (GLAPIENTRY *glFogfv)(GLenum pname, const GLfloat *params);
     void (GLAPIENTRY *glGenTextures)(GLsizei n, GLuint *textures);
+    void (GLAPIENTRY *glGenBuffers)(GLsizei n, GLuint *buffers);
     GLenum (GLAPIENTRY *glGetError)(void);
     void (GLAPIENTRY *glGetFloatv)(GLenum pname, GLfloat *params);
     void (GLAPIENTRY *glGetIntegerv)(GLenum pname, GLint *params);
@@ -68,8 +74,8 @@ struct GLFuncTable
                                       GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
     void (GLAPIENTRY *glVertexPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
     void (GLAPIENTRY *glViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
-#ifndef __PS3__
     // GL(ES) 2.X / WebGL
+#ifndef __PS3__
     PFNGLATTACHSHADERPROC glAttachShader;
     PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
     PFNGLCOMPILESHADERPROC glCompileShader;
@@ -99,10 +105,13 @@ struct GLFuncTable
     void (GLAPIENTRY *glClearDepthf_ptr)(GLclampf depth);
     void (GLAPIENTRY *glDepthRangef_ptr)(GLclampf near_val, GLclampf far_val);
 
-#ifndef __PS3__
     // GL forms for cases where they're different
+#ifndef __PS3__
     void (GLAPIENTRY *glClearDepth)(GLclampd depth);
     void (GLAPIENTRY *glDepthRange)(GLclampd near_val, GLclampd far_val);
+#else
+    void (GLAPIENTRY *glClearDepth)(GLclampf depth);
+    void (GLAPIENTRY *glDepthRange)(GLclampf near_val, GLclampf far_val);
 #endif
 
     bool isGlesContext;

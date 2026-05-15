@@ -1534,11 +1534,11 @@ i32 MainMenu::ReplayHandling()
     return 0;
 }
 
-ZunResult MainMenu::DrawReplayMenu()
+ZunResult MainMenu::DrawReplayMenu() const
 {
     i32 replayAmount;
     i32 i;
-    AnmVm *vmRef;
+    const AnmVm *vmRef;
     bool isSelected;
     bool isSelected2;
 

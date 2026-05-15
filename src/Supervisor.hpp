@@ -8,7 +8,6 @@
 #include "Chain.hpp"
 #include "Controller.hpp"
 #include "MidiOutput.hpp"
-#include "ZunEndian.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
@@ -34,15 +33,15 @@ enum GameConfigOptsShifts
 
 struct ControllerMapping
 {
-    LE<i16> shootButton;
-    LE<i16> bombButton;
-    LE<i16> focusButton;
-    LE<i16> menuButton;
-    LE<i16> upButton;
-    LE<i16> downButton;
-    LE<i16> leftButton;
-    LE<i16> rightButton;
-    LE<i16> skipButton;
+    i16 shootButton;
+    i16 bombButton;
+    i16 focusButton;
+    i16 menuButton;
+    i16 upButton;
+    i16 downButton;
+    i16 leftButton;
+    i16 rightButton;
+    i16 skipButton;
 };
 
 enum MusicMode
@@ -56,7 +55,7 @@ struct GameConfiguration
 {
     ControllerMapping controllerMapping;
     // Always 0x102 for 1.02
-    LE<i32> version;
+    i32 version;
     u8 lifeCount;
     u8 bombCount;
     u8 colorMode16bit;
@@ -66,11 +65,11 @@ struct GameConfiguration
     u8 windowed;
     // 0 = fullspeed, 1 = 1/2 speed, 2 = 1/4 speed.
     u8 frameskipConfig;
-    LE<i16> padXAxis;
-    LE<i16> padYAxis;
+    i16 padXAxis;
+    i16 padYAxis;
     i8 unk[16];
     // GameConfigOpts bitfield.
-    LE<u32> opts;
+    u32 opts;
 
     u32 IsSoftwareTexturing()
     {
@@ -125,12 +124,12 @@ struct Supervisor
 
     void TickTimer(i32 *frames, f32 *subframes);
 
-    f32 FramerateMultiplier()
+    f32 FramerateMultiplier() const
     {
         return this->effectiveFramerateMultiplier;
     }
 
-    u32 RedrawWholeFrame()
+    u32 RedrawWholeFrame() const
     {
         // SDL makes no guarantees about frame state after buffer swap,
         //   and Wayland will "reuse" old framebuffers in a nondeterministic
@@ -139,7 +138,7 @@ struct Supervisor
                (this->cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) | 1;
     }
 
-    u32 ShouldRunAt60Fps()
+    u32 ShouldRunAt60Fps() const
     {
         return (this->cfg.opts >> GCOS_FORCE_60FPS & 1) || this->vsyncEnabled;
     }
@@ -152,10 +151,14 @@ struct Supervisor
     //    LPDIRECTINPUTDEVICE8A controller;
 #ifndef __PS3__
     SDL_GameController *gameController;
+#else
+    void *gameController;
 #endif
     //    DIDEVCAPS controllerCaps;
 #ifndef __PS3__
     SDL_Window *gameWindow;
+#else
+    void *gameWindow;
 #endif
     ZunMatrix viewMatrix;
     ZunMatrix projectionMatrix;

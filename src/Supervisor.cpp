@@ -22,12 +22,18 @@
 #ifndef __PS3__
 #include <SDL_joystick.h>
 #include <SDL_timer.h>
-#else
-#include <PSGL/psgl.h>
-#endif
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#else
+#include <sys/sys_time.h>
+#include <PSGL/psgl.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_GL_SwapWindow(x) psglSwap()
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#endif
 #include <iostream>
 #include <string>
 void supervisordlog(std::string msg){
@@ -47,15 +53,19 @@ ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
     (i16)SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
 };
-#else
-// PS3 mapping (arbitrary since we bypass it anyway, but must be initialized)
-ControllerMapping g_ControllerMapping = {
-    0, 1, 2, 3, 4, 5, 6, 7, 8
-};
-#endif
-#ifndef __PS3__
 SDL_Surface *g_TextBufferSurface;
 #else
+ControllerMapping g_ControllerMapping = {
+    14, // shoot (Cross)
+    13, // bomb (Circle)
+    11, // focus (R1)
+    3,  // menu (Start)
+    4,  // up (D-Pad Up)
+    6,  // down (D-Pad Down)
+    7,  // left (D-Pad Left)
+    5,  // right (D-Pad Right)
+    0   // skip (Select)
+};
 void *g_TextBufferSurface;
 #endif
 u16 g_LastFrameInput;
@@ -323,6 +333,9 @@ ZunResult Supervisor::RegisterChain()
 
 ZunResult Supervisor::AddedCallback(Supervisor *s)
 {
+#ifdef __PS3__
+    utils::Log("Supervisor: AddedCallback...");
+#endif
     //supervisordlog("callback init");
     i32 i;
 
@@ -335,6 +348,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("set g_Pbg3Archives");
     g_Pbg3Archives = s->pbg3Archives;
     //supervisordlog("LoadPbg3");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadPbg3(IN_PBG3_INDEX, %s)...", TH_IN_DAT_FILE);
+#endif
     if (s->LoadPbg3(IN_PBG3_INDEX, TH_IN_DAT_FILE))
     {
         return ZUN_ERROR;
@@ -343,34 +359,56 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     // D3DX code swaps twice to copy to both buffers
 
     //supervisordlog("LoadSurface data/title/th06logo.jpg");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadSurface(data/title/th06logo.jpg)...");
+#endif
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
     //supervisordlog("CopySurfaceToBackBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: CopySurfaceToBackBuffer(0)...");
+#endif
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
     //supervisordlog("SDL_GL_SwapWindow");
-#ifndef __PS3__
+#ifdef __PS3__
+    utils::Log("Supervisor: psglSwap(1)...");
+    g_glFuncTable.glFinish();
+    cellSysutilCheckCallback();
+#endif
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
-#else
-    psglSwap();
+#ifdef __PS3__
+    g_glFuncTable.glFinish();
+    utils::Log("Supervisor: psglSwap(1) done.");
 #endif
 
     //
     //supervisordlog("CopySurfaceToBackBuffer 2");
+#ifdef __PS3__
+    utils::Log("Supervisor: CopySurfaceToBackBuffer 2...");
+#endif
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
     //
 
     //supervisordlog("SDL_GL_SwapWindow 2");
-#ifndef __PS3__
+#ifdef __PS3__
+    utils::Log("Supervisor: psglSwap(2)...");
+    g_glFuncTable.glFinish();
+    cellSysutilCheckCallback();
+#endif
     SDL_GL_SwapWindow(g_Supervisor.gameWindow);
-#else
-    psglSwap();
+#ifdef __PS3__
+    g_glFuncTable.glFinish();
+    utils::Log("Supervisor: psglSwap(2) done.");
 #endif
 
     //supervisordlog("ReleaseSurface");
+#ifdef __PS3__
+    utils::Log("Supervisor: ReleaseSurface(0)...");
+#endif
     g_AnmManager->ReleaseSurface(0);
 
     //supervisordlog("set startupTimeBeforeMenuMusic");
@@ -388,12 +426,18 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("g_SoundPlayer.InitSoundBuffers");
     g_SoundPlayer.InitSoundBuffers();
     //supervisordlog("g_AnmManager->LoadAnm");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadAnm(data/text.anm, offset %d)...", ANM_OFFSET_TEXT);
+#endif
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
         return ZUN_ERROR;
     }
 
     //supervisordlog("AsciiManager::RegisterChain");
+#ifdef __PS3__
+    utils::Log("Supervisor: AsciiManager::RegisterChain...");
+#endif
     if (AsciiManager::RegisterChain() != 0)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_ASCIIMANAGER_INIT_FAILED);
@@ -402,9 +446,15 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
     s->unk198 = 0;
     //supervisordlog("g_AnmManager->SetupVertexBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: g_AnmManager->SetupVertexBuffer...");
+#endif
     g_AnmManager->SetupVertexBuffer();
 
     //supervisordlog("TextHelper::CreateTextBuffer");
+#ifdef __PS3__
+    utils::Log("Supervisor: TextHelper::CreateTextBuffer...");
+#endif
     if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
     {
         return ZUN_ERROR;
@@ -413,6 +463,9 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     //supervisordlog("ReleasePbg3");
     s->ReleasePbg3(IN_PBG3_INDEX);
     //supervisordlog("LoadPbg3 MD.DAT");
+#ifdef __PS3__
+    utils::Log("Supervisor: LoadPbg3(MD_PBG3_INDEX, %s)...", TH_MD_DAT_FILE);
+#endif
     if (g_Supervisor.LoadPbg3(MD_PBG3_INDEX, TH_MD_DAT_FILE) != 0)
         return ZUN_ERROR;
 
@@ -422,7 +475,6 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
 ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
 {
-#ifndef __PS3__
     //    HINSTANCE hInst;
     //
     //    hInst = (HINSTANCE)GetWindowLongA(supervisor->hwndGameWindow, GWL_HINSTANCE);
@@ -491,20 +543,25 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
     //    supervisor->keyboard->Acquire();
     GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DIRECTINPUT_INITIALIZED);
 
+#ifndef __PS3__
     int numSticks = SDL_NumJoysticks();
+#else
+    int numSticks = 0;
+#endif
 
     for (int i = 0; i < numSticks; i++)
     {
+#ifndef __PS3__
         if (SDL_IsGameController(i) && (supervisor->gameController = SDL_GameControllerOpen(i)) != NULL)
         {
 
             break;
         }
+#endif
     }
 
     //    supervisor->dinputIface->EnumDevices(DI8DEVCLASS_GAMECTRL, Supervisor::EnumGameControllersCb, NULL,
     //                                         DIEDFL_ATTACHEDONLY);
-#endif
     //    if (supervisor->controller)
     //    {
     //        supervisor->controller->SetDataFormat(&c_dfDIJoystick2);
@@ -569,13 +626,13 @@ ZunResult Supervisor::DeletedCallback(Supervisor *s)
     //    {
     //        s->controller->Unacquire();
     //    }
-#ifndef __PS3__
     if (s->gameController != NULL)
     {
+#ifndef __PS3__
         SDL_GameControllerClose(s->gameController);
+#endif
         s->gameController = NULL;
     }
-#endif
     //    if (s->dinputIface != NULL)
     //    {
     //        s->dinputIface->Release();
@@ -705,29 +762,35 @@ i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, const char *filename)
 
 ZunResult Supervisor::LoadConfig(const char *path)
 {
-    GameConfiguration *data;
+    const GameConfiguration *data;
     FILE *wavFile;
     FILE *wavFile2;
 
     std::memset(&g_Supervisor.cfg, 0, sizeof(GameConfiguration));
-    g_Supervisor.cfg.opts = (u32)g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
+    g_Supervisor.cfg.opts = g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
     data = (GameConfiguration *)FileSystem::OpenPath(path, 1);
     if (data == NULL)
     {
         g_Supervisor.cfg.lifeCount = 2;
         g_Supervisor.cfg.bombCount = 3;
         g_Supervisor.cfg.colorMode16bit = 0xff;
-        g_Supervisor.cfg.version = (i32)GAME_VERSION;
-        g_Supervisor.cfg.padXAxis = (i16)600;
-        g_Supervisor.cfg.padYAxis = (i16)600;
+        g_Supervisor.cfg.version = GAME_VERSION;
+        g_Supervisor.cfg.padXAxis = 600;
+        g_Supervisor.cfg.padYAxis = 600;
         wavFile = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
         if (wavFile != NULL)
         {
+#ifdef __PS3__
+            utils::Log("Config: BGM WAV found, setting musicMode to WAV");
+#endif
             g_Supervisor.cfg.musicMode = WAV;
             std::fclose(wavFile);
         }
         else
         {
+#ifdef __PS3__
+            utils::Log("Config: BGM WAV NOT found, setting musicMode to MIDI");
+#endif
             g_Supervisor.cfg.musicMode = MIDI;
             utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
         }
@@ -741,26 +804,49 @@ ZunResult Supervisor::LoadConfig(const char *path)
     else
     {
         g_Supervisor.cfg = *data;
+#ifdef __PS3__
+        // Byte-swap config
+        g_Supervisor.cfg.version = utils::Swap32(g_Supervisor.cfg.version);
+        g_Supervisor.cfg.opts = utils::Swap32(g_Supervisor.cfg.opts);
+        g_Supervisor.cfg.padXAxis = (i16)utils::Swap16((u16)g_Supervisor.cfg.padXAxis);
+        g_Supervisor.cfg.padYAxis = (i16)utils::Swap16((u16)g_Supervisor.cfg.padYAxis);
+        
+        // Swap controller mapping
+        i16* mapping = (i16*)&g_Supervisor.cfg.controllerMapping;
+        for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
+            mapping[i] = (i16)utils::Swap16((u16)mapping[i]);
+        }
+#endif
         if ((g_Supervisor.cfg.lifeCount >= 5) || (g_Supervisor.cfg.bombCount >= 4) ||
-            (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 3) ||
-            (g_Supervisor.cfg.defaultDifficulty >= 5) || (g_Supervisor.cfg.playSounds >= 2) ||
+            (g_Supervisor.cfg.colorMode16bit >= 2 && g_Supervisor.cfg.colorMode16bit != 0xff) ||
+            (g_Supervisor.cfg.musicMode >= 3) || (g_Supervisor.cfg.defaultDifficulty >= 5) ||
+            (g_Supervisor.cfg.playSounds >= 2) ||
             (g_Supervisor.cfg.windowed >= 2) || (g_Supervisor.cfg.frameskipConfig >= 3) ||
-            ((i32)g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
+            (g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
         {
+#ifdef __PS3__
+            utils::Log("Config: validation failed. Size = %d (expected 0x38), version = %d (expected %d)", g_LastFileSize, g_Supervisor.cfg.version, GAME_VERSION);
+#endif
             g_Supervisor.cfg.lifeCount = 2;
             g_Supervisor.cfg.bombCount = 3;
             g_Supervisor.cfg.colorMode16bit = 0xff;
-            g_Supervisor.cfg.version = (i32)GAME_VERSION;
-            g_Supervisor.cfg.padXAxis = (i16)600;
-            g_Supervisor.cfg.padYAxis = (i16)600;
+            g_Supervisor.cfg.version = GAME_VERSION;
+            g_Supervisor.cfg.padXAxis = 600;
+            g_Supervisor.cfg.padYAxis = 600;
             wavFile2 = FileSystem::FopenUTF8("bgm/th06_01.wav", "rb");
             if (wavFile2 != NULL)
             {
+#ifdef __PS3__
+                utils::Log("Config: BGM WAV found (fallback), setting musicMode to WAV");
+#endif
                 g_Supervisor.cfg.musicMode = WAV;
                 std::fclose(wavFile2);
             }
             else
             {
+#ifdef __PS3__
+                utils::Log("Config: BGM WAV NOT found (fallback), setting musicMode to MIDI");
+#endif
                 g_Supervisor.cfg.musicMode = MIDI;
                 utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
             }
@@ -770,11 +856,11 @@ ZunResult Supervisor::LoadConfig(const char *path)
             g_Supervisor.cfg.frameskipConfig = 0;
             g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
             std::memset(&g_Supervisor.cfg.opts, 0, sizeof(GameConfigOptsShifts));
-            g_Supervisor.cfg.opts = (u32)g_Supervisor.cfg.opts | (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
+            g_Supervisor.cfg.opts |= (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
             GameErrorContext::Log(&g_GameErrorContext, TH_ERR_CONFIG_CORRUPTED);
         }
         g_ControllerMapping = g_Supervisor.cfg.controllerMapping;
-        free(data);
+        free((void*)data);
     }
     if (((this->cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) != 0)
     {
@@ -825,7 +911,21 @@ ZunResult Supervisor::LoadConfig(const char *path)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DO_NOT_USE_DIRECTINPUT);
     }
+#ifdef __PS3__
+    GameConfiguration swappedCfg = g_Supervisor.cfg;
+    swappedCfg.version = utils::Swap32(swappedCfg.version);
+    swappedCfg.opts = utils::Swap32(swappedCfg.opts);
+    swappedCfg.padXAxis = (i16)utils::Swap16((u16)swappedCfg.padXAxis);
+    swappedCfg.padYAxis = (i16)utils::Swap16((u16)swappedCfg.padYAxis);
+    
+    i16* swappedMapping = (i16*)&swappedCfg.controllerMapping;
+    for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
+        swappedMapping[i] = (i16)utils::Swap16((u16)swappedMapping[i]);
+    }
+    if (FileSystem::WriteDataToFile(path, &swappedCfg, sizeof(GameConfiguration)) != 0)
+#else
     if (FileSystem::WriteDataToFile(path, &g_Supervisor.cfg, sizeof(GameConfiguration)) != 0)
+#endif
     {
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FILE_CANNOT_BE_EXPORTED, path);
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FOLDER_HAS_WRITE_PROTECT_OR_DISK_FULL);
@@ -870,6 +970,9 @@ ZunResult Supervisor::PlayMidiFile(i32 midiFileIdx)
 
 ZunResult Supervisor::PlayAudio(const char *path)
 {
+#ifdef __PS3__
+    utils::Log("Supervisor: PlayAudio(%s)", path);
+#endif
     char wavName[256];
     char wavPos[256];
     char *pathExtension;
@@ -887,21 +990,30 @@ ZunResult Supervisor::PlayAudio(const char *path)
     {
         std::strcpy(wavName, path);
         std::strcpy(wavPos, path);
-        pathExtension = std::strrchr(wavName, L'.');
+        pathExtension = std::strrchr(wavName, '.');
         pathExtension[1] = 'w';
         pathExtension[2] = 'a';
         pathExtension[3] = 'v';
-        pathExtension = std::strrchr(wavPos, L'.');
+        pathExtension = std::strrchr(wavPos, '.');
         pathExtension[1] = 'p';
         pathExtension[2] = 'o';
         pathExtension[3] = 's';
+#ifdef __PS3__
+        utils::Log("Supervisor: Loading BGM %s and %s", wavName, wavPos);
+#endif
         g_SoundPlayer.LoadWav(wavName);
         if (g_SoundPlayer.LoadPos(wavPos) < ZUN_SUCCESS)
         {
+#ifdef __PS3__
+            utils::Log("Supervisor: PlayBGM(false) - No pos file found");
+#endif
             g_SoundPlayer.PlayBGM(false);
         }
         else
         {
+#ifdef __PS3__
+            utils::Log("Supervisor: PlayBGM(true) - Looping");
+#endif
             g_SoundPlayer.PlayBGM(true);
         }
     }

@@ -38,12 +38,6 @@ static inline u64 SDL_Swap64(u64 x) {
            ((x >> 40) & 0x000000000000ff00ULL) |
            ((x >> 56) & 0x00000000000000ffULL);
 }
-#define SDL_SwapLE16(X) SDL_Swap16(X)
-#define SDL_SwapLE32(X) SDL_Swap32(X)
-#define SDL_SwapLE64(X) SDL_Swap64(X)
-#define SDL_SwapBE16(X) (X)
-#define SDL_SwapBE32(X) (X)
-#define SDL_SwapBE64(X) (X)
 #endif
 
 template <int S> struct UIForSize_t;
