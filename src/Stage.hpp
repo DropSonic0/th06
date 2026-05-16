@@ -4,16 +4,17 @@
 #include "Chain.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
-#include "ZunEndian.hpp"
-#include "ZunMath.hpp"
+// #include "zwave.hpp"
+// #include <d3d8.h>
+// #include <d3dx8math.h>
 
 struct RawStageHeader
 {
-    LE<i16> nbObjects;
-    LE<i16> nbFaces;
-    LE<i32> facesOffset;
-    LE<i32> scriptOffset;
-    LE<i32> unk_c;
+    i16 nbObjects;
+    i16 nbFaces;
+    i32 facesOffset;
+    i32 scriptOffset;
+    i32 unk_c;
     char stageName[128];
     char songNames[4][128];
     char songPaths[4][128];
@@ -21,36 +22,36 @@ struct RawStageHeader
 
 struct RawStageQuadBasic
 {
-    LE<i16> type;
-    LE<i16> byteSize;
-    LE<i16> anmScript;
-    LE<i16> vmIdx;
-    ZunVec3Raw position;
-    ZunVec2Raw size;
+    i16 type;
+    i16 byteSize;
+    i16 anmScript;
+    i16 vmIdx;
+    ZunVec3 position;
+    ZunVec2 size;
 };
 
 struct RawStageObject
 {
-    LE<i16> id;
+    i16 id;
     i8 zLevel;
     i8 flags;
-    ZunVec3Raw position;
-    ZunVec3Raw size;
+    ZunVec3 position;
+    ZunVec3 size;
     RawStageQuadBasic firstQuad;
 };
 
 struct RawStageObjectInstance
 {
-    LE<i16> id;
-    LE<i16> unk2;
-    ZunVec3Raw position;
+    i16 id;
+    i16 unk2;
+    ZunVec3 position;
 };
 
 struct RawStageInstr
 {
-    LE<i32> frame;
-    LE<i16> opcode;
-    LE<i16> size;
+    i32 frame;
+    i16 opcode;
+    i16 size;
     i32 args[3];
 };
 
@@ -70,8 +71,8 @@ enum SpellcardState
 
 struct StageFile
 {
-    const char *anmFile;
-    const char *stdFile;
+    char *anmFile;
+    char *stdFile;
 };
 
 enum StageOpcode
@@ -95,17 +96,17 @@ struct Stage
     static ZunResult AddedCallback(Stage *stage);
     static ZunResult DeletedCallback(Stage *stage);
 
-    ZunResult LoadStageData(const char *anmpath, const char *stdpath);
+    ZunResult LoadStageData(char *anmpath, char *stdpath);
     ZunResult UpdateObjects();
     ZunResult RenderObjects(i32 zLevel);
 
     AnmVm *quadVms;
-    const RawStageHeader *stdData;
+    RawStageHeader *stdData;
     i32 quadCount;
     i32 objectsCount;
     RawStageObject **objects;
-    const RawStageObjectInstance *objectInstances;
-    const RawStageInstr *beginningOfScript;
+    RawStageObjectInstance *objectInstances;
+    RawStageInstr *beginningOfScript;
     ZunTimer scriptTime;
     i32 instructionIndex;
     ZunTimer timer;

@@ -18,31 +18,31 @@
 #include "utils.hpp"
 
 Gui g_Gui;
-static ChainElem g_GuiCalcChain;
-static ChainElem g_GuiDrawChain;
+ChainElem g_GuiCalcChain;
+ChainElem g_GuiDrawChain;
 
-bool Gui::IsStageFinished() const
+bool Gui::IsStageFinished()
 {
-    return this->impl->loadingScreenSprite.activeSpriteIndex >= 0 && this->impl->loadingScreenSprite.flags.isStopped;
+    return this->impl->loadingScreenSprite.activeSpriteIndex >= 0 && this->impl->loadingScreenSprite.flags.flag13;
 }
 
-void Gui::EndPlayerSpellcard() const
+void Gui::EndPlayerSpellcard()
 {
     (this->impl->bombSpellcardName).pendingInterrupt = 1;
 }
 
-void Gui::EndEnemySpellcard() const
+void Gui::EndEnemySpellcard()
 {
     this->impl->enemySpellcardName.pendingInterrupt = 1;
     return;
 }
 
-bool Gui::IsDialogueSkippable() const
+bool Gui::IsDialogueSkippable()
 {
     return (this->impl->msg).dialogueSkippable;
 }
 
-void Gui::ShowBonusScore(u32 bonusScore) const
+void Gui::ShowBonusScore(u32 bonusScore)
 {
     this->impl->bonusScore.pos = ZunVec3(416.0f, 32.0f, 0.0f);
     this->impl->bonusScore.isShown = 1;
@@ -51,7 +51,7 @@ void Gui::ShowBonusScore(u32 bonusScore) const
     return;
 }
 
-void Gui::ShowFullPowerMode(i32 fmtArg) const
+void Gui::ShowFullPowerMode(i32 fmtArg)
 {
     this->impl->fullPowerMode.pos = ZunVec3(416.0f, 232.0f, 0.0f);
     this->impl->fullPowerMode.isShown = 1;
@@ -60,7 +60,7 @@ void Gui::ShowFullPowerMode(i32 fmtArg) const
     return;
 }
 
-void Gui::ShowSpellcardBonus(u32 spellcardScore) const
+void Gui::ShowSpellcardBonus(u32 spellcardScore)
 {
     this->impl->spellCardBonus.pos = ZunVec3(224.0f, 16.0f, 0.0f);
     this->impl->spellCardBonus.isShown = 1;
@@ -219,23 +219,23 @@ ChainCallbackResult Gui::OnDraw(Gui *gui)
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-void Gui::ShowBombNamePortrait(u32 sprite, const char *bombName)
+void Gui::ShowBombNamePortrait(u32 sprite, char *bombName)
 {
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->playerSpellcardPortrait, 0x4a1);
     g_AnmManager->SetActiveSprite(&this->impl->playerSpellcardPortrait, sprite);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->bombSpellcardName, 0x706);
-    g_AnmManager->DrawVmTextFmt(&this->impl->bombSpellcardName, 0xf0f0ff, 0x0, bombName);
+    g_AnmManager->DrawVmTextFmt(g_AnmManager, &this->impl->bombSpellcardName, 0xf0f0ff, 0x0, bombName);
     this->bombSpellcardBarLength = std::strlen(bombName) * 0xf / 2.0f + 16;
     g_Supervisor.unk198 = 3;
     g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB);
 }
 
-void Gui::ShowSpellcard(i32 spellcardSprite, const char *spellcardName)
+void Gui::ShowSpellcard(i32 spellcardSprite, char *spellcardName)
 {
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardPortrait, ANM_SCRIPT_FACE_ENEMY_SPELLCARD_PORTRAIT);
     g_AnmManager->SetActiveSprite(&this->impl->enemySpellcardPortrait, ANM_SPRITE_FACE_STAGE_START + spellcardSprite);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->enemySpellcardName, ANM_SCRIPT_TEXT_ENEMY_SPELLCARD_NAME);
-    g_AnmManager->DrawStringFormat(&this->impl->enemySpellcardName, 0xfff0f0, COLOR_RGB(COLOR_BLACK),
+    AnmManager::DrawStringFormat(g_AnmManager, &this->impl->enemySpellcardName, 0xfff0f0, COLOR_RGB(COLOR_BLACK),
                                  spellcardName);
     this->blueSpellcardBarLength = std::strlen(spellcardName) * 15 / 2.0f + 16.0f;
     g_SoundPlayer.PlaySoundByIdx(SOUND_BOMB);
@@ -438,11 +438,11 @@ ZunResult Gui::ActualAddedCallback()
     this->impl->enemySpellcardName.fontHeight = 15;
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->stageNameSprite, ANM_SCRIPT_TEXT_STAGE_NAME);
     g_AnmManager->SetAndExecuteScriptIdx(&this->impl->songNameSprite, ANM_SCRIPT_TEXT_SONG_NAME);
-    g_AnmManager->DrawStringFormat2(&this->impl->stageNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
+    AnmManager::DrawStringFormat2(g_AnmManager, &this->impl->stageNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
                                   COLOR_RGB(COLOR_BLACK), g_Stage.stdData->stageName);
     this->impl->songNameSprite.fontWidth = 16;
     this->impl->songNameSprite.fontHeight = 16;
-    g_AnmManager->DrawStringFormat(&this->impl->songNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
+    AnmManager::DrawStringFormat(g_AnmManager, &this->impl->songNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
                                  COLOR_RGB(COLOR_BLACK), TH_SONG_NAME, g_Stage.stdData->songNames[0]);
     this->impl->msg.currentMsgIdx = 0xffffffff;
     this->impl->finishedStage = 0;
@@ -457,7 +457,7 @@ ZunResult Gui::ActualAddedCallback()
     return ZUN_SUCCESS;
 }
 
-ZunResult Gui::LoadMsg(const char *path) const
+ZunResult Gui::LoadMsg(char *path)
 {
     i32 idx;
 
@@ -471,7 +471,7 @@ ZunResult Gui::LoadMsg(const char *path) const
     this->impl->msg.currentMsgIdx = 0xffffffff;
     this->impl->msg.currentInstr = NULL;
 
-    this->impl->msg.instrs = (const MsgRawInstr **)std::malloc(sizeof(MsgRawInstr **) * this->impl->msg.msgFile->numInstrs);
+    this->impl->msg.instrs = (MsgRawInstr **)std::malloc(sizeof(MsgRawInstr **) * this->impl->msg.msgFile->numInstrs);
 
     for (idx = 0; idx < this->impl->msg.msgFile->numInstrs; idx++)
     {
@@ -481,16 +481,16 @@ ZunResult Gui::LoadMsg(const char *path) const
     return ZUN_SUCCESS;
 }
 
-void Gui::FreeMsgFile() const
+void Gui::FreeMsgFile()
 {
-    std::free((void*)this->impl->msg.msgFile);
+    std::free(this->impl->msg.msgFile);
     this->impl->msg.msgFile = NULL;
 
     std::free(this->impl->msg.instrs);
     this->impl->msg.instrs = NULL;
 }
 
-void Gui::MsgRead(i32 msgIdx) const
+void Gui::MsgRead(i32 msgIdx)
 {
     this->impl->MsgRead(msgIdx);
     g_Supervisor.unk198 = 3;
@@ -499,8 +499,8 @@ void Gui::MsgRead(i32 msgIdx) const
 
 void GuiImpl::MsgRead(i32 msgIdx)
 {
-    const MsgRawHeader *msgFile;
-    const MsgRawInstr **msgInstrs;
+    MsgRawHeader *msgFile;
+    MsgRawInstr **msgInstrs;
 
     if (this->msg.msgFile->numInstrs <= msgIdx)
     {
@@ -535,7 +535,7 @@ void GuiImpl::MsgRead(i32 msgIdx)
 
 ZunResult GuiImpl::RunMsg()
 {
-    const MsgRawInstrArgs *args;
+    MsgRawInstrArgs *args;
 
     if (this->msg.currentMsgIdx < 0)
     {
@@ -574,7 +574,7 @@ ZunResult GuiImpl::RunMsg()
             args = &this->msg.currentInstr->args;
             if (args->text.textLine == 0 && 0 <= this->msg.dialogueLines[1].anmFileIndex)
             {
-                g_AnmManager->DrawVmTextFmt(&this->msg.dialogueLines[1],
+                AnmManager::DrawVmTextFmt(g_AnmManager, &this->msg.dialogueLines[1],
                                           this->msg.textColorsA[args->text.textColor],
                                           this->msg.textColorsB[args->text.textColor], " ");
             }
@@ -582,7 +582,7 @@ ZunResult GuiImpl::RunMsg()
                                                  0x702 + args->text.textLine);
             this->msg.dialogueLines[args->text.textLine].fontWidth =
                 this->msg.dialogueLines[args->text.textLine].fontHeight = this->msg.fontSize;
-            g_AnmManager->DrawVmTextFmt(&this->msg.dialogueLines[args->text.textLine],
+            AnmManager::DrawVmTextFmt(g_AnmManager, &this->msg.dialogueLines[args->text.textLine],
                                       this->msg.textColorsA[args->text.textColor],
                                       this->msg.textColorsB[args->text.textColor], args->text.text);
             this->msg.framesElapsedDuringPause = 0;
@@ -619,7 +619,7 @@ ZunResult GuiImpl::RunMsg()
             g_AnmManager->SetAndExecuteScriptIdx(&this->songNameSprite, 0x701);
             this->songNameSprite.fontWidth = 16;
             this->songNameSprite.fontHeight = 16;
-            g_AnmManager->DrawStringFormat(&this->songNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
+            AnmManager::DrawStringFormat(g_AnmManager, &this->songNameSprite, COLOR_RGB(COLOR_LIGHTCYAN),
                                          COLOR_RGB(COLOR_BLACK), TH_SONG_NAME,
                                          g_Stage.stdData->songNames[this->msg.currentInstr->args.music]);
             if (g_Supervisor.PlayMidiFile(this->msg.currentInstr->args.music) != ZUN_SUCCESS)
@@ -631,7 +631,7 @@ ZunResult GuiImpl::RunMsg()
             args = &this->msg.currentInstr->args;
             g_AnmManager->SetAndExecuteScriptIdx(&this->msg.introLines[args->text.textLine],
                                                  args->text.textLine + 0x704);
-            g_AnmManager->DrawStringFormat(&this->msg.introLines[args->text.textLine],
+            AnmManager::DrawStringFormat(g_AnmManager, &this->msg.introLines[args->text.textLine],
                                          this->msg.textColorsA[args->text.textColor],
                                          this->msg.textColorsB[args->text.textColor], args->text.text);
             this->msg.framesElapsedDuringPause = 0;
@@ -706,7 +706,7 @@ SKIP_TIME_INCREMENT:
     return ZUN_SUCCESS;
 }
 
-ZunResult GuiImpl::DrawDialogue() const
+ZunResult GuiImpl::DrawDialogue()
 {
     f32 dialogueBoxHeight;
 
@@ -749,7 +749,7 @@ ZunResult GuiImpl::DrawDialogue() const
 
     vertices[1].position = ZunVec4(g_GameManager.arcadeRegionTopLeftPos.x +
                                        (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f + 256.0f + 16.0f,
-                                   384.0f, 0.0f, 1.0f);
+                                   384.0f, 0.0f, 1.0f),
 
     //    std::memcpy(&vertices[2].position,
     //           &ZunVec3(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f -
@@ -759,7 +759,7 @@ ZunResult GuiImpl::DrawDialogue() const
 
         vertices[2].position =
             ZunVec4(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f - 16.0f,
-                    384.0f + dialogueBoxHeight, 0.0f, 1.0f);
+                    384.0f + dialogueBoxHeight, 0.0f, 1.0f),
 
     //    std::memcpy(&vertices[3].position,
     //           &ZunVec3(g_GameManager.arcadeRegionTopLeftPos.x + (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f +
@@ -807,7 +807,7 @@ ZunResult GuiImpl::DrawDialogue() const
     return ZUN_SUCCESS;
 }
 
-bool Gui::MsgWait() const
+bool Gui::MsgWait()
 {
     if (this->impl->msg.ignoreWaitCounter > 0)
     {
@@ -816,7 +816,7 @@ bool Gui::MsgWait() const
     return 0 <= this->impl->msg.currentMsgIdx;
 }
 
-bool Gui::HasCurrentMsgIdx() const
+bool Gui::HasCurrentMsgIdx()
 {
     return 0 <= this->impl->msg.currentMsgIdx;
 }
@@ -1003,10 +1003,10 @@ void Gui::UpdateStageElements()
     return;
 }
 
-static const ZunColor COLOR1 = 0xa0d0ff;
-static const ZunColor COLOR2 = 0xa080ff;
-static const ZunColor COLOR3 = 0xe080c0;
-static const ZunColor COLOR4 = 0xff4040;
+static ZunColor COLOR1 = 0xa0d0ff;
+static ZunColor COLOR2 = 0xa080ff;
+static ZunColor COLOR3 = 0xe080c0;
+static ZunColor COLOR4 = 0xff4040;
 
 void Gui::DrawGameScene()
 {
@@ -1151,7 +1151,7 @@ void Gui::DrawGameScene()
         }
         vm->pos = ZunVec3(488.0f, 464.0f, 0.49f);
         g_AnmManager->DrawNoRotation(vm);
-        vm->pos = ZunVec3(0.0f, 464.0f, 0.49f);
+        vm->pos = ZunVec3(0.0, 464.0f, 0.49f);
         g_AnmManager->DrawNoRotation(vm);
     }
     if (this->flags.flag0 || ((g_Supervisor.cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS & 1) != 0))
@@ -1277,7 +1277,7 @@ void Gui::DrawGameScene()
     return;
 }
 
-void Gui::DrawStageElements() const
+void Gui::DrawStageElements()
 {
     ZunVec3 stageTextPos;
     ZunColor stageTextColor;

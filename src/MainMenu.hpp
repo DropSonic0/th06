@@ -57,10 +57,10 @@ struct MainMenu
     ZunResult BeginStartup();
     ZunResult DrawStartMenu();
     u32 OnUpdateOptionsMenu();
-    ZunResult DrawReplayMenu() const;
-    ZunResult ChoosePracticeLevel() const;
+    ZunResult DrawReplayMenu();
+    ZunResult ChoosePracticeLevel();
     bool WeirdSecondInputCheck();
-    void ColorMenuItem(AnmVm *, i32, i32, i32) const;
+    void ColorMenuItem(AnmVm *, i32, i32, i32);
 
     static ZunResult LoadTitleAnm(MainMenu *menu);
     static CursorMovement MoveCursor(MainMenu *menu, i32 menuLength);
@@ -107,7 +107,7 @@ struct MainMenu
     ChainElem *chainDraw;
     char replayFilePaths[60][512];
     char replayFileName[60][8];
-    ReplayHeader *replayFileData[60];
+    ReplayData replayFileData[60];
     ReplayData *currentReplay;
     i32 timeRelatedArrSize;
     f32 timeRelatedArr[16];
@@ -118,3 +118,4 @@ struct MainMenu
 };
 
 extern MainMenu g_MainMenu;
+

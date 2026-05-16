@@ -60,12 +60,12 @@ enum ResultScreenMainMenuCursor
 
 struct Th6k
 {
-    Th6k *ShiftOneByte() const
+    Th6k *ShiftOneByte()
     {
         return (Th6k *)(((u8 *)this) + 1);
     };
 
-    Th6k *ShiftBytes(i32 value) const
+    Th6k *ShiftBytes(i32 value)
     {
         return (Th6k *)(((u8 *)this) + value);
     };
@@ -73,15 +73,6 @@ struct Th6k
     u32 magic;
     u16 th6kLen;
     u16 unkLen;
-    u8 version;
-    u8 unk_9;
-};
-
-struct Th6kRaw
-{
-    LE<u32> magic;
-    LE<u16> th6kLen;
-    LE<u16> unkLen;
     u8 version;
     u8 unk_9;
 };
@@ -100,20 +91,6 @@ struct Catk
     u16 numSuccess;
 };
 
-struct CatkRaw
-{
-    Th6kRaw base;
-    LE<i32> captureScore;
-    LE<u16> idx;
-    u8 nameCsum;
-    u8 characterShotType;
-    LE<u32> unk_14;
-    char name[32];
-    LE<u32> unk_38;
-    LE<u16> numAttempts;
-    LE<u16> numSuccess;
-};
-
 struct Clrd
 {
     Th6k base;
@@ -122,22 +99,14 @@ struct Clrd
     u8 characterShotType;
 };
 
-struct ClrdRaw
-{
-    Th6kRaw base;
-    u8 difficultyClearedWithRetries[5];
-    u8 difficultyClearedWithoutRetries[5];
-    u8 characterShotType;
-};
-
 struct Pscr
 {
-    Pscr *ShiftOneByte() const
+    Pscr *ShiftOneByte()
     {
         return (Pscr *)(((u8 *)this) + 1);
     };
 
-    Pscr *ShiftBytes(i32 value) const
+    Pscr *ShiftBytes(i32 value)
     {
         return (Pscr *)(((u8 *)this) + value);
     };
@@ -149,34 +118,15 @@ struct Pscr
     u8 stage;
 };
 
-struct PscrRaw
-{
-    Th6kRaw base;
-    LE<i32> score;
-    u8 character;
-    u8 difficulty;
-    u8 stage;
-};
-
 struct Hscr
 {
-    Hscr *ShiftBytes(i32 value) const
+    Hscr *ShiftBytes(i32 value)
     {
         return (Hscr *)(((u8 *)this) + value);
     };
 
     Th6k base;
     u32 score;
-    u8 character;
-    u8 difficulty;
-    u8 stage;
-    char name[9];
-};
-
-struct HscrRaw
-{
-    Th6kRaw base;
-    LE<u32> score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -199,12 +149,12 @@ struct ScoreListNode
 
 struct ScoreRaw
 {
-    Th6k *ShiftOneByte() const
+    Th6k *ShiftOneByte()
     {
         return (Th6k *)(((u8 *)this) + 1);
     };
 
-    Th6k *ShiftBytes(i32 value) const
+    Th6k *ShiftBytes(i32 value)
     {
         return (Th6k *)(((u8 *)this) + value);
     };
@@ -216,17 +166,6 @@ struct ScoreRaw
     u32 dataOffset;
     u32 padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
     u32 fileLen;
-};
-
-struct ScoreRawRaw
-{
-    u8 xorseed[2];
-    LE<u16> csum;
-    LE<u16> unk_8;
-    u8 unk[2];
-    LE<u32> dataOffset;
-    LE<u32> padding;
-    LE<u32> fileLen;
 };
 
 struct ScoreDat
@@ -250,7 +189,7 @@ struct ResultScreen
     static ZunResult AddedCallback(ResultScreen *r);
     static ZunResult DeletedCallback(ResultScreen *r);
 
-    static ScoreDat *OpenScore(const char *path);
+    static ScoreDat *OpenScore(char *path);
     static ZunResult ParseCatk(ScoreDat *s, Catk *catk);
     static ZunResult ParseClrd(ScoreDat *s, Clrd *out);
     static ZunResult ParsePscr(ScoreDat *s, Pscr *out);
@@ -271,7 +210,7 @@ struct ResultScreen
 
     static i32 LinkScore(ScoreListNode *, Hscr *);
     i32 LinkScoreEx(Hscr *out, i32 difficulty, i32 character);
-    u32 DrawFinalStats() const;
+    u32 DrawFinalStats();
 
     ScoreDat *scoreDat;
     i32 frameTimer;

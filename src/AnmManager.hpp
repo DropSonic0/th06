@@ -128,21 +128,13 @@ struct AnmRawSprite
     LE<u32> id;
     ZunVec2Raw offset;
     ZunVec2Raw size;
-}
-#ifdef __GNUC__
-__attribute__((packed))
-#endif
-;
+};
 
 struct AnmRawScript
 {
     LE<u32> id;
     LE<u32> firstInstruction;
-}
-#ifdef __GNUC__
-__attribute__((packed))
-#endif
-;
+};
 
 struct AnmRawEntry
 {
@@ -165,11 +157,7 @@ struct AnmRawEntry
     // These last two are actually flexible sizes based off the first 2 variables
     LE<u32> spriteOffsets[10];
     AnmRawScript scripts[10];
-}
-#ifdef __GNUC__
-__attribute__((packed))
-#endif
-;
+};
 
 struct RenderVertexInfo
 {
@@ -192,7 +180,7 @@ struct AnmManager
     void TakeScreenshotIfRequested();
     void TakeScreenshot(i32 textureId, i32 left, i32 top, i32 width, i32 height);
 
-    void SetAndExecuteScript(AnmVm *vm, const AnmRawInstr *beginingOfScript);
+    void SetAndExecuteScript(AnmVm *vm, AnmRawInstr *beginingOfScript);
     void SetAndExecuteScriptIdx(AnmVm *vm, i32 anmFileIdx)
     {
         vm->anmFileIndex = anmFileIdx;
@@ -376,9 +364,9 @@ struct AnmManager
     ZunResult Draw(const AnmVm *vm);
     void DrawTextToSprite(u32 spriteDstIndex, i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontWidth,
                           i32 fontHeight, ZunColor textColor, ZunColor shadowColor, const char *strToPrint);
-    void DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
-    void DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
-    void DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
+    static void DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
+    static void DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
+    static void DrawVmTextFmt(AnmManager *anm_mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
     ZunResult DrawNoRotation(const AnmVm *vm);
     ZunResult DrawOrthographic(const AnmVm *vm, bool roundToPixel);
     ZunResult DrawFacingCamera(const AnmVm *vm);
@@ -445,7 +433,7 @@ struct AnmManager
     //    void *imageDataArray[256];
     TextureData textures[264];
     i32 maybeLoadedSpriteCount;
-    const AnmRawInstr *scripts[2048];
+    AnmRawInstr *scripts[2048];
     i32 spriteIndices[2048];
     AnmRawEntry *anmFiles[128];
     u32 anmFilesSpriteIndexOffsets[128];

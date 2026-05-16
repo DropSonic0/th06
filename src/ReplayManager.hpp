@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdlib>
-
 #include "Chain.hpp"
 #include "ChainPriorities.hpp"
 #include "ReplayData.hpp"
@@ -9,7 +7,7 @@
 
 struct ReplayManager
 {
-    static ZunResult RegisterChain(i32 isDemo, const char *replayFile);
+    static ZunResult RegisterChain(i32 isDemo, char *replayFile);
     static ChainCallbackResult OnUpdate(ReplayManager *mgr);
     static ChainCallbackResult OnUpdateDemoHighPrio(ReplayManager *mgr);
     static ChainCallbackResult OnUpdateDemoLowPrio(ReplayManager *mgr);
@@ -18,23 +16,14 @@ struct ReplayManager
     static ZunResult AddedCallbackDemo(ReplayManager *mgr);
     static ZunResult DeletedCallback(ReplayManager *mgr);
     static void StopRecording();
-    static void SaveReplay(const char *replay_path, char *param_2);
-    static ZunResult ValidateReplayData(const ReplayHeaderRaw *data, i32 fileSize);
-
-    static inline StageReplayData *AllocateStageReplayData(size_t size)
-    {
-        return (StageReplayData *)std::malloc(size);
-    }
-    static inline void ReleaseStageReplayData(StageReplayData *data)
-    {
-        std::free(data);
-    }
+    static void SaveReplay(char *replay_path, char *param_2);
+    static ZunResult ValidateReplayData(ReplayHeader *data, i32 fileSize);
 
     ReplayManager()
     {
     }
 
-    i32 IsDemo() const
+    i32 IsDemo()
     {
         return this->isDemo;
     }
@@ -42,11 +31,11 @@ struct ReplayManager
     i32 frameId;
     ReplayData *replayData;
     i32 isDemo;
-    const char *replayFile;
+    char *replayFile;
     u8 unk10[52];
     u16 unk44;
     ReplayDataInput *replayInputs;
-    const ReplayDataInput *replayInputStageBookmarks[7];
+    ReplayDataInput *replayInputStageBookmarks[7];
     ChainElem *calcChain;
     ChainElem *drawChain;
     ChainElem *calcChainDemoHighPrio;

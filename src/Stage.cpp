@@ -4,7 +4,6 @@
 #include "Chain.hpp"
 #include "ChainPriorities.hpp"
 #include "FileSystem.hpp"
-#include "GameErrorContext.hpp"
 #include "GameManager.hpp"
 #include "Gui.hpp"
 #include "ScreenEffect.hpp"
@@ -13,11 +12,11 @@
 #include "utils.hpp"
 // #include <d3d8.h>
 
-static ChainElem g_StageCalcChain;
-static ChainElem g_StageOnDrawHighPrioChain;
-static ChainElem g_StageOnDrawLowPrioChain;
+ChainElem g_StageCalcChain;
+ChainElem g_StageOnDrawHighPrioChain;
+ChainElem g_StageOnDrawLowPrioChain;
 
-static const StageFile g_StageFiles[8] = {
+StageFile g_StageFiles[8] = {
     {"dummy", "dummy"},
     {"data/stg1bg.anm", "data/stage1.std"},
     {"data/stg2bg.anm", "data/stage2.std"},
@@ -33,11 +32,6 @@ Stage::Stage()
 {
 }
 
-#define StdVec3Arg (*(ZunVec3Raw *)curInsn->args)
-#define StdF32Arg(index) (*(LE<f32> *)&curInsn->args[index])
-#define StdU32Arg(index) (*(LE<u32> *)&curInsn->args[index])
-#define StdI32Arg(index) (*(LE<i32> *)&curInsn->args[index])
-
 ChainCallbackResult Stage::OnUpdate(Stage *stage)
 {
     f32 posInterpRatio;
@@ -45,7 +39,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
     ZunVec3 pos;
     i32 idx;
     f32 skyFogInterpRatio;
-    const RawStageInstr *curInsn;
+    RawStageInstr *curInsn;
 
     if (stage->stdData == NULL)
     {
@@ -70,14 +64,14 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_POSITION_KEY:
             if (curInsn->frame == -1)
             {
-                stage->positionInterpInitial = StdVec3Arg;
+                stage->positionInterpInitial = *(ZunVec3 *)curInsn->args;
                 stage->position.x = stage->positionInterpInitial.x;
                 stage->position.y = stage->positionInterpInitial.y;
                 stage->position.z = stage->positionInterpInitial.z;
             }
             else if (stage->scriptTime.current >= curInsn->frame)
             {
-                pos = StdVec3Arg;
+                pos = *(ZunVec3 *)curInsn->args;
                 stage->position.x = pos.x;
                 stage->position.y = pos.y;
                 stage->position.z = pos.z;
@@ -90,15 +84,15 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
                     curInsn++;
                 }
                 stage->positionInterpEndTime = curInsn->frame;
-                stage->positionInterpFinal = StdVec3Arg;
+                stage->positionInterpFinal = *(ZunVec3 *)curInsn->args;
             }
             break;
         case STDOP_FOG:
             if (stage->scriptTime.current >= curInsn->frame)
             {
-                stage->skyFog.color = StdU32Arg(0);
-                stage->skyFog.nearPlane = StdF32Arg(1);
-                stage->skyFog.farPlane = StdF32Arg(2);
+                stage->skyFog.color = curInsn->args[0];
+                stage->skyFog.nearPlane = ((f32 *)curInsn->args)[1];
+                stage->skyFog.farPlane = ((f32 *)curInsn->args)[2];
                 if (stage->skyFogInterpDuration == 0)
                 {
                     //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
@@ -119,7 +113,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->skyFogInterpInitial = stage->skyFog;
-                stage->skyFogInterpDuration = StdI32Arg(0);
+                stage->skyFogInterpDuration = curInsn->args[0];
                 stage->skyFogInterpTimer.InitializeForPopup();
                 stage->instructionIndex++;
                 continue;
@@ -129,7 +123,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->facingDirInterpInitial = stage->facingDirInterpFinal;
-                stage->facingDirInterpFinal = StdVec3Arg;
+                stage->facingDirInterpFinal = *(ZunVec3 *)curInsn->args;
                 stage->instructionIndex++;
                 continue;
             }
@@ -137,7 +131,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_FACING_INTERP_LINEAR:
             if (stage->scriptTime.current >= curInsn->frame)
             {
-                stage->facingDirInterpDuration = StdI32Arg(0);
+                stage->facingDirInterpDuration = curInsn->args[0];
                 stage->facingDirInterpTimer.InitializeForPopup();
                 stage->instructionIndex++;
                 continue;
@@ -231,11 +225,6 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         return CHAIN_CALLBACK_RESULT_CONTINUE;
     }
 }
-
-#undef StdVec3Arg
-#undef StdF32Arg
-#undef StdU32Arg
-#undef StdI32Arg
 
 ChainCallbackResult Stage::OnDrawHighPrio(Stage *stage)
 {
@@ -402,8 +391,8 @@ ZunResult Stage::DeletedCallback(Stage *s)
     }
     if (s->stdData != NULL)
     {
-        const void *stdData = s->stdData;
-        free((void*)stdData);
+        void *stdData = s->stdData;
+        free(stdData);
         s->stdData = NULL;
     }
 
@@ -420,7 +409,7 @@ void Stage::CutChain()
     g_Chain.Cut(&g_StageOnDrawLowPrioChain);
 }
 
-ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
+ZunResult Stage::LoadStageData(char *anmpath, char *stdpath)
 {
     RawStageObject *curObj;
     RawStageQuadBasic *curQuad;
@@ -443,13 +432,13 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
     this->quadCount = this->stdData->nbFaces;
     this->objectInstances = (RawStageObjectInstance *)(this->stdData->facesOffset + ((u8 *)this->stdData));
     this->beginningOfScript = (RawStageInstr *)(this->stdData->scriptOffset + ((u8 *)this->stdData));
-    const LE<u32> *objectOffsets = (LE<u32> *)(this->stdData + 1);
+    u32 *objectOffsets = (u32 *)(this->stdData + 1);
 
     this->objects = (RawStageObject **)malloc(sizeof(RawStageObject *) * this->objectsCount);
 
     for (idx = 0; idx < this->objectsCount; idx++)
     {
-        this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + (u32)objectOffsets[idx]);
+        this->objects[idx] = (RawStageObject *)(((u8 *)this->stdData) + objectOffsets[idx]);
     }
 
     sizeVmArr = this->quadCount * sizeof(AnmVm);
@@ -461,9 +450,9 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
         curQuad = &curObj->firstQuad;
         while (0 <= curQuad->type)
         {
-            g_AnmManager->ExecuteAnmIdx(&this->quadVms[vmIdx], (i16)curQuad->anmScript + ANM_OFFSET_STAGEBG);
+            g_AnmManager->ExecuteAnmIdx(&this->quadVms[vmIdx], curQuad->anmScript + ANM_OFFSET_STAGEBG);
             curQuad->vmIdx = vmIdx++;
-            curQuad = (RawStageQuadBasic *)((u8 *)curQuad + (i16)curQuad->byteSize);
+            curQuad = (RawStageQuadBasic *)((u8 *)curQuad + curQuad->byteSize);
         }
     }
     return ZUN_SUCCESS;
@@ -472,8 +461,8 @@ ZunResult Stage::LoadStageData(const char *anmpath, const char *stdpath)
 ZunResult Stage::UpdateObjects()
 {
     AnmVm *vm;
-    const RawStageQuadBasic *objQuad;
-    const RawStageQuadBasic *objQuadType1;
+    RawStageQuadBasic *objQuad;
+    RawStageQuadBasic *objQuadType1;
     i32 objIdx;
     i32 vmsNotFinished;
     RawStageObject *obj;
@@ -485,10 +474,10 @@ ZunResult Stage::UpdateObjects()
         {
             vmsNotFinished = 0;
             objQuad = &obj->firstQuad;
-            while (0 <= (i16)objQuad->type)
+            while (0 <= objQuad->type)
             {
-                vm = &this->quadVms[(i16)objQuad->vmIdx];
-                switch ((i16)objQuad->type)
+                vm = &this->quadVms[objQuad->vmIdx];
+                switch (objQuad->type)
                 {
                 case 0:
                     g_AnmManager->ExecuteScript(vm);
@@ -505,7 +494,7 @@ ZunResult Stage::UpdateObjects()
                 {
                     vmsNotFinished++;
                 }
-                objQuad = (RawStageQuadBasic *)(((i8 *)&objQuad->type) + (i16)objQuad->byteSize);
+                objQuad = (RawStageQuadBasic *)(((i8 *)&objQuad->type) + objQuad->byteSize);
             }
             if (vmsNotFinished == 0)
             {
@@ -521,12 +510,12 @@ ZunResult Stage::RenderObjects(i32 zLevel)
     f32 quadWidth;
     ZunVec3 projectSrc;
     bool didDraw;
-    const RawStageQuadBasic *curQuad;
+    RawStageQuadBasic *curQuad;
     ZunVec3 quadPos;
     ZunVec3 quadScaledPos;
     RawStageObject *obj;
     ZunMatrix worldMatrix;
-    const RawStageObjectInstance *instance;
+    RawStageObjectInstance *instance;
     i32 instancesDrawn;
     AnmVm *curQuadVm;
     i32 unk8;
@@ -540,9 +529,9 @@ ZunResult Stage::RenderObjects(i32 zLevel)
     //    D3DXMatrixIdentity(&worldMatrix);
     worldMatrix.Identity();
 
-    while ((i16)instance->id >= 0)
+    while (instance->id >= 0)
     {
-        obj = this->objects[(i16)instance->id];
+        obj = this->objects[instance->id];
         if (obj->zLevel == zLevel)
         {
             curQuad = &obj->firstQuad;
@@ -568,9 +557,9 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             // It will check them in the following order: C, G, E, A, D, H, F, B.
 
             // It first starts by checking point C
-            worldMatrix.m[3][0] = (f32)obj->position.x + (f32)instance->position.x - this->position.x;
-            worldMatrix.m[3][1] = -((f32)obj->position.y + (f32)instance->position.y - this->position.y);
-            worldMatrix.m[3][2] = (f32)obj->position.z + (f32)instance->position.z - this->position.z + (f32)obj->size.z;
+            worldMatrix.m[3][0] = obj->position.x + instance->position.x - this->position.x;
+            worldMatrix.m[3][1] = -(obj->position.y + instance->position.y - this->position.y);
+            worldMatrix.m[3][2] = obj->position.z + instance->position.z - this->position.z + obj->size.z;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
 
@@ -581,7 +570,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then G:
-            worldMatrix.m[3][1] = worldMatrix.m[3][1] - (f32)obj->size.y;
+            worldMatrix.m[3][1] = worldMatrix.m[3][1] - obj->size.y;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -591,7 +580,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then E
-            worldMatrix.m[3][2] = worldMatrix.m[3][2] - (f32)obj->size.z;
+            worldMatrix.m[3][2] = worldMatrix.m[3][2] - obj->size.z;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -601,7 +590,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then A
-            worldMatrix.m[3][1] = worldMatrix.m[3][1] + (f32)obj->size.y;
+            worldMatrix.m[3][1] = worldMatrix.m[3][1] + obj->size.y;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -611,9 +600,9 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then D
-            worldMatrix.m[3][0] = (f32)obj->position.x + (f32)instance->position.x - this->position.x + (f32)obj->size.x;
-            worldMatrix.m[3][1] = -((f32)obj->position.y + (f32)instance->position.y - this->position.y);
-            worldMatrix.m[3][2] = (f32)obj->position.z + (f32)instance->position.z - this->position.z + (f32)obj->size.z;
+            worldMatrix.m[3][0] = obj->position.x + instance->position.x - this->position.x + obj->size.x;
+            worldMatrix.m[3][1] = -(obj->position.y + instance->position.y - this->position.y);
+            worldMatrix.m[3][2] = obj->position.z + instance->position.z - this->position.z + obj->size.z;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -623,7 +612,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then H
-            worldMatrix.m[3][1] = worldMatrix.m[3][1] - (f32)obj->size.y;
+            worldMatrix.m[3][1] = worldMatrix.m[3][1] - obj->size.y;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -633,7 +622,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // Then F
-            worldMatrix.m[3][2] = worldMatrix.m[3][2] - (f32)(obj->size).z;
+            worldMatrix.m[3][2] = worldMatrix.m[3][2] - (obj->size).z;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -643,7 +632,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
             }
 
             // And finally B
-            worldMatrix.m[3][1] = worldMatrix.m[3][1] + (f32)(obj->size).y;
+            worldMatrix.m[3][1] = worldMatrix.m[3][1] + (obj->size).y;
             projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                         g_Supervisor.viewMatrix, worldMatrix);
             if (quadPos.y >= g_Supervisor.viewport.y &&
@@ -658,28 +647,28 @@ ZunResult Stage::RenderObjects(i32 zLevel)
 
         render:
             didDraw = true;
-            while (0 <= (i16)curQuad->type)
+            while (0 <= curQuad->type)
             {
-                curQuadVm = this->quadVms + (i16)curQuad->vmIdx;
-                switch ((i16)curQuad->type)
+                curQuadVm = this->quadVms + curQuad->vmIdx;
+                switch (curQuad->type)
                 {
                 case 0:
-                    curQuadVm->pos.x = (f32)curQuad->position.x + (f32)instance->position.x - this->position.x;
-                    curQuadVm->pos.y = (f32)curQuad->position.y + (f32)instance->position.y - this->position.y;
-                    curQuadVm->pos.z = (f32)curQuad->position.z + (f32)instance->position.z - this->position.z;
-                    if ((f32)curQuad->size.x != 0.0f)
+                    curQuadVm->pos.x = curQuad->position.x + instance->position.x - this->position.x;
+                    curQuadVm->pos.y = curQuad->position.y + instance->position.y - this->position.y;
+                    curQuadVm->pos.z = curQuad->position.z + instance->position.z - this->position.z;
+                    if (curQuad->size.x != 0.0f)
                     {
-                        curQuadVm->scaleX = (f32)curQuad->size.x / curQuadVm->sprite->widthPx;
+                        curQuadVm->scaleX = curQuad->size.x / curQuadVm->sprite->widthPx;
                     }
-                    if ((f32)curQuad->size.y != 0.0f)
+                    if (curQuad->size.y != 0.0f)
                     {
-                        curQuadVm->scaleY = (f32)curQuad->size.y / curQuadVm->sprite->heightPx;
+                        curQuadVm->scaleY = curQuad->size.y / curQuadVm->sprite->heightPx;
                     }
                     if (curQuadVm->autoRotate == 2)
                     {
-                        if ((f32)curQuad->size.x != 0.0f)
+                        if (curQuad->size.x != 0.0f)
                         {
-                            quadWidth = (f32)curQuad->size.x;
+                            quadWidth = curQuad->size.x;
                         }
                         else
                         {
@@ -704,7 +693,7 @@ ZunResult Stage::RenderObjects(i32 zLevel)
                     }
                     break;
                 }
-                curQuad = (RawStageQuadBasic *)(((u8 *)&curQuad->type) + (i16)curQuad->byteSize);
+                curQuad = (RawStageQuadBasic *)(((u8 *)&curQuad->type) + curQuad->byteSize);
             }
             instancesDrawn++;
         }

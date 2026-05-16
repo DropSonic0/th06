@@ -11,11 +11,7 @@
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
-#ifndef __PS3__
 #include <cstdlib>
-#else
-#include <stdlib.h>
-#endif
 
 i32 Ending::ReadEndFileParameter()
 {
@@ -360,7 +356,7 @@ ZunResult Ending::ParseEndFile()
                 g_AnmManager->SetAndExecuteScriptIdx(&this->sprites[lineDisplayed + this->timesFileParsed * 2],
                                                      lineDisplayed + ANM_SCRIPT_TEXT_ENDING_TEXT +
                                                          this->timesFileParsed * 2);
-                g_AnmManager->DrawVmTextFmt(&this->sprites[lineDisplayed + this->timesFileParsed * 2],
+                AnmManager::DrawVmTextFmt(g_AnmManager, &this->sprites[lineDisplayed + this->timesFileParsed * 2],
                                           this->textColor, COLOR_END_TEXT_SHADOW, textBuffer);
             }
             while (this->endFileDataPtr[0] == '\n' || this->endFileDataPtr[0] == '\0' ||
@@ -396,7 +392,7 @@ ZunResult Ending::ParseEndFile()
                 g_AnmManager->SetAndExecuteScriptIdx(&this->sprites[lineDisplayed + this->timesFileParsed * 2],
                                                      lineDisplayed + ANM_SCRIPT_TEXT_ENDING_TEXT +
                                                          this->timesFileParsed * 2);
-                g_AnmManager->DrawVmTextFmt(&this->sprites[lineDisplayed + this->timesFileParsed * 2],
+                AnmManager::DrawVmTextFmt(g_AnmManager, &this->sprites[lineDisplayed + this->timesFileParsed * 2],
                                           this->textColor, COLOR_END_TEXT_SHADOW, textBuffer);
                 if (lineDisplayed)
                 {
@@ -426,7 +422,7 @@ endParsing:
     return ZUN_SUCCESS;
 }
 
-ZunResult Ending::LoadEnding(const char *endFilePath)
+ZunResult Ending::LoadEnding(char *endFilePath)
 {
     char *endFileDat;
 

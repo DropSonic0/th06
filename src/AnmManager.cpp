@@ -6,6 +6,7 @@
 #include "Supervisor.hpp"
 #include "TextHelper.hpp"
 #include "ZunMath.hpp"
+#include "ZunEndian.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
 
@@ -858,7 +859,7 @@ ZunResult AnmManager::SetActiveSprite(AnmVm *vm, u32 sprite_index)
     return ZUN_SUCCESS;
 }
 
-void AnmManager::SetAndExecuteScript(AnmVm *vm, const AnmRawInstr *beginingOfScript)
+void AnmManager::SetAndExecuteScript(AnmVm *vm, AnmRawInstr *beginingOfScript)
 {
     ZunTimer *timer;
 
@@ -1523,8 +1524,8 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 
 i32 AnmManager::ExecuteScript(AnmVm *vm)
 {
-    const AnmRawInstr *curInstr;
-    const AnmRawInstr *nextInstr;
+    AnmRawInstr *curInstr;
+    AnmRawInstr *nextInstr;
     ZunColor local_28;
     ZunColor local_2c;
     f32 local_30;
@@ -1558,7 +1559,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             break;
         case AnmOpcode_SetRandomSprite:
             vm->flags.isVisible = 1;
-            this->SetActiveSprite(vm, AnmI32Arg(0) + g_Rng.GetRandomU16InRange((u16)AnmI32Arg(1)) +
+            this->SetActiveSprite(vm, AnmI32Arg(0) + g_Rng.GetRandomU16InRange(AnmI32Arg(1)) +
                                           this->spriteIndices[vm->anmFileIndex]);
             vm->timeOfLastSpriteSet = vm->currentTimeInScript.AsFrames();
             break;
@@ -1567,7 +1568,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->scaleY = AnmF32Arg(1);
             break;
         case AnmOpcode_SetAlpha:
-            COLOR_SET_COMPONENT(vm->color, COLOR_ALPHA_BYTE_IDX, (u8)AnmI32Arg(0));
+            COLOR_SET_COMPONENT(vm->color, COLOR_ALPHA_BYTE_IDX, AnmI32Arg(0) & 0xff);
             break;
         case AnmOpcode_SetColor:
             vm->color = COLOR_COMBINE_ALPHA(AnmI32Arg(0), vm->color);
@@ -1580,8 +1581,8 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->flags.flip ^= 1;
             vm->scaleX *= -1.f;
             break;
-        case AnmOpcode_UsePosOffset:
-            vm->flags.usePosOffset = (u32)AnmI32Arg(0);
+        case AnmOpcode_25:
+            vm->flags.flag5 = AnmI32Arg(0);
             break;
         case AnmOpcode_FlipY:
             vm->flags.flip ^= 2;
@@ -1602,20 +1603,18 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->scaleInterpFinalY = AnmF32Arg(1);
             vm->scaleInterpEndTime = 0;
             break;
-        case AnmOpcode_ScaleTime:
+        case AnmOpcode_30:
             vm->scaleInterpFinalX = AnmF32Arg(0);
             vm->scaleInterpFinalY = AnmF32Arg(1);
-
-            vm->scaleInterpEndTime = (i16)AnmI16Arg(2);
+            vm->scaleInterpEndTime = AnmI16Arg(2);
             vm->scaleInterpTime.InitializeForPopup();
-
             vm->scaleInterpInitialX = vm->scaleX;
             vm->scaleInterpInitialY = vm->scaleY;
             break;
         case AnmOpcode_Fade:
             vm->alphaInterpInitial = vm->color;
             vm->alphaInterpFinal = COLOR_SET_ALPHA2(vm->color, AnmU32Arg(0));
-            vm->alphaInterpEndTime = (i16)AnmU32Arg(1);
+            vm->alphaInterpEndTime = AnmU32Arg(1);
             vm->alphaInterpTime.InitializeForPopup();
             break;
         case AnmOpcode_SetBlendAdditive:
@@ -1625,13 +1624,13 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->flags.blendMode = AnmVmBlendMode_InvSrcAlpha;
             break;
         case AnmOpcode_SetPosition:
-            if (vm->flags.usePosOffset == 0)
+            if (vm->flags.flag5 == 0)
             {
-                vm->pos.x = AnmF32Arg(0); vm->pos.y = AnmF32Arg(1); vm->pos.z = AnmF32Arg(2);
+                vm->pos = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
             }
             else
             {
-                vm->posOffset.x = AnmF32Arg(0); vm->posOffset.y = AnmF32Arg(1); vm->posOffset.z = AnmF32Arg(2);
+                vm->posOffset = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
             }
             break;
         case AnmOpcode_PosTimeAccel:
@@ -1643,7 +1642,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         case AnmOpcode_PosTimeLinear:
             vm->flags.posTime = 0;
         PosTimeDoStuff:
-            if (vm->flags.usePosOffset == 0)
+            if (vm->flags.flag5 == 0)
             {
                 // This was supposedly originally a memcpy, but any sane compiler should compile a struct assignment to
                 // a memcpy
@@ -1655,8 +1654,8 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
                 // a memcpy
                 vm->posInterpInitial = vm->posOffset;
             }
-            vm->posInterpFinal.x = AnmF32Arg(0); vm->posInterpFinal.y = AnmF32Arg(1); vm->posInterpFinal.z = AnmF32Arg(2);
-            vm->posInterpEndTime = (i16)AnmI32Arg(3);
+            vm->posInterpFinal = ZunVec3(AnmF32Arg(0), AnmF32Arg(1), AnmF32Arg(2));
+            vm->posInterpEndTime = AnmI32Arg(3);
             vm->posInterpTime.InitializeForPopup();
             break;
         case AnmOpcode_StopHide:
@@ -1664,17 +1663,17 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
         case AnmOpcode_Stop:
             if (vm->pendingInterrupt == 0)
             {
-                vm->flags.isStopped = 1;
+                vm->flags.flag13 = 1;
                 vm->currentTimeInScript.Decrement(1);
                 goto stop;
             }
         yolo:
             nextInstr = NULL;
             curInstr = vm->beginingOfScript;
-            while ((curInstr->opcode != AnmOpcode_InterruptLabel || (i32)vm->pendingInterrupt != (i32)AnmI32Arg(0)) &&
+            while ((curInstr->opcode != AnmOpcode_InterruptLabel || vm->pendingInterrupt != AnmI32Arg(0)) &&
                    curInstr->opcode != AnmOpcode_Exit && curInstr->opcode != AnmOpcode_ExitHide)
             {
-                if (curInstr->opcode == AnmOpcode_InterruptLabel && (i32)AnmI32Arg(0) == -1)
+                if (curInstr->opcode == AnmOpcode_InterruptLabel && AnmI32Arg(0) == -1)
                 {
                     nextInstr = curInstr;
                 }
@@ -1682,7 +1681,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             }
 
             vm->pendingInterrupt = 0;
-            vm->flags.isStopped = 0;
+            vm->flags.flag13 = 0;
             if (curInstr->opcode != AnmOpcode_InterruptLabel)
             {
                 if (nextInstr == NULL)
@@ -1699,15 +1698,15 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
             vm->flags.isVisible = 1;
             continue;
         case AnmOpcode_SetVisibility:
-            vm->flags.isVisible = (u32)AnmI32Arg(0);
+            vm->flags.isVisible = AnmI32Arg(0);
             break;
-        case AnmOpcode_AnchorTopLeft:
+        case AnmOpcode_23:
             vm->flags.anchor = AnmVmAnchor_TopLeft;
             break;
         case AnmOpcode_SetAutoRotate:
-            vm->autoRotate = (i16)AnmI32Arg(0);
+            vm->autoRotate = AnmI32Arg(0);
             break;
-        case AnmOpcode_UVScrollX:
+        case AnmOpcode_27:
             vm->uvScrollPos.x += AnmF32Arg(0);
             if (vm->uvScrollPos.x >= 1.0f)
             {
@@ -1718,7 +1717,7 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
                 vm->uvScrollPos.x += 1.0f;
             }
             break;
-        case AnmOpcode_UVScrollY:
+        case AnmOpcode_28:
             vm->uvScrollPos.y += AnmF32Arg(0);
             if (vm->uvScrollPos.y >= 1.0f)
             {
@@ -1729,8 +1728,8 @@ i32 AnmManager::ExecuteScript(AnmVm *vm)
                 vm->uvScrollPos.y += 1.0f;
             }
             break;
-        case AnmOpcode_SetZWriteDisable:
-            vm->flags.zWriteDisable = (u32)AnmI32Arg(0);
+        case AnmOpcode_31:
+            vm->flags.zWriteDisable = AnmI32Arg(0);
             break;
         case AnmOpcode_Nop:
         case AnmOpcode_InterruptLabel:
@@ -1802,14 +1801,14 @@ stop:
         }
         for (local_38 = 0; local_38 < 4; local_38++)
         {
-            local_34 = (i32)(((f32)COLOR_GET_COMPONENT(local_28, local_38) - (f32)COLOR_GET_COMPONENT(local_2c, local_38)) *
+            local_34 = ((f32)COLOR_GET_COMPONENT(local_28, local_38) - (f32)COLOR_GET_COMPONENT(local_2c, local_38)) *
                            local_30 +
-                       COLOR_GET_COMPONENT(local_2c, local_38));
+                       COLOR_GET_COMPONENT(local_2c, local_38);
             if (local_34 < 0)
             {
                 local_34 = 0;
             }
-            COLOR_SET_COMPONENT(local_2c, local_38, (u8)(local_34 >= 256 ? 255 : local_34));
+            COLOR_SET_COMPONENT(local_2c, local_38, local_34 >= 256 ? 255 : local_34);
         }
         vm->color = local_2c;
         if (vm->alphaInterpTime.AsFrames() >= vm->alphaInterpEndTime)
@@ -1837,7 +1836,7 @@ stop:
             local_3c = 1.0f - local_3c;
             break;
         }
-        if (vm->flags.usePosOffset == 0)
+        if (vm->flags.flag5 == 0)
         {
             vm->pos.x = local_3c * vm->posInterpFinal.x + (1.0f - local_3c) * vm->posInterpInitial.x;
             vm->pos.y = local_3c * vm->posInterpFinal.y + (1.0f - local_3c) * vm->posInterpInitial.y;
@@ -1888,7 +1887,7 @@ void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spr
 }
 
 
-void AnmManager::DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
+void AnmManager::DrawVmTextFmt(AnmManager *anmMgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
 {
     u32 fontWidth;
     char buffer[64];
@@ -1898,14 +1897,14 @@ void AnmManager::DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowCol
     va_start(argptr, fmt);
     vsprintf(buffer, fmt, argptr);
     va_end(argptr);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
-                             (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
-                             (i32)fontWidth, (i32)vm->fontHeight, textColor, shadowColor, buffer);
+    anmMgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+                             vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
+                             fontWidth, vm->fontHeight, textColor, shadowColor, buffer);
     vm->flags.isVisible = true;
     return;
 }
 
-void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
+void AnmManager::DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
 {
     char buf[64];
     va_list args;
@@ -1916,19 +1915,19 @@ void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadow
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
-                          (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
-                          fontWidth, (i32)vm->fontHeight, textColor, shadowColor, " ");
+    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+                          vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
+                          fontWidth, vm->fontHeight, textColor, shadowColor, " ");
     secondPartStartX =
-        (i32)vm->sprite->startPixelInclusive.x + (i32)vm->sprite->textureWidth - (i32)((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
-                          (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, fontWidth, (i32)vm->fontHeight, textColor,
+        vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
+    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
+                          vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
     return;
 }
 
-void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...)
+void AnmManager::DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...)
 {
     char buf[64];
     va_list args;
@@ -1939,13 +1938,13 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
-                          (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
-                          fontWidth, (i32)vm->fontHeight, textColor, shadowColor, " ");
-    secondPartStartX = (i32)((f32)vm->sprite->startPixelInclusive.x + (f32)vm->sprite->textureWidth / 2.0f -
-                       ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f));
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
-                          (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, fontWidth, (i32)vm->fontHeight, textColor,
+    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
+                          vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
+                          fontWidth, vm->fontHeight, textColor, shadowColor, " ");
+    secondPartStartX = vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth / 2.0f -
+                       ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f);
+    mgr->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
+                          vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
                           shadowColor, buf);
     vm->flags.isVisible = true;
     return;
