@@ -6,6 +6,12 @@
 #endif
 
 #ifdef __PS3__
+#ifndef GL_ARGB_SCE
+#define GL_ARGB_SCE 0x6007
+#endif
+#ifndef GL_UNSIGNED_INT_8_8_8_8
+#define GL_UNSIGNED_INT_8_8_8_8 0x8035
+#endif
 #define GL_COMBINE 0x8570
 #define GL_COMBINE_RGB 0x8571
 #define GL_COMBINE_ALPHA 0x8572

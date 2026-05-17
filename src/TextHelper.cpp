@@ -434,8 +434,14 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     }
     g_AnmManager->SetCurrentTexture(outTexture->handle);
     // PS3 uses GL_ARGB_SCE (0x6007) and GL_UNSIGNED_INT_8_8_8_8 (0x8035)
-    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, 0x6007, outTexture->width, outTexture->height, 0, 0x6007,
-                               0x8035, outTexture->textureData);
+#ifndef GL_ARGB_SCE
+#define GL_ARGB_SCE 0x6007
+#endif
+#ifndef GL_UNSIGNED_INT_8_8_8_8
+#define GL_UNSIGNED_INT_8_8_8_8 0x8035
+#endif
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_ARGB_SCE, outTexture->width, outTexture->height, 0, GL_ARGB_SCE,
+                               GL_UNSIGNED_INT_8_8_8_8, outTexture->textureData);
 #endif
 
     return;

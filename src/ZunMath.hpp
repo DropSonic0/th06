@@ -9,6 +9,8 @@
 #ifdef __PS3__
 #define static_assert(cond, msg)
 #include <math.h>
+#define GL_DEPTH_RANGE 0x0B70
+#define GL_VIEWPORT 0x0BA2
 #endif
 
 #if __cplusplus >= 202002L
@@ -76,7 +78,7 @@ inline u32 CountrZero(u32 n)
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(x)))
+#define ZUN_RINTF(n) (std::rintf((f32)(n)))
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
@@ -447,8 +449,11 @@ struct ZunViewport
         GLint viewPortGet[4];
         GLfloat depthRangeGet[2];
 
+        g_glFuncTable.glGetIntegerv(GL_VIEWPORT, viewPortGet);
+        g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRangeGet);
+
         this->x = (viewPortGet[0] - g_GameWindow.VIEWPORT_OFF_X) / g_GameWindow.WIDTH_RESOLUTION_SCALE;
-        this->y = (viewPortGet[1] - g_GameWindow.VIEWPORT_OFF_Y) / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
+        this->y = (viewPortGet[1] - (i32)g_GameWindow.VIEWPORT_OFF_Y) / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
         this->width = viewPortGet[2] / g_GameWindow.WIDTH_RESOLUTION_SCALE;
         this->height = viewPortGet[3] / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
         this->minZ = depthRangeGet[0];

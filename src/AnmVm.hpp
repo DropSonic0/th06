@@ -109,6 +109,21 @@ union AnmVmFlags {
     u16 flags;
     struct
     {
+#ifdef __PS3__
+        u32 flag15 : 1;
+        u32 flag14 : 1;
+        u32 flag13 : 1;
+        u32 zWriteDisable : 1;
+        u32 posTime : 2;
+        u32 anchor : 2;
+        u32 flip : 2;
+        u32 flag5 : 1;
+        u32 flag4 : 1;
+        u32 colorOp : 1;
+        u32 blendMode : 1;
+        u32 flag1 : 1;
+        u32 isVisible : 1;
+#else
         u32 isVisible : 1;
         u32 flag1 : 1;
         u32 blendMode : 1;
@@ -122,6 +137,7 @@ union AnmVmFlags {
         u32 flag13 : 1;
         u32 flag14 : 1;
         u32 flag15 : 1;
+#endif
     };
 };
 

@@ -23,6 +23,12 @@
 #include <SDL_surface.h>
 #else
 #include <PSGL/psgl.h>
+#ifndef GL_ARGB_SCE
+#define GL_ARGB_SCE 0x6007
+#endif
+#ifndef GL_UNSIGNED_INT_8_8_8_8
+#define GL_UNSIGNED_INT_8_8_8_8 0x8035
+#endif
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #endif
@@ -487,8 +493,20 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, char *textureName, i32 texture
     }
     std::memset(potPixels, 0, potWidth * potHeight * 4);
 
+    // Convert RGBA from stbi to ARGB for PSGL
     for (int y = 0; y < height; y++) {
-        std::memcpy(potPixels + (y * potWidth * 4), pixels + (y * width * 4), width * 4);
+        u8* srcRow = pixels + (y * width * 4);
+        u8* dstRow = potPixels + (y * potWidth * 4);
+        for (int x = 0; x < width; x++) {
+            u8 r = srcRow[x * 4 + 0];
+            u8 g = srcRow[x * 4 + 1];
+            u8 b = srcRow[x * 4 + 2];
+            u8 a = srcRow[x * 4 + 3];
+            dstRow[x * 4 + 0] = a;
+            dstRow[x * 4 + 1] = r;
+            dstRow[x * 4 + 2] = g;
+            dstRow[x * 4 + 3] = b;
+        }
     }
     
     if (wasScaled) delete[] pixels; else stbi_image_free(pixels);
@@ -500,7 +518,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, char *textureName, i32 texture
     this->textures[textureIdx].format = TEX_FMT_A8R8G8B8;
     this->textures[textureIdx].fileData = fileData;
 
-    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, potWidth, potHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, potPixels);
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_ARGB_SCE, potWidth, potHeight, 0, GL_ARGB_SCE, GL_UNSIGNED_INT_8_8_8_8, potPixels);
 
     GLenum err = g_glFuncTable.glGetError();
     if (err != GL_NO_ERROR) {
@@ -627,13 +645,14 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
     u8 *dstData = (u8 *)textureDesc->textureData;
     for (int y = 0; y < height && y < (int)textureDesc->height; y++) {
         for (int x = 0; x < width && x < (int)textureDesc->width; x++) {
-            dstData[(y * textureDesc->width + x) * 4 + 3] = alphaPixels[(y * width + x) * 4];
+            // Alpha is the first component in ARGB (index 0)
+            dstData[(y * textureDesc->width + x) * 4 + 0] = alphaPixels[(y * width + x) * 4];
         }
     }
     stbi_image_free(alphaPixels);
 
     this->SetCurrentTexture(textureDesc->handle);
-    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureDesc->width, textureDesc->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, dstData);
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_ARGB_SCE, textureDesc->width, textureDesc->height, 0, GL_ARGB_SCE, GL_UNSIGNED_INT_8_8_8_8, dstData);
 
     return ZUN_SUCCESS;
 #endif
@@ -717,8 +736,14 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         loadedSprite.startPixelInclusive.y = rawSprite->offset.y;
         loadedSprite.endPixelInclusive.x = rawSprite->offset.x + rawSprite->size.x;
         loadedSprite.endPixelInclusive.y = rawSprite->offset.y + rawSprite->size.y;
+#ifndef __PS3__
         loadedSprite.textureWidth = (float)anm->width;
         loadedSprite.textureHeight = (float)anm->height;
+#else
+        // Use the POT dimensions because that's what's actually in memory
+        loadedSprite.textureWidth = (float)this->textures[loadedSprite.sourceFileIndex].width;
+        loadedSprite.textureHeight = (float)this->textures[loadedSprite.sourceFileIndex].height;
+#endif
         this->LoadSprite(rawSprite->id + spriteIdxOffset, &loadedSprite);
     }
 
@@ -2040,8 +2065,21 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
         g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         
-        g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureWidth, textureHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcSurface->w, srcSurface->h, GL_RGBA, GL_UNSIGNED_BYTE, srcSurface->pixels);
+        u8* swizzled = (u8*)malloc(srcSurface->w * srcSurface->h * 4);
+        for (int i = 0; i < srcSurface->w * srcSurface->h; i++) {
+            u8 r = srcSurface->pixels[i * 4 + 0];
+            u8 g = srcSurface->pixels[i * 4 + 1];
+            u8 b = srcSurface->pixels[i * 4 + 2];
+            u8 a = srcSurface->pixels[i * 4 + 3];
+            swizzled[i * 4 + 0] = a;
+            swizzled[i * 4 + 1] = r;
+            swizzled[i * 4 + 2] = g;
+            swizzled[i * 4 + 3] = b;
+        }
+
+        g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, GL_ARGB_SCE, textureWidth, textureHeight, 0, GL_ARGB_SCE, GL_UNSIGNED_INT_8_8_8_8, NULL);
+        g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, srcSurface->w, srcSurface->h, GL_ARGB_SCE, GL_UNSIGNED_INT_8_8_8_8, swizzled);
+        free(swizzled);
     }
     
     this->SetCurrentTexture(srcSurface->textureHandle);
@@ -2052,6 +2090,8 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[2].position.x = (float)dstX; verts[2].position.y = (float)(dstY + rectHeight); verts[2].position.z = 0.0f;
     verts[3].position.x = (float)(dstX + rectWidth); verts[3].position.y = (float)(dstY + rectHeight); verts[3].position.z = 0.0f;
 
+    verts[0].diffuse = verts[1].diffuse = verts[2].diffuse = verts[3].diffuse = ColorData(0xffffffff);
+
     verts[0].textureUV.x = (float)rectLeft / textureWidth; verts[0].textureUV.y = (float)rectTop / textureHeight;
     verts[1].textureUV.x = (float)(rectLeft + rectWidth) / textureWidth; verts[1].textureUV.y = (float)rectTop / textureHeight;
     verts[2].textureUV.x = (float)rectLeft / textureWidth; verts[2].textureUV.y = (float)(rectTop + rectHeight) / textureHeight;
@@ -2060,9 +2100,10 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     g_glFuncTable.glBindBuffer(GL_ARRAY_BUFFER, this->persistentVbo);
     g_glFuncTable.glBufferData(GL_ARRAY_BUFFER, sizeof(verts), (void*)verts, GL_STREAM_DRAW);
 
-    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, position));
     this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, textureUV));
+    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, diffuse));
 
     g_glFuncTable.glDisable(GL_FOG);
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
