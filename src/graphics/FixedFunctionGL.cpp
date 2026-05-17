@@ -1,3 +1,4 @@
+#include "AnmManager.hpp"
 #include "FixedFunctionGL.hpp"
 #include "GLFunc.hpp"
 #include "Supervisor.hpp"
@@ -208,7 +209,14 @@ void FixedFunctionGL::SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix
 
 void FixedFunctionGL::Draw()
 {
-	g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    if (g_AnmManager != NULL)
+    {
+        g_AnmManager->BackendDrawCall();
+    }
+    else
+    {
+        g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
 }
 
 void FixedFunctionGL::Clear(ZunColor color)

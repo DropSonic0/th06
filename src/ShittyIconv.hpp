@@ -2039,6 +2039,7 @@ bool sjis_to_utf8(const char* str, size_t len, std::string& utf8) {
 			utf8.push_back(str[i++]);
 			continue;
 		}
+		if (i + 1 >= len && (unsigned char)str[i] >= 0x81) return false;
 		switch (str[i]) {
 		case 0x80:
 		case 0xA0:

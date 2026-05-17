@@ -1872,7 +1872,7 @@ void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spr
         fontHeight = 15;
     }
 
-    TextHelper::RenderTextToTexture(xPos, yPos, spriteWidth, spriteHeight, fontWidth, fontHeight, textColor,
+    TextHelper::RenderTextToTexture(xPos, yPos, spriteWidth, spriteHeight, fontHeight, fontWidth, textColor,
                                     shadowColor, strToPrint, &this->textures[textureDstIdx]);
     //
     //    this->SetCurrentTexture(this->textures[textureDstIdx].handle);
@@ -2059,6 +2059,8 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     u32 textureWidth = BitCeil((u32)srcSurface->w);
     u32 textureHeight = BitCeil((u32)srcSurface->h);
 
+    g_glFuncTable.glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     if (srcSurface->textureHandle == 0) {
         g_glFuncTable.glGenTextures(1, &srcSurface->textureHandle);
         g_glFuncTable.glBindTexture(GL_TEXTURE_2D, srcSurface->textureHandle);
@@ -2097,13 +2099,10 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[2].textureUV.x = (float)rectLeft / textureWidth; verts[2].textureUV.y = (float)(rectTop + rectHeight) / textureHeight;
     verts[3].textureUV.x = (float)(rectLeft + rectWidth) / textureWidth; verts[3].textureUV.y = (float)(rectTop + rectHeight) / textureHeight;
 
-    g_glFuncTable.glBindBuffer(GL_ARRAY_BUFFER, this->persistentVbo);
-    g_glFuncTable.glBufferData(GL_ARRAY_BUFFER, sizeof(verts), (void*)verts, GL_STREAM_DRAW);
-
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
-    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, position));
-    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, textureUV));
-    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(VertexTex1DiffuseXyz), (void*)offsetof(VertexTex1DiffuseXyz, diffuse));
+    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1DiffuseXyz), &verts[0].position);
+    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1DiffuseXyz), &verts[0].textureUV);
+    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(VertexTex1DiffuseXyz), &verts[0].diffuse);
 
     g_glFuncTable.glDisable(GL_FOG);
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
@@ -2112,8 +2111,11 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     this->SetDepthMask(false);
     this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
 
-    this->BackendDrawCall();
-    g_glFuncTable.glFinish();
+    if (this->dirtyFlags != 0)
+    {
+        this->UpdateDirtyStates();
+    }
+    g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
@@ -2121,11 +2123,12 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     this->SetDepthMask(true);
     this->SetDepthFunc(DEPTH_FUNC_LEQUAL);
 
-    g_glFuncTable.glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     this->SetCurrentSprite(NULL);
     this->SetCurrentTexture(0);
     this->SetCurrentBlendMode(0xff);
+
+    // Force dirty flags for attributes to ensure next standard draw resets pointers
+    this->SetVertexAttributes(0xff);
 #endif
 }
 

@@ -78,7 +78,9 @@ ZunResult TextHelper::CreateTextBuffer()
 
     SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
 #else
-    if (!stbtt_InitFont(&g_Font, th06_ttc, 0))
+    int font_offset = stbtt_GetFontOffsetForIndex(th06_ttc, 0);
+    if (font_offset < 0) font_offset = 0;
+    if (!stbtt_InitFont(&g_Font, th06_ttc, font_offset))
     {
         textNotExist = true;
         return ZUN_SUCCESS;
@@ -115,24 +117,36 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
     //   As part of the port from GDI to SDL_ttf, we've converted the text buffer surface to always be RGBA32
     //   and no longer need the alpha inversion, but we still want that gradient to be applied
 
-    for (int i = 0; i < gradientArea; i++, bufferCursor += 4)
+    for (int y_grad = 0; y_grad < fontHeight; y_grad++)
     {
+        float f = (float)y_grad / (float)fontHeight;
+        u8* row = bufferCursor + (y + y_grad) * (
 #ifndef __PS3__
-        if (bufferCursor[3]) // A
-        {
-            bufferCursor[0] = (u8)(bufferCursor[0] - bufferCursor[0] * i / gradientArea / 2); // R
-            bufferCursor[1] = (u8)(bufferCursor[1] - bufferCursor[1] * i / gradientArea / 2); // G
-            bufferCursor[2] = (u8)(bufferCursor[2] - bufferCursor[2] * i / gradientArea / 4); // B
-        }
+            g_TextBufferSurface->pitch
 #else
-        // PS3 Big Endian ARGB: 0=A, 1=R, 2=G, 3=B
-        if (bufferCursor[0]) // A
-        {
-            bufferCursor[1] = (u8)(bufferCursor[1] - bufferCursor[1] * i / gradientArea / 2); // R
-            bufferCursor[2] = (u8)(bufferCursor[2] - bufferCursor[2] * i / gradientArea / 2); // G
-            bufferCursor[3] = (u8)(bufferCursor[3] - bufferCursor[3] * i / gradientArea / 4); // B
-        }
+            640 * 4
 #endif
+        );
+        for (int x_grad = 0; x_grad < spriteWidth; x_grad++)
+        {
+            u8* px = row + (x + x_grad) * 4;
+#ifndef __PS3__
+            if (px[3]) // A
+            {
+                px[0] = (u8)(px[0] * (1.0f - f * 0.5f)); // R
+                px[1] = (u8)(px[1] * (1.0f - f * 0.5f)); // G
+                px[2] = (u8)(px[2] * (1.0f - f * 0.25f)); // B
+            }
+#else
+            // PS3 Big Endian ARGB: 0=A, 1=R, 2=G, 3=B
+            if (px[0]) // A
+            {
+                px[1] = (u8)(px[1] * (1.0f - f * 0.5f)); // R
+                px[2] = (u8)(px[2] * (1.0f - f * 0.5f)); // G
+                px[3] = (u8)(px[3] * (1.0f - f * 0.25f)); // B
+            }
+#endif
+        }
     }
 
 #ifndef __PS3__
@@ -342,19 +356,20 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         int xOff, yOff;
         if (pass == 0) {
             if (shadowColor == COLOR_WHITE) continue;
-            color = shadowColor; xOff = xPos * 2 + 3; yOff = 2;
+            color = shadowColor; xOff = 3; yOff = 2;
         } else {
-            color = textColor; xOff = xPos * 2; yOff = 0;
+            color = textColor; xOff = 0; yOff = 0;
         }
-        u8 r = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)(color & 0xff), a = (u8)((color >> 24) & 0xff);
-        float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight * 2.0f);
+        u8 r = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)(color & 0xff);
+        u8 a = 0xff;
+        float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight);
         int ascent; stbtt_GetFontVMetrics(&g_Font, &ascent, 0, 0);
         ascent = (int)((float)ascent * scale);
         int curX = xOff;
-        const char* p = convertedText;
+        const unsigned char* p = (const unsigned char*)convertedText;
         while (*p) {
             int cp;
-            unsigned char cu = (unsigned char)*p;
+            unsigned char cu = *p;
             if (cu < 0x80) cp = *p++;
             else if (cu < 0xE0) { cp = ((*p++ & 0x1F) << 6); cp |= (*p++ & 0x3F); }
             else if (cu < 0xF0) { cp = ((*p++ & 0x0F) << 12); cp |= ((*p++ & 0x3F) << 6); cp |= (*p++ & 0x3F); }
@@ -402,7 +417,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         (i32)(outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32)), SDL_PIXELFORMAT_RGBA32);
 #endif
 
-    InvertAlpha(0, 0, spriteWidth * 2, fontHeight * 2 + 6);
+    InvertAlpha(0, 0, 640, TEXT_BUFFER_HEIGHT);
 
 #ifndef __PS3__
     finalCopyDst.x = 0;
@@ -422,14 +437,14 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 
     SDL_FreeSurface(textureSurface);
 #else
-    for (int dy = 0; dy < 16; dy++) {
+    for (int dy = 0; dy < TEXT_BUFFER_HEIGHT; dy++) {
         if (yPos + dy >= (int)outTexture->height) break;
-        int sy = dy * (fontHeight * 2 - 2) / 16;
+        if (dy >= TEXT_BUFFER_HEIGHT) break;
         for (int dx = 0; dx < spriteWidth; dx++) {
-            if (dx >= (int)outTexture->width) break;
-            int sx = dx * (spriteWidth * 2 - 2) / spriteWidth;
-            memcpy(&outTexture->textureData[(yPos + dy) * outTexture->width * 4 + dx * 4],
-                   &pixels[sy * 640 * 4 + sx * 4], 4);
+            if (xPos + dx >= (int)outTexture->width) break;
+            if (dx >= 640) break;
+            memcpy(&outTexture->textureData[(yPos + dy) * outTexture->width * 4 + (xPos + dx) * 4],
+                   &pixels[dy * 640 * 4 + dx * 4], 4);
         }
     }
     g_AnmManager->SetCurrentTexture(outTexture->handle);

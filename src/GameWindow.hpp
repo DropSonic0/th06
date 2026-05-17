@@ -114,6 +114,8 @@ struct GameWindow
     }
 };
 
+struct ZunViewport;
 extern GameWindow g_GameWindow;
 extern i32 g_TickCountToEffectiveFramerate;
 extern double g_LastFrameTime;
+extern ZunViewport g_ZunCurrentViewport;

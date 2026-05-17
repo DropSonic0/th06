@@ -28,6 +28,7 @@ void gamewindowdlog(std::string msg){
 }
 
 GameWindow g_GameWindow;
+ZunViewport g_ZunCurrentViewport;
 
 #ifdef __PS3__
 extern "C" void FixedFunctionGL_SetContextFlags_Helper();
@@ -388,10 +389,6 @@ void GameWindow::CreateGameWindow()
     psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
     //utils::Log("PSGL: psglMakeCurrent done.");
 
-    //utils::Log("PSGL: psglResetCurrentContext...");
-    psglResetCurrentContext();
-    //utils::Log("PSGL: psglResetCurrentContext done.");
-
     GLuint width = 0, height = 0;
     //utils::Log("PSGL: psglGetDeviceDimensions...");
     psglGetDeviceDimensions(g_GameWindow.device, &width, &height);
@@ -401,6 +398,16 @@ void GameWindow::CreateGameWindow()
 
     //utils::Log("PSGL: ResolveFunctions...");
     g_glFuncTable.ResolveFunctions(false);
+
+    g_glFuncTable.glViewport(0, 0, width, height);
+
+    g_ZunCurrentViewport.x = 0;
+    g_ZunCurrentViewport.y = 0;
+    g_ZunCurrentViewport.width = GAME_WINDOW_WIDTH;
+    g_ZunCurrentViewport.height = GAME_WINDOW_HEIGHT;
+    g_ZunCurrentViewport.minZ = 0.0f;
+    g_ZunCurrentViewport.maxZ = 1.0f;
+
     g_GameWindow.renderBackendIndex = 0; // FixedFunctionGL
 #endif
 

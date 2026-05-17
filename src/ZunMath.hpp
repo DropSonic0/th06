@@ -442,10 +442,16 @@ struct ZunViewport
                                      g_GameWindow.VIEWPORT_OFF_Y,
                                  this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE, this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE);
         g_glFuncTable.glDepthRangef(this->minZ, this->maxZ);
+#ifdef __PS3__
+        g_ZunCurrentViewport = *this;
+#endif
     }
 
     void Get()
     {
+#ifdef __PS3__
+        *this = g_ZunCurrentViewport;
+#else
         GLint viewPortGet[4];
         GLfloat depthRangeGet[2];
 
@@ -461,6 +467,7 @@ struct ZunViewport
 
         // Convert from OpenGL to D3D conventions
         this->y = GAME_WINDOW_HEIGHT - (this->y + this->height);
+#endif
     }
 };
 
