@@ -14,27 +14,27 @@ struct ZunTimer
         this->Initialize();
     }
 
-    bool operator==(i32 time) const
+    bool operator==(i32 time)
     {
         return this->current == time;
     }
 
-    bool operator>=(i32 time) const
+    bool operator>=(i32 time)
     {
         return this->current >= time;
     }
 
-    bool operator>(i32 time) const
+    bool operator>(i32 time)
     {
         return this->current > time;
     }
 
-    bool operator<(i32 time) const
+    bool operator<(i32 time)
     {
         return this->current < time;
     }
 
-    bool operator<=(i32 time) const
+    bool operator<=(i32 time)
     {
         return this->current <= time;
     }
@@ -69,17 +69,17 @@ struct ZunTimer
         g_Supervisor.TickTimer(&this->current, &this->subFrame);
     }
 
-    f32 AsFramesFloat() const
+    f32 AsFramesFloat()
     {
         return this->current + this->subFrame;
     }
 
-    i32 AsFrames() const
+    i32 AsFrames()
     {
         return this->current;
     }
 
-    bool HasTicked() const
+    bool HasTicked()
     {
         return this->current != this->previous;
     }

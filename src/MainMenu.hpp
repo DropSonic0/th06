@@ -118,4 +118,3 @@ struct MainMenu
 };
 
 extern MainMenu g_MainMenu;
-

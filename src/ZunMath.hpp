@@ -4,22 +4,11 @@
 #include "GameWindow.hpp"
 #include "inttypes.hpp"
 #include "ZunEndian.hpp"
-#ifdef __PS3__
-#include <PSGL/psgl.h>
-#ifndef static_assert
-#define static_assert(cond, msg)
-#endif
-#include <math.h>
-#ifndef rintf
-#define rintf(x) floorf((x) + 0.5f)
-#endif
-#include <string.h>
-#endif
 #include <cmath>
 #include <cstring>
-
-#ifndef __has_builtin
-#define __has_builtin(name) 0
+#ifdef __PS3__
+#define static_assert(cond, msg)
+#include <math.h>
 #endif
 
 #if __cplusplus >= 202002L
@@ -32,19 +21,9 @@ inline u32 CountrZero(u32 n)
 {
     return std::countr_zero(n);
 }
-inline u16 RotateLeft16(u16 n, u8 s)
-{
-    return std::rotl(n, s);
-}
-#else
-
-#if __has_builtin(__builtin_clz)
+#elif defined(__GNUC__)
 inline u32 BitCeil(u32 n)
 {
-    if (n == 0)
-    {
-        return 1;
-    }
     // Check if n is a power of 2
     if (((n - 1) & n) == 0)
     {
@@ -54,6 +33,11 @@ inline u32 BitCeil(u32 n)
     u32 highestBit = 31 - __builtin_clz(n);
 
     return 1 << (highestBit + 1);
+}
+
+inline u32 CountrZero(u32 n)
+{
+    return __builtin_ctz(n);
 }
 #else
 // Shamelessly stolen from https://graphics.stanford.edu/%7Eseander/bithacks.html#RoundUpPowerOf2
@@ -69,14 +53,7 @@ inline u32 BitCeil(u32 n)
 
     return n;
 }
-#endif
 
-#if __has_builtin(__builtin_ctz)
-inline u32 CountrZero(u32 n)
-{
-    return __builtin_ctz(n);
-}
-#else
 // https://graphics.stanford.edu/%7Eseander/bithacks.html#ZerosOnRightMultLookup
 inline u32 CountrZero(u32 n)
 {
@@ -87,25 +64,10 @@ inline u32 CountrZero(u32 n)
 }
 #endif
 
-#if __has_builtin(__builtin_rotateleft16)
-inline u16 RotateLeft16(u16 n, u8 s)
-{
-    return __builtin_rotateleft16(n, s);
-}
-#else
-inline u16 RotateLeft16(u16 n, u8 s)
-{
-    return (u32)n >> 16 - s | n << s;
-}
-#endif
-
-#endif
-
 // EoSD makes extensive use of the float versions of math functions made standard in C99
 //   These were mostly added to C++ with C++17, but GNU bikeshedded so hard, they didn't add
 //   them to their headers until 2023. To allow compilation where the older headers are
 //   still used, these macros force the overloaded float version of the base math function.
-#ifndef __PS3__
 #define ZUN_SINF(angle) (std::sin((f32)(angle)))
 #define ZUN_COSF(angle) (std::cos((f32)(angle)))
 #define ZUN_TANF(angle) (std::tan((f32)(angle)))
@@ -114,18 +76,7 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(n)))
-#else
-#define ZUN_SINF(angle) (sinf((f32)(angle)))
-#define ZUN_COSF(angle) (cosf((f32)(angle)))
-#define ZUN_TANF(angle) (tanf((f32)(angle)))
-#define ZUN_SQRTF(n) (sqrtf((f32)(n)))
-#define ZUN_FABSF(n) (fabsf((f32)(n)))
-#define ZUN_FMODF(x, y) (fmodf((f32)(x), (f32)(y)))
-#define ZUN_ATAN2F(x, y) (atan2f((f32)(x), (f32)(y)))
-#define ZUN_POWF(x, y) (powf((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (rintf((f32)(n)))
-#endif
+#define ZUN_RINTF(n) (std::rintf((f32)(x)))
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
@@ -349,10 +300,6 @@ struct ZunMatrix
     {
         ZunMatrix result;
 
-#ifdef __PS3__
-        memset(&result, 0, sizeof(ZunMatrix));
-#endif
-
         for (int i = 0; i < 4; i++)
         {
             for (int j = 0; j < 4; j++)
@@ -480,30 +427,19 @@ struct ZunViewport
     f32 minZ;
     f32 maxZ;
 
-    void Set() const
+    void Set()
     {
         g_glFuncTable.glViewport(this->x * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X,
                                  (g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE)) -
                                      g_GameWindow.VIEWPORT_OFF_Y,
                                  this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE, this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE);
         g_glFuncTable.glDepthRangef(this->minZ, this->maxZ);
-
-        g_GameWindow.viewportTracker.x = this->x;
-        g_GameWindow.viewportTracker.y = this->y;
-        g_GameWindow.viewportTracker.width = this->width;
-        g_GameWindow.viewportTracker.height = this->height;
-        g_GameWindow.viewportTracker.minZ = this->minZ;
-        g_GameWindow.viewportTracker.maxZ = this->maxZ;
     }
 
     void Get()
     {
-#ifndef __PS3__
         GLint viewPortGet[4];
         GLfloat depthRangeGet[2];
-
-        g_glFuncTable.glGetIntegerv(GL_VIEWPORT, viewPortGet);
-        g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRangeGet);
 
         this->x = (viewPortGet[0] - g_GameWindow.VIEWPORT_OFF_X) / g_GameWindow.WIDTH_RESOLUTION_SCALE;
         this->y = (viewPortGet[1] - g_GameWindow.VIEWPORT_OFF_Y) / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
@@ -511,14 +447,6 @@ struct ZunViewport
         this->height = viewPortGet[3] / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
         this->minZ = depthRangeGet[0];
         this->maxZ = depthRangeGet[1];
-#else
-        this->x = g_GameWindow.viewportTracker.x;
-        this->y = g_GameWindow.viewportTracker.y;
-        this->width = g_GameWindow.viewportTracker.width;
-        this->height = g_GameWindow.viewportTracker.height;
-        this->minZ = g_GameWindow.viewportTracker.minZ;
-        this->maxZ = g_GameWindow.viewportTracker.maxZ;
-#endif
 
         // Convert from OpenGL to D3D conventions
         this->y = GAME_WINDOW_HEIGHT - (this->y + this->height);
@@ -533,14 +461,14 @@ struct ZunViewport
 
 inline void fsincos_wrapper(f32 *out_sine, f32 *out_cosine, f32 angle)
 {
-    *out_sine = ZUN_SINF(angle);
-    *out_cosine = ZUN_COSF(angle);
+    *out_sine = std::sin(angle);
+    *out_cosine = std::cos(angle);
 }
 
 inline void sincosmul(ZunVec3 *out_vel, f32 input, f32 multiplier)
 {
-    out_vel->x = ZUN_COSF(input) * multiplier;
-    out_vel->y = ZUN_SINF(input) * multiplier;
+    out_vel->x = std::cos(input) * multiplier;
+    out_vel->y = std::sin(input) * multiplier;
 }
 
 inline f32 invertf(f32 x)
@@ -561,7 +489,7 @@ inline f32 mapRange(f32 in, f32 domainLow, f32 domainHigh, f32 rangeLow, f32 ran
 }
 
 // Creates a left handed matrix, using the method from Microsoft's docs
-inline ZunMatrix createViewMatrix(const ZunVec3 &camera, const ZunVec3 &target, const ZunVec3 &up)
+inline ZunMatrix createViewMatrix(ZunVec3 &camera, ZunVec3 &target, ZunVec3 &up)
 {
     ZunMatrix lookMatrix;
 
@@ -667,8 +595,8 @@ inline ZunMatrix inverseViewportMatrix()
 }
 
 // Reimplementation of D3DXVec3Project. TODO: Replace if possible once port is working
-inline void projectVec3(ZunVec3 &out, const ZunVec3 &inVec, const ZunViewport &viewport, const ZunMatrix &projection, const ZunMatrix &view,
-                        const ZunMatrix &world)
+inline void projectVec3(ZunVec3 &out, ZunVec3 &inVec, ZunViewport &viewport, ZunMatrix &projection, ZunMatrix &view,
+                        ZunMatrix &world)
 {
     // WARNING: Runs into issues if matrices do things with W (Zun's never do)
 

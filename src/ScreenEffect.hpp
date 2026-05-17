@@ -42,11 +42,11 @@ struct ScreenEffect
     static ChainCallbackResult DrawFadeOut(ScreenEffect *effect);
     static ChainCallbackResult CalcFadeOut(ScreenEffect *effect);
 
-    static void DrawSquare(const ZunRect *rect, ZunColor rectColor);
+    static void DrawSquare(ZunRect *rect, ZunColor rectColor);
     static void Clear(ZunColor color);
     static void SetViewport(ZunColor color);
 
-    ScreenEffects usedEffect;
+    enum ScreenEffects usedEffect;
     ChainElem *calcChainElement;
     ChainElem *drawChainElement;
     u32 unused;

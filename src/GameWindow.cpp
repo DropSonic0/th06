@@ -154,6 +154,8 @@ RenderResult GameWindow::Render()
                     delta -= FRAME_TIME;
                 } while (delta >= FRAME_TIME);
 
+                g_Supervisor.effectiveFramerateMultiplier = 1.0;
+
                 if (g_Supervisor.cfg.frameskipConfig < this->curFrame)
                     goto I_HAVE_NO_CLUE_WHY_BUT_I_MUST_JUMP_HERE;
                 goto RUN_CHAINS;
@@ -696,6 +698,7 @@ i32 GameWindow::InitD3dRendering(void)
     g_GameWindow.isAppClosing = 0;
     g_Supervisor.lastFrameTime = 0;
     g_Supervisor.framerateMultiplier = 0.0;
+    g_Supervisor.effectiveFramerateMultiplier = 1.0;
     return 0;
 }
 

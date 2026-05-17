@@ -99,17 +99,6 @@ struct GameWindow
 #endif
     f32 WIDTH_RESOLUTION_SCALE;
     f32 HEIGHT_RESOLUTION_SCALE;
-
-    struct ViewportTracker
-    {
-        i32 x;
-        i32 y;
-        i32 width;
-        i32 height;
-        f32 minZ;
-        f32 maxZ;
-    } viewportTracker;
-
     void CONFIGURE_VIEW(){
         this->VIEWPORT_WIDTH = GAME_WINDOW_WIDTH_REAL;
         this->VIEWPORT_HEIGHT = GAME_WINDOW_HEIGHT_REAL;
@@ -122,13 +111,6 @@ struct GameWindow
         }
         this->WIDTH_RESOLUTION_SCALE=((f32)this->VIEWPORT_WIDTH) / GAME_WINDOW_WIDTH;
         this->HEIGHT_RESOLUTION_SCALE=((f32)this->VIEWPORT_HEIGHT) / GAME_WINDOW_HEIGHT;
-
-        this->viewportTracker.x = 0;
-        this->viewportTracker.y = 0;
-        this->viewportTracker.width = GAME_WINDOW_WIDTH;
-        this->viewportTracker.height = GAME_WINDOW_HEIGHT;
-        this->viewportTracker.minZ = 0.0f;
-        this->viewportTracker.maxZ = 1.0f;
     }
 };
 

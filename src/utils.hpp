@@ -19,34 +19,10 @@
 
 namespace utils
 {
-#ifdef __PS3__
-inline u32 Swap32(u32 x) {
-    return ((x & 0x000000FF) << 24) |
-           ((x & 0x0000FF00) << 8) |
-           ((x & 0x00FF0000) >> 8) |
-           ((x & 0xFF000000) >> 24);
-}
-inline u16 Swap16(u16 x) {
-    return ((x & 0x00FF) << 8) |
-           ((x & 0xFF00) >> 8);
-}
-inline f32 SwapF32(f32 f) {
-    union { f32 f; u32 u; } u;
-    u.f = f;
-    u.u = Swap32(u.u);
-    return u.f;
-}
-#define VEC3_SET(v, _x, _y, _z) do { (v).x = (_x); (v).y = (_y); (v).z = (_z); } while(0)
-#define VEC2_SET(v, _x, _y) do { (v).x = (_x); (v).y = (_y); } while(0)
-#else
-#define VEC3_SET(v, _x, _y, _z) (v) = ZunVec3(_x, _y, _z)
-#define VEC2_SET(v, _x, _y) (v) = ZunVec2(_x, _y)
-#endif
-
 void DebugPrint(const char *fmt, ...);
 void DebugPrint2(const char *fmt, ...);
 void Log(const char *fmt, ...);
 
 f32 AddNormalizeAngle(f32 a, f32 b);
-void Rotate(ZunVec3 *outVector, const ZunVec3 *point, f32 angle);
+void Rotate(ZunVec3 *outVector, ZunVec3 *point, f32 angle);
 }; // namespace utils

@@ -174,8 +174,8 @@ struct AnmManager
     void SetupVertexBuffer();
 
     ZunResult CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat);
-    ZunResult LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey);
-    ZunResult LoadTextureAlphaChannel(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey);
+    ZunResult LoadTexture(i32 textureIdx, char *textureName, i32 textureFormat, ZunColor colorKey);
+    ZunResult LoadTextureAlphaChannel(i32 textureIdx, char *textureName, i32 textureFormat, ZunColor colorKey);
     void ReleaseTexture(i32 textureIdx);
     void TakeScreenshotIfRequested();
     void TakeScreenshot(i32 textureId, i32 left, i32 top, i32 width, i32 height);
@@ -200,7 +200,7 @@ struct AnmManager
             this->UpdateDirtyStates();
         }
 
-        this->gfxBackend->Draw();
+        g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
     // We need to do checks in these because they're called nearly every ANM draw call and otherwise
@@ -270,7 +270,7 @@ struct AnmManager
             g_glFuncTable.glBindTexture(GL_TEXTURE_2D, textureHandle);
         }
     }
-    void SetCurrentSprite(const AnmLoadedSprite *sprite)
+    void SetCurrentSprite(AnmLoadedSprite *sprite)
     {
         this->currentSprite = sprite;
     }
@@ -347,33 +347,32 @@ struct AnmManager
         this->dirtyFlags |= 1 << DIRTY_TEXTURE_FACTOR;
     }
 
-    void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
+    void SetTransformMatrix(TransformMatrix type, ZunMatrix &matrix)
     {
         std::memcpy(&this->dirtyTransformMatrices[type], &matrix, sizeof(matrix));
 
         if (!std::memcmp(&this->transformMatrices[type], &matrix, sizeof(matrix)))
         {
             this->dirtyFlags &= ~(1 << (DIRTY_MODEL_MATRIX + (DirtyRenderStateBitShifts)type));
-            return;
         }
 
         this->dirtyFlags |= 1 << (DIRTY_MODEL_MATRIX + (DirtyRenderStateBitShifts)type);
     }
 
     i32 ExecuteScript(AnmVm *vm);
-    ZunResult Draw(const AnmVm *vm);
+    ZunResult Draw(AnmVm *vm);
     void DrawTextToSprite(u32 spriteDstIndex, i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontWidth,
-                          i32 fontHeight, ZunColor textColor, ZunColor shadowColor, const char *strToPrint);
+                          i32 fontHeight, ZunColor textColor, ZunColor shadowColor, char *strToPrint);
     static void DrawStringFormat(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
     static void DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
     static void DrawVmTextFmt(AnmManager *anm_mgr, AnmVm *vm, ZunColor textColor, ZunColor shadowColor, char *fmt, ...);
-    ZunResult DrawNoRotation(const AnmVm *vm);
-    ZunResult DrawOrthographic(const AnmVm *vm, bool roundToPixel);
-    ZunResult DrawFacingCamera(const AnmVm *vm);
-    ZunResult Draw2(const AnmVm *vm);
-    ZunResult Draw3(const AnmVm *vm);
+    ZunResult DrawNoRotation(AnmVm *vm);
+    ZunResult DrawOrthographic(AnmVm *vm, bool roundToPixel);
+    ZunResult DrawFacingCamera(AnmVm *vm);
+    ZunResult Draw2(AnmVm *vm);
+    ZunResult Draw3(AnmVm *vm);
 
-    void LoadSprite(u32 spriteIdx, const AnmLoadedSprite *sprite);
+    void LoadSprite(u32 spriteIdx, AnmLoadedSprite *sprite);
     ZunResult SetActiveSprite(AnmVm *vm, u32 spriteIdx);
 
     void ReleaseSurfaces(void);
@@ -391,28 +390,23 @@ struct AnmManager
     void ExecuteAnmIdx(AnmVm *vm, i32 anmFileIdx)
     {
         vm->anmFileIndex = anmFileIdx;
-#ifndef __PS3__
         vm->pos = ZunVec3(0, 0, 0);
         vm->posOffset = ZunVec3(0, 0, 0);
-#else
-        vm->pos.x = vm->pos.y = vm->pos.z = 0.0f;
-        vm->posOffset.x = vm->posOffset.y = vm->posOffset.z = 0.0f;
-#endif
         vm->fontHeight = 15;
         vm->fontWidth = 15;
 
         this->SetAndExecuteScript(vm, this->scripts[anmFileIdx]);
     }
 
-    void SetRenderStateForVm(const AnmVm *vm);
+    void SetRenderStateForVm(AnmVm *vm);
 
     void RequestScreenshot()
     {
         this->screenshotTextureId = 3;
-        this->screenshotLeft = (i32)GAME_REGION_LEFT;
-        this->screenshotTop = (i32)GAME_REGION_TOP;
-        this->screenshotWidth = (i32)GAME_REGION_WIDTH;
-        this->screenshotHeight = (i32)GAME_REGION_HEIGHT;
+        this->screenshotLeft = GAME_REGION_LEFT;
+        this->screenshotTop = GAME_REGION_TOP;
+        this->screenshotWidth = GAME_REGION_WIDTH;
+        this->screenshotHeight = GAME_REGION_HEIGHT;
     }
 
 #ifndef __PS3__
@@ -421,7 +415,8 @@ struct AnmManager
     static void FlipSurface(SDL_Surface *surface);
 #endif
 #ifndef __PS3__
-    void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect);
+    void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect,
+                                   ZunColor color = 0xffffffff);
 #endif
     // Creates, binds, and set parameters for a new texture
     void CreateTextureObject();
@@ -456,7 +451,7 @@ struct AnmManager
 #endif
     u8 currentBlendMode;
     ProjectionMode projectionMode;
-    const AnmLoadedSprite *currentSprite;
+    AnmLoadedSprite *currentSprite;
     //    IDirect3DVertexBuffer8 *vertexBuffer;
     RenderVertexInfo vertexBufferContents[4];
     i32 screenshotTextureId;

@@ -5,7 +5,6 @@
 
 #include "ZunColor.hpp"
 #include "ZunMath.hpp"
-#include "ZunEndian.hpp"
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
@@ -59,7 +58,7 @@ struct AnmLoadedSprite
 
 struct AnmRawInstr
 {
-    LE<i16> time;
+    i16 time;
     u8 opcode;
     u8 argsCount;
     u32 args[10];

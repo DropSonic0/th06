@@ -95,12 +95,12 @@ struct MidiOutput
     ZunResult StopPlayback();
     void LoadTracks();
     void ClearTracks();
-    ZunResult ReadFileData(u32 idx, const char *path);
+    ZunResult ReadFileData(u32 idx, char *path);
     void ReleaseFileData(u32 idx);
     void ProcessMsg(MidiTrack *track);
 
     ZunResult ParseFile(i32 idx);
-    ZunResult LoadFile(const char *midiPath);
+    ZunResult LoadFile(char *midiPath);
     ZunResult Play();
 
     u32 SetFadeOut(u32 ms);

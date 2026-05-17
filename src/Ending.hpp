@@ -86,4 +86,3 @@ struct Ending
     EndingFadeType fadeType;
     char *endFileDataPtr;
 };
-

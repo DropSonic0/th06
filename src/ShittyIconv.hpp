@@ -2022,8 +2022,7 @@ void cp_append(std::string& out, uint32_t cp) {
 		out.append(chars, 4);
 	}
 	else {
-			char replacement[3] = { static_cast<char>(0xef), static_cast<char>(0xbf), static_cast<char>(0xbd) };
-			out.append(replacement, 3);
+		out.append({ static_cast<char>(0xef), static_cast<char>(0xbf), static_cast<char>(0xbd) }, 3);
 	}
 }
 
@@ -2394,29 +2393,21 @@ bool sjis_to_utf8(const char* str, size_t len, std::string& utf8) {
 			case 0x8667:
 			case 0x8669:
 			case 0x866B:
-			case 0x866D: {
-				char chars[2] = { static_cast<char>(0xcc), static_cast<char>(0x80) };
-				utf8.append(chars, 2);
+			case 0x866D:
+				utf8.append({ static_cast<char>(0xcc), static_cast<char>(0x80) }, 2);
 				break;
-			}
 			case 0x8668:
 			case 0x866A:
 			case 0x866C:
-			case 0x866E: {
-				char chars[2] = { static_cast<char>(0xcc), static_cast<char>(0x80) };
-				utf8.append(chars, 2);
+			case 0x866E:
+				utf8.append({ static_cast<char>(0xcc), static_cast<char>(0x80) }, 2);
 				break;
-			}
-			case 0x8685: {
-				char chars[2] = { static_cast<char>(0xcb), static_cast<char>(0xa5) };
-				utf8.append(chars, 2);
+			case 0x8685:
+				utf8.append({ static_cast<char>(0xcb), static_cast<char>(0xa5) }, 2);
 				break;
-			}
-			case 0x8686: {
-				char chars[2] = { static_cast<char>(0xcb), static_cast<char>(0xa9) };
-				utf8.append(chars, 2);
+			case 0x8686:
+				utf8.append({ static_cast<char>(0xcb), static_cast<char>(0xa9) }, 2);
 				break;
-			}
 			}
 		}
 		else if (twobyte_char >= 0xE040) {

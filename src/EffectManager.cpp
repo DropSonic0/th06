@@ -12,10 +12,10 @@
 
 EffectManager g_EffectManager;
 
-static ChainElem g_EffectManagerCalcChain;
-static ChainElem g_EffectManagerDrawChain;
+ChainElem g_EffectManagerCalcChain;
+ChainElem g_EffectManagerDrawChain;
 
-static const EffectInfo g_Effects[20] = {
+EffectInfo g_Effects[20] = {
     {ANM_SCRIPT_BULLET4_SPAWN_BUBBLE_EXPLOSION_SMALL, NULL},
     {ANM_SCRIPT_BULLET4_SPAWN_BUBBLE_EXPLOSION_SPIRAL, NULL},
     {ANM_SCRIPT_BULLET4_SPAWN_BUBBLE_EXPLOSION_NORMAL, NULL},
@@ -122,7 +122,7 @@ i32 EffectManager::EffectUpdateCallback4(Effect *effect)
 
     if (posMagnitude * posMagnitude < 0)
     {
-        VEC3_SET(normalizedPos, 1.0f, 0.0f, 0.0f);
+        normalizedPos = ZunVec3(1.0f, 0.0f, 0.0f);
     }
     else
     {
@@ -198,7 +198,7 @@ i32 EffectManager::EffectCallbackAttractSlow(Effect *effect)
     return EFFECT_CALLBACK_RESULT_DONE;
 }
 
-Effect *EffectManager::SpawnParticles(i32 effectIdx, const ZunVec3 *pos, i32 count, ZunColor color)
+Effect *EffectManager::SpawnParticles(i32 effectIdx, ZunVec3 *pos, i32 count, ZunColor color)
 {
     i32 idx;
     Effect *effect;

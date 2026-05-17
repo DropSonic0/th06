@@ -51,7 +51,7 @@ u32 SetButtonFromDirectInputJoystate(u16 *outButtons, i16 controllerButtonToTest
                                      const u8 *inputButtons);
 
 u16 GetControllerInput(u16 buttons);
-const u8 *GetControllerState();
+u8 *GetControllerState();
 u16 GetInput(void);
 void ResetKeyboard(void);
 }; // namespace Controller
