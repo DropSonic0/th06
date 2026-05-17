@@ -4,6 +4,7 @@
 #include <sys/process.h>
 #include <PSGL/psgl.h>
 #include <sysutil/sysutil_common.h>
+#include "ZunEndian.hpp"
 #endif
 #include <stdio.h>
 
@@ -22,7 +23,7 @@
 #include "ZunResult.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
-#define dlog utils::Log
+#define dlog utils::DebugPrint2
 
 #ifdef __PS3__
 SYS_PROCESS_PARAM(1001, 0x100000)
@@ -239,14 +240,14 @@ stop:
 
 #ifdef __PS3__
     GameConfiguration swappedCfgFinal = g_Supervisor.cfg;
-    swappedCfgFinal.version = utils::Swap32(swappedCfgFinal.version);
-    swappedCfgFinal.opts = utils::Swap32(swappedCfgFinal.opts);
-    swappedCfgFinal.padXAxis = (i16)utils::Swap16((u16)swappedCfgFinal.padXAxis);
-    swappedCfgFinal.padYAxis = (i16)utils::Swap16((u16)swappedCfgFinal.padYAxis);
+    swappedCfgFinal.version = SDL_Swap32(swappedCfgFinal.version);
+    swappedCfgFinal.opts = SDL_Swap32(swappedCfgFinal.opts);
+    swappedCfgFinal.padXAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padXAxis);
+    swappedCfgFinal.padYAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padYAxis);
     
     i16* swappedMappingFinal = (i16*)&swappedCfgFinal.controllerMapping;
     for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
-        swappedMappingFinal[i] = (i16)utils::Swap16((u16)swappedMappingFinal[i]);
+        swappedMappingFinal[i] = (i16)SDL_Swap16((u16)swappedMappingFinal[i]);
     }
     FileSystem::WriteDataToFile(TH_CONFIG_FILE, &swappedCfgFinal, sizeof(g_Supervisor.cfg));
 #else

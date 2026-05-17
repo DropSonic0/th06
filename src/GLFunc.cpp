@@ -13,12 +13,12 @@ GLFuncTable g_glFuncTable;
 #else
 #define TRY_RESOLVE_FUNCTION(func)                                                                                     \
     this->func = ::func;                                                                                               \
-    if (this->func == NULL) utils::Log("GLFunc: FATAL: %s is NULL!", #func);                                           \
-    else utils::Log("GLFunc: %s = %p", #func, this->func);
+    if (this->func == NULL) utils::DebugPrint2("GLFunc: FATAL: %s is NULL!", #func);                                           \
+    else utils::DebugPrint2("GLFunc: %s = %p", #func, this->func);
 #define TRY_RESOLVE_FUNCTION_GLES(func)                                                                                \
     this->func##_ptr = ::func;                                                                                         \
-    if (this->func##_ptr == NULL) utils::Log("GLFunc: FATAL: %s (GLES) is NULL!", #func);                              \
-    else utils::Log("GLFunc: %s (GLES) = %p", #func, this->func##_ptr);
+    if (this->func##_ptr == NULL) utils::DebugPrint2("GLFunc: FATAL: %s (GLES) is NULL!", #func);                              \
+    else utils::DebugPrint2("GLFunc: %s (GLES) = %p", #func, this->func##_ptr);
 #endif
 
 void GLFuncTable::ResolveFunctions(bool glesContext)

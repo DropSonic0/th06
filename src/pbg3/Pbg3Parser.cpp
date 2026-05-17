@@ -12,14 +12,14 @@ i32 Pbg3Parser::OpenArchive(const char *path)
     if (!this->Open(path, "rb"))
     {
 #ifdef __PS3__
-        utils::Log("Pbg3Parser: Failed to open archive %s", path);
+        //utils::Log("Pbg3Parser: Failed to open archive %s", path);
 #endif
         return 0;
     }
     this->Reset();
     this->fileSize = this->GetSize();
 #ifdef __PS3__
-    utils::Log("Pbg3Parser: Opened archive %s, size = %d", path, this->fileSize);
+    //utils::Log("Pbg3Parser: Opened archive %s, size = %d", path, this->fileSize);
 #endif
     return 1;
 }

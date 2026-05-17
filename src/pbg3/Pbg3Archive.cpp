@@ -355,7 +355,7 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
     if (this->entries[entryIdx].checksum != checksum)
     {
 #ifdef __PS3__
-        utils::Log("Pbg3Archive: Checksum mismatch for %s: expected %u, got %u", filename, this->entries[entryIdx].checksum, checksum);
+        //utils::Log("Pbg3Archive: Checksum mismatch for %s: expected %u, got %u", filename, this->entries[entryIdx].checksum, checksum);
 #endif
         if (out != NULL)
         {

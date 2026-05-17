@@ -167,7 +167,7 @@ ZunResult SoundPlayer::InitializeDSound()
 {
     int res;
 #ifdef __PS3__
-    utils::Log("SoundPlayer: InitializeDSound...");
+    //utils::Log("SoundPlayer: InitializeDSound...");
 #endif
 #ifndef __PS3__
     SDL_AudioSpec desiredAudio;
@@ -194,10 +194,10 @@ ZunResult SoundPlayer::InitializeDSound()
 
     this->backgroundMusicThreadHandle = std::thread(&SoundPlayer::BackgroundMusicPlayerThread, this);
 #else
-    utils::Log("SoundPlayer: cellAudioInit...");
+    //utils::Log("SoundPlayer: cellAudioInit...");
     int res_init = cellAudioInit();
     if (res_init != CELL_OK && res_init != CELL_AUDIO_ERROR_ALREADY_INIT) {
-        utils::Log("SoundPlayer: cellAudioInit failed: 0x%08x", res_init);
+        //utils::Log("SoundPlayer: cellAudioInit failed: 0x%08x", res_init);
         goto fail;
     }
     
@@ -207,39 +207,39 @@ ZunResult SoundPlayer::InitializeDSound()
     portParam.attr = CELL_AUDIO_PORTATTR_INITLEVEL;
     portParam.level = 1.0f;
 
-    utils::Log("SoundPlayer: cellAudioPortOpen (nBlock=%d, attr=0x%llx)...", (int)portParam.nBlock, (unsigned long long)portParam.attr);
+    //utils::Log("SoundPlayer: cellAudioPortOpen (nBlock=%d, attr=0x%llx)...", (int)portParam.nBlock, (unsigned long long)portParam.attr);
     res = cellAudioPortOpen(&portParam, &this->audioPortNum);
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: cellAudioPortOpen failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: cellAudioPortOpen failed: 0x%08x", res);
         goto fail;
     }
 
-    utils::Log("SoundPlayer: cellAudioPortStart (port %d)...", this->audioPortNum);
+    //utils::Log("SoundPlayer: cellAudioPortStart (port %d)...", this->audioPortNum);
     res = cellAudioPortStart(this->audioPortNum);
     cellAudioSetPortLevel(this->audioPortNum, 1.0f);
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: cellAudioPortStart failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: cellAudioPortStart failed: 0x%08x", res);
         goto fail;
     }
 
-    utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue...");
+    //utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue...");
     res = cellAudioCreateNotifyEventQueue(&this->audioEventQueue, &this->audioEventKey);
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: cellAudioCreateNotifyEventQueue failed: 0x%08x", res);
         goto fail;
     }
 
     res = cellAudioSetNotifyEventQueue(this->audioEventKey);
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: cellAudioSetNotifyEventQueue failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: cellAudioSetNotifyEventQueue failed: 0x%08x", res);
         goto fail;
     }
 
-    utils::Log("SoundPlayer: sys_ppu_thread_create...");
+    //utils::Log("SoundPlayer: sys_ppu_thread_create...");
     this->backgroundMusic.streamCacheSize = 8192; // 8k frames (32KB) per buffer
     this->backgroundMusic.streamCache = new i16[this->backgroundMusic.streamCacheSize * 2 * 2]; // Double buffer
     this->backgroundMusic.activeBuffer = 0;
@@ -248,18 +248,18 @@ ZunResult SoundPlayer::InitializeDSound()
     res = sys_ppu_thread_create(&this->backgroundMusicThreadHandle, ps3_audio_thread, (uint64_t)this, 500, 128 * 1024, SYS_PPU_THREAD_CREATE_JOINABLE, "SoundThread");
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: sys_ppu_thread_create failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: sys_ppu_thread_create failed: 0x%08x", res);
         goto fail;
     }
     res = sys_ppu_thread_create(&this->bgmIoThreadHandle, ps3_bgm_io_thread, (uint64_t)this, 1000, 128 * 1024, SYS_PPU_THREAD_CREATE_JOINABLE, "BgmIoThread");
     if (res != CELL_OK)
     {
-        utils::Log("SoundPlayer: sys_ppu_thread_create (IO) failed: 0x%08x", res);
+        //utils::Log("SoundPlayer: sys_ppu_thread_create (IO) failed: 0x%08x", res);
         goto fail;
     }
 #endif
 
-    utils::Log("SoundPlayer: InitializeDSound SUCCESS");
+    //utils::Log("SoundPlayer: InitializeDSound SUCCESS");
     GameErrorContext::Log(&g_GameErrorContext, TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
     return ZUN_SUCCESS;
 
@@ -417,13 +417,13 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     if (fileStream == NULL)
     {
 #ifdef __PS3__
-        utils::Log("SoundPlayer: Failed to load BGM WAV (fopen failed): %s (resolved: %s)", path, resolvedPath);
+        //utils::Log("SoundPlayer: Failed to load BGM WAV (fopen failed): %s (resolved: %s)", path, resolvedPath);
 #endif
-        utils::DebugPrint2("error : wav file load error %s\n", path);
+        //utils::DebugPrint2("error : wav file load error %s\n", path);
         goto fail;
     }
 #ifdef __PS3__
-    utils::Log("SoundPlayer: Loaded BGM WAV: %s", path);
+    //utils::Log("SoundPlayer: Loaded BGM WAV: %s", path);
 #endif
 
     // Minimum size of RIFF header and chunk info preceeding the sample data
@@ -577,7 +577,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     // Skip any other chunks before "data"
     while (true) {
         if (fread(idBuf, 4, 1, fileStream) != 1) {
-            utils::Log("SoundPlayer: LoadWav FAILED: reached EOF while looking for 'data' chunk");
+            //utils::Log("SoundPlayer: LoadWav FAILED: reached EOF while looking for 'data' chunk");
             goto fail;
         }
         uint32_t chunkSize;
@@ -589,25 +589,25 @@ ZunResult SoundPlayer::LoadWav(const char *path)
             break;
         }
 
-        utils::Log("SoundPlayer: LoadWav %s: skipping chunk '%.4s' size %u", path, idBuf, chunkSize);
+        //utils::Log("SoundPlayer: LoadWav %s: skipping chunk '%.4s' size %u", path, idBuf, chunkSize);
         fseek(fileStream, chunkSize + (chunkSize & 1), SEEK_CUR);
         if (ftell(fileStream) >= (long)fileSize) {
-             utils::Log("SoundPlayer: LoadWav FAILED: reached EOF after skipping chunk");
+             //utils::Log("SoundPlayer: LoadWav FAILED: reached EOF after skipping chunk");
              goto fail;
         }
     }
 #endif
 
-    utils::Log("SoundPlayer: LoadWav %s: wavDataSize=%u, riffSize=%u", path, wavDataSize, riffSize);
+    //utils::Log("SoundPlayer: LoadWav %s: wavDataSize=%u, riffSize=%u", path, wavDataSize, riffSize);
 
     if (wavDataSize > riffSize - 44)
     {
-        utils::Log("SoundPlayer: LoadWav FAILED: wavDataSize > riffSize - 44");
+        //utils::Log("SoundPlayer: LoadWav FAILED: wavDataSize > riffSize - 44");
         goto fail;
     }
 
     this->backgroundMusic.srcWav.samples = wavDataSize / BACKGROUND_MUSIC_WAV_BLOCK_ALIGN;
-    utils::Log("SoundPlayer: LoadWav %s: samples=%u, dataStartOffset=%u", path, this->backgroundMusic.srcWav.samples, (u32)ftell(fileStream));
+    //utils::Log("SoundPlayer: LoadWav %s: samples=%u, dataStartOffset=%u", path, this->backgroundMusic.srcWav.samples, (u32)ftell(fileStream));
 
     if (this->backgroundMusic.srcWav.samples == 0)
     {
@@ -652,7 +652,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 
 fail:
 #ifdef __PS3__
-    utils::Log("SoundPlayer: Failed to LoadWav %s (check WAV format?)", path);
+    //utils::Log("SoundPlayer: Failed to LoadWav %s (check WAV format?)", path);
 #endif
 #ifndef __PS3__
     if (fileStream) SDL_RWclose(fileStream);
@@ -691,7 +691,7 @@ ZunResult SoundPlayer::LoadPos(const char *path)
     this->backgroundMusic.loopEnd = SDL_Swap32(*(u32 *)(fileData + 4));
 #endif
 
-    utils::Log("SoundPlayer: LoadPos %s: loopStart=%u, loopEnd=%u (max samples=%u)", path, this->backgroundMusic.loopStart, this->backgroundMusic.loopEnd, this->backgroundMusic.srcWav.samples);
+    //utils::Log("SoundPlayer: LoadPos %s: loopStart=%u, loopEnd=%u (max samples=%u)", path, this->backgroundMusic.loopStart, this->backgroundMusic.loopEnd, this->backgroundMusic.srcWav.samples);
 
     free(fileData);
 
@@ -710,7 +710,7 @@ ZunResult SoundPlayer::LoadPos(const char *path)
 ZunResult SoundPlayer::InitSoundBuffers()
 {
 #ifdef __PS3__
-    utils::Log("SoundPlayer: InitSoundBuffers...");
+    //utils::Log("SoundPlayer: InitSoundBuffers...");
 #endif
     //soundplayerdlog("init sound buffer");
     //soundplayerdlog("check audioDev");
@@ -733,7 +733,7 @@ ZunResult SoundPlayer::InitSoundBuffers()
                             1.0f / ZUN_POWF(10.0f, (float)g_SoundBufferIdxVol[idx].volume / -2000)) != ZUN_SUCCESS)
         {
 #ifdef __PS3__
-            utils::Log("SoundPlayer: Failed to load SFX: %s", g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx]);
+            //utils::Log("SoundPlayer: Failed to load SFX: %s", g_SFXList[g_SoundBufferIdxVol[idx].bufferIdx]);
 #endif
             GameErrorContext::Log(&g_GameErrorContext, TH_ERR_SOUNDPLAYER_FAILED_TO_LOAD_SOUND_FILE, g_SFXList[idx]);
             return ZUN_ERROR;
@@ -787,7 +787,7 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     if (wavRawData == NULL)
     {
 #ifdef __PS3__
-        utils::Log("SoundPlayer: LoadSound %d FAILED to OpenPath: %s", idx, path);
+        //utils::Log("SoundPlayer: LoadSound %d FAILED to OpenPath: %s", idx, path);
 #endif
         goto fail;
     }
@@ -857,11 +857,11 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     }
 
     if (sfxWavDataOffset == 0) {
-        utils::Log("SoundPlayer: LoadSound %d FAILED to find 'data' chunk in %s", idx, path);
+        //utils::Log("SoundPlayer: LoadSound %d FAILED to find 'data' chunk in %s", idx, path);
         goto fail;
     }
 
-    utils::Log("SoundPlayer: SFX %s: rate=%u, chan=%u, bits=%u", path, sfxSampleRate, sfxChannels, sfxBitsPerSample);
+    //utils::Log("SoundPlayer: SFX %s: rate=%u, chan=%u, bits=%u", path, sfxSampleRate, sfxChannels, sfxBitsPerSample);
 
     srcSamples = sfxWavDataSize / (sfxChannels * (sfxBitsPerSample / 8));
     ratio = (double)PS3_NATIVE_SAMPLE_RATE / (double)sfxSampleRate;
@@ -900,7 +900,7 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     this->soundBuffers[idx].isPlaying = false;
 
 #ifdef __PS3__
-    utils::Log("SoundPlayer: LoadSound %d SUCCESS: %s (len: %u)", idx, path, this->soundBuffers[idx].len);
+    //utils::Log("SoundPlayer: LoadSound %d SUCCESS: %s (len: %u)", idx, path, this->soundBuffers[idx].len);
 #endif
 
     //soundplayerdlog("load sound 7");
@@ -1256,7 +1256,7 @@ bgm_done:
             this->backgroundMusic.nextSamples[0] = savedNextSamples[0];
             this->backgroundMusic.nextSamples[1] = savedNextSamples[1];
         sys_mutex_unlock(this->bgmStateMutex);
-        if (res_add != CELL_AUDIO_ERROR_PORT_FULL) utils::Log("SoundPlayer: cellAudioAdd2chData failed: 0x%08x", res_add);
+        if (res_add != CELL_AUDIO_ERROR_PORT_FULL) //utils::Log("SoundPlayer: cellAudioAdd2chData failed: 0x%08x", res_add);
         sys_mutex_unlock(this->soundBufMutex);
             return res_add;
         }
@@ -1272,7 +1272,7 @@ bgm_done:
 void SoundPlayer::BackgroundMusicPlayerThread()
 {
 #ifdef __PS3__
-    utils::Log("SoundPlayer: BackgroundMusicPlayerThread start...");
+    //utils::Log("SoundPlayer: BackgroundMusicPlayerThread start...");
     sys_event_t event;
     while (!this->terminateFlag)
     {

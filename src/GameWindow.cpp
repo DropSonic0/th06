@@ -322,21 +322,21 @@ void GameWindow::CreateGameWindow()
 
     g_Supervisor.gameWindow = g_GameWindow.window;
 #else
-    utils::Log("PSGL: cellVideoOutGetState...");
+    //utils::Log("PSGL: cellVideoOutGetState...");
     CellVideoOutState videoState;
     if (cellVideoOutGetState(CELL_VIDEO_OUT_PRIMARY, 0, &videoState) == CELL_OK)
     {
-        utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.displayMode.refreshRates);
+        //utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.displayMode.refreshRates);
         CellVideoOutResolution res;
         cellVideoOutGetResolution(videoState.displayMode.resolutionId, &res);
-        utils::Log("Video: Display Resolution: %dx%d", res.width, res.height);
+        //utils::Log("Video: Display Resolution: %dx%d", res.width, res.height);
     }
     else
     {
-        utils::Log("Video: FAILED to get state!");
+        //utils::Log("Video: FAILED to get state!");
     }
 
-    utils::Log("PSGL: psglInit...");
+    //utils::Log("PSGL: psglInit...");
     PSGLinitOptions initOptions;
     memset(&initOptions, 0, sizeof(PSGLinitOptions));
     initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
@@ -344,11 +344,11 @@ void GameWindow::CreateGameWindow()
     initOptions.initializeSPUs = GL_TRUE;
     initOptions.hostMemorySize = 128 * 1024 * 1024; // 128MB
     psglInit(&initOptions);
-    utils::Log("PSGL: psglInit done.");
+    //utils::Log("PSGL: psglInit done.");
 
     cellSysutilCheckCallback();
 
-    utils::Log("PSGL: psglCreateDeviceExtended...");
+    //utils::Log("PSGL: psglCreateDeviceExtended...");
     PSGLdeviceParameters params;
     memset(&params, 0, sizeof(params));
     params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | 
@@ -363,43 +363,43 @@ void GameWindow::CreateGameWindow()
 
     if (g_GameWindow.device == NULL)
     {
-        utils::Log("PSGL: psglCreateDeviceExtended FAILED. Retrying with psglCreateDeviceAuto(0,0,0)...");
+        //utils::Log("PSGL: psglCreateDeviceExtended FAILED. Retrying with psglCreateDeviceAuto(0,0,0)...");
         g_GameWindow.device = psglCreateDeviceAuto(0, 0, 0);
     }
 
     if (g_GameWindow.device == NULL)
     {
-        utils::Log("PSGL: FATAL: Failed to create PSGL device.");
+        //utils::Log("PSGL: FATAL: Failed to create PSGL device.");
         return;
     }
-    utils::Log("PSGL: Device created successfully (%p).", g_GameWindow.device);
+    //utils::Log("PSGL: Device created successfully (%p).", g_GameWindow.device);
 
-    utils::Log("PSGL: psglCreateContext...");
+    //utils::Log("PSGL: psglCreateContext...");
     g_GameWindow.glContext = psglCreateContext();
-    utils::Log("PSGL: psglCreateContext done (%p).", g_GameWindow.glContext);
+    //utils::Log("PSGL: psglCreateContext done (%p).", g_GameWindow.glContext);
 
     if (g_GameWindow.glContext == NULL)
     {
-        utils::Log("PSGL: psglCreateContext FAILED!");
+        //utils::Log("PSGL: psglCreateContext FAILED!");
         return;
     }
 
-    utils::Log("PSGL: psglMakeCurrent...");
+    //utils::Log("PSGL: psglMakeCurrent...");
     psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
-    utils::Log("PSGL: psglMakeCurrent done.");
+    //utils::Log("PSGL: psglMakeCurrent done.");
 
-    utils::Log("PSGL: psglResetCurrentContext...");
+    //utils::Log("PSGL: psglResetCurrentContext...");
     psglResetCurrentContext();
-    utils::Log("PSGL: psglResetCurrentContext done.");
+    //utils::Log("PSGL: psglResetCurrentContext done.");
 
     GLuint width = 0, height = 0;
-    utils::Log("PSGL: psglGetDeviceDimensions...");
+    //utils::Log("PSGL: psglGetDeviceDimensions...");
     psglGetDeviceDimensions(g_GameWindow.device, &width, &height);
-    utils::Log("PSGL: Device dimensions: %dx%d", width, height);
+    //utils::Log("PSGL: Device dimensions: %dx%d", width, height);
     InitGameWindowPS3(width, height);
     g_GameWindow.CONFIGURE_VIEW();
 
-    utils::Log("PSGL: ResolveFunctions...");
+    //utils::Log("PSGL: ResolveFunctions...");
     g_glFuncTable.ResolveFunctions(false);
     g_GameWindow.renderBackendIndex = 0; // FixedFunctionGL
 #endif
@@ -459,7 +459,7 @@ void GameWindow::CreateGameWindow()
 i32 GameWindow::InitD3dRendering(void)
 {
 #ifdef __PS3__
-    utils::Log("GameWindow: InitD3dRendering...");
+    //utils::Log("GameWindow: InitD3dRendering...");
 #endif
     //    u8 using_d3d_hal;
     //    D3DPRESENT_PARAMETERS present_params;
@@ -473,10 +473,10 @@ i32 GameWindow::InitD3dRendering(void)
     f32 field_of_view_y;
     f32 camera_distance;
 
-    utils::Log("GameWindow: Initializing gfxBackend via s_RenderBackends (index %d, addr %p)...", 
+    utils::DebugPrint2("GameWindow: Initializing gfxBackend via s_RenderBackends (index %d, addr %p)...", 
                g_GameWindow.renderBackendIndex, s_RenderBackends[g_GameWindow.renderBackendIndex].init);
     g_AnmManager->gfxBackend = s_RenderBackends[g_GameWindow.renderBackendIndex].init();
-    utils::Log("GameWindow: gfxBackend initialized.");
+    //utils::Log("GameWindow: gfxBackend initialized.");
 
     //    using_d3d_hal = 1;
     //    std::memset(&present_params, 0, sizeof(D3DPRESENT_PARAMETERS));
@@ -662,7 +662,7 @@ i32 GameWindow::InitD3dRendering(void)
     //    g_Supervisor.d3dDevice->SetTransform(D3DTS_PROJECTION, &g_Supervisor.projectionMatrix);
     g_Supervisor.viewport.Get();
 #ifdef __PS3__
-    utils::Log("GameWindow: InitD3dDevice...");
+    //utils::Log("GameWindow: InitD3dDevice...");
 #endif
     //    g_Supervisor.d3dDevice->GetDeviceCaps(&g_Supervisor.d3dCaps);
     //    if (((((g_Supervisor.cfg.opts >> GCOS_USE_D3D_HW_TEXTURE_BLENDING) & 1) == 0) &&
@@ -691,9 +691,9 @@ i32 GameWindow::InitD3dRendering(void)
     //            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_D3DFMT_A8R8G8B8_UNSUPPORTED);
     //        }
     //    }
-    utils::Log("GameWindow: Calling InitD3dDevice...");
+    //utils::Log("GameWindow: Calling InitD3dDevice...");
     InitD3dDevice();
-    utils::Log("GameWindow: Calling ScreenEffect::SetViewport(0)...");
+    //utils::Log("GameWindow: Calling ScreenEffect::SetViewport(0)...");
     ScreenEffect::SetViewport(0);
     g_GameWindow.isAppClosing = 0;
     g_Supervisor.lastFrameTime = 0;
@@ -705,7 +705,7 @@ i32 GameWindow::InitD3dRendering(void)
 void GameWindow::InitD3dDevice(void)
 {
 #ifdef __PS3__
-    utils::Log("GameWindow: InitD3dDevice details...");
+    //utils::Log("GameWindow: InitD3dDevice details...");
 #endif
     AnmManager *anm1;
     AnmManager *anm2;

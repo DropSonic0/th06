@@ -4,55 +4,43 @@
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 
+#ifndef __PS3__
 #include <SDL_ttf.h>
+#else
+#include <cstdlib>
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "../3rdparty/imgui/imstb_truetype.h"
+#include "../th06.ttc.h"
+#endif
 #include <algorithm>
 #include <cstring>
 #include "ShittyIconv.hpp"
 #include "GamePaths.hpp"
 
 
+#ifndef __PS3__
 TTF_Font *g_Font;
-;
+#else
+static stbtt_fontinfo g_Font;
+#endif
 
 bool textNotExist;
 
 TextHelper::TextHelper()
 {
-    //    this->format = (D3DFORMAT)-1;
-    //    this->width = 0;
-    //    this->height = 0;
-    //    this->hdc = 0;
-    //    this->gdiObj2 = 0;
-    //    this->gdiObj = 0;
-    //    this->buffer = NULL;
 }
 
 TextHelper::~TextHelper()
 {
+#ifndef __PS3__
     TTF_Quit();
+#endif
     this->ReleaseBuffer();
 }
 
 bool TextHelper::ReleaseBuffer()
 {
-    //    if (this->hdc)
-    //    {
-    //        SelectObject(this->hdc, this->gdiObj);
-    //        DeleteDC(this->hdc);
-    //        DeleteObject(this->gdiObj2);
-    //        this->format = (D3DFORMAT)-1;
-    //        this->width = 0;
-    //        this->height = 0;
-    //        this->hdc = 0;
-    //        this->gdiObj2 = 0;
-    //        this->gdiObj = 0;
-    //        this->buffer = NULL;
     return true;
-    //    }
-    //    else
-    //    {
-    //        return false;
-    //    }
 }
 
 #define TEXT_BUFFER_HEIGHT 64
@@ -60,6 +48,7 @@ bool TextHelper::ReleaseBuffer()
 // Extended to initialize all globals for text helper
 ZunResult TextHelper::CreateTextBuffer()
 {
+#ifndef __PS3__
     TTF_Init();
 
     // Primary font is MSゴシック, which is nonfree and has to be taken from a Windows install
@@ -88,6 +77,17 @@ ZunResult TextHelper::CreateTextBuffer()
         SDL_CreateRGBSurfaceWithFormat(0, GAME_WINDOW_WIDTH, TEXT_BUFFER_HEIGHT, 32, SDL_PIXELFORMAT_RGBA32);
 
     SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
+#else
+    if (!stbtt_InitFont(&g_Font, th06_ttc, 0))
+    {
+        textNotExist = true;
+        return ZUN_SUCCESS;
+    }
+    g_TextBufferSurface = malloc(640 * TEXT_BUFFER_HEIGHT * 4);
+    if (g_TextBufferSurface) {
+        memset(g_TextBufferSurface, 0, 640 * TEXT_BUFFER_HEIGHT * 4);
+    }
+#endif
 
     return ZUN_SUCCESS;
 }
@@ -97,11 +97,17 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
     if(textNotExist) return true;
     u8 *bufferCursor;
     i32 gradientArea;
-    i32 i = 0;
 
     gradientArea = spriteWidth * fontHeight;
 
+#ifndef __PS3__
     SDL_LockSurface(g_TextBufferSurface);
+    bufferCursor = (u8 *)g_TextBufferSurface->pixels;
+#else
+    bufferCursor = (u8 *)g_TextBufferSurface;
+#endif
+
+    if (!bufferCursor) return true;
 
     // In D3D EoSD this function mostly inverts the alpha, but on A1R5G5B5 surfaces specifically it also
     //   creates a gradient. D3D EoSD will always attempt to create an A1R5G5B5 surface for the text buffer,
@@ -109,17 +115,29 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
     //   As part of the port from GDI to SDL_ttf, we've converted the text buffer surface to always be RGBA32
     //   and no longer need the alpha inversion, but we still want that gradient to be applied
 
-    for (bufferCursor = (u8 *)g_TextBufferSurface->pixels; i < gradientArea; i++, bufferCursor += 4)
+    for (int i = 0; i < gradientArea; i++, bufferCursor += 4)
     {
+#ifndef __PS3__
         if (bufferCursor[3]) // A
         {
-            bufferCursor[0] = bufferCursor[0] - bufferCursor[0] * i / gradientArea / 2; // R
-            bufferCursor[1] = bufferCursor[1] - bufferCursor[1] * i / gradientArea / 2; // G
-            bufferCursor[2] = bufferCursor[2] - bufferCursor[2] * i / gradientArea / 4; // B
+            bufferCursor[0] = (u8)(bufferCursor[0] - bufferCursor[0] * i / gradientArea / 2); // R
+            bufferCursor[1] = (u8)(bufferCursor[1] - bufferCursor[1] * i / gradientArea / 2); // G
+            bufferCursor[2] = (u8)(bufferCursor[2] - bufferCursor[2] * i / gradientArea / 4); // B
         }
+#else
+        // PS3 Big Endian ARGB: 0=A, 1=R, 2=G, 3=B
+        if (bufferCursor[0]) // A
+        {
+            bufferCursor[1] = (u8)(bufferCursor[1] - bufferCursor[1] * i / gradientArea / 2); // R
+            bufferCursor[2] = (u8)(bufferCursor[2] - bufferCursor[2] * i / gradientArea / 2); // G
+            bufferCursor[3] = (u8)(bufferCursor[3] - bufferCursor[3] * i / gradientArea / 4); // B
+        }
+#endif
     }
 
+#ifndef __PS3__
     SDL_UnlockSurface(g_TextBufferSurface);
+#endif
 
     return true;
 }
@@ -200,6 +218,7 @@ bool isUTF8Encoded(char *string)
 #undef UTF8_2NDBYTE_PREFIX
 }
 
+#ifndef __PS3__
 void SurfaceOverwriteBlend(SDL_Surface *srcSurface, SDL_Surface *dstSurface, u32 x)
 {
     if(textNotExist) return;
@@ -217,7 +236,7 @@ void SurfaceOverwriteBlend(SDL_Surface *srcSurface, SDL_Surface *dstSurface, u32
     {
         for (int j = 0; j < srcSurface->w; j++)
         {
-            if ((srcData[j] & 0xFF00'0000) != 0)
+            if ((srcData[j] & 0xFF000000) != 0)
             {
                 dstData[i * dstSurface->pitch + (x + j) * 4] = (srcData[j] >> 16) & 0xFF;
                 dstData[i * dstSurface->pitch + (x + j) * 4 + 1] = (srcData[j] >> 8) & 0xFF;
@@ -232,6 +251,7 @@ void SurfaceOverwriteBlend(SDL_Surface *srcSurface, SDL_Surface *dstSurface, u32
     SDL_UnlockSurface(dstSurface);
     SDL_UnlockSurface(srcSurface);
 }
+#endif
 
 void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontHeight,
                                      i32 fontWidth, ZunColor textColor, ZunColor shadowColor, char *string,
@@ -240,21 +260,23 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     if(textNotExist) return;
     
     char convertedText[1024];
-    SDL_Rect finalCopyDst;
-    SDL_Rect finalCopySrc;
-    SDL_Rect shadowRect;
-    SDL_Rect textRect;
 
     if (!isUTF8Encoded(string))
     {
         std::string outputUtf;
-    	sjis_to_utf8(string, strlen(string), outputUtf);
+    	sjis_to_utf8(string, (i32)strlen(string), outputUtf);
         std::strcpy(convertedText, outputUtf.c_str());
     }
     else
     {
         std::strcpy(convertedText, string);
     }
+
+#ifndef __PS3__
+    SDL_Rect finalCopyDst;
+    SDL_Rect finalCopySrc;
+    SDL_Rect shadowRect;
+    SDL_Rect textRect;
 
     TTF_SetFontSize(g_Font, fontHeight * 2);
 
@@ -286,7 +308,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
             shadowRect.h = shadowText->h;
 
             SDL_SetSurfaceBlendMode(shadowText, SDL_BLENDMODE_NONE);
-            SDL_BlitSurface(shadowText, NULL, g_TextBufferSurface, &shadowRect);
+            SDL_BlitSurface(shadowText, NULL, (SDL_Surface*)g_TextBufferSurface, &shadowRect);
 
             SDL_FreeSurface(shadowText);
         }
@@ -307,10 +329,60 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         textRect.w = regularText->w;
         textRect.h = regularText->h;
 
-        SurfaceOverwriteBlend(regularText, g_TextBufferSurface, xPos * 2);
+        SurfaceOverwriteBlend(regularText, (SDL_Surface*)g_TextBufferSurface, xPos * 2);
 
         SDL_FreeSurface(regularText);
     }
+#else
+    u8 *pixels = (u8 *)g_TextBufferSurface;
+    memset(pixels, 0, 640 * TEXT_BUFFER_HEIGHT * 4);
+
+    for (int pass = 0; pass < 2; pass++) {
+        ZunColor color;
+        int xOff, yOff;
+        if (pass == 0) {
+            if (shadowColor == COLOR_WHITE) continue;
+            color = shadowColor; xOff = xPos * 2 + 3; yOff = 2;
+        } else {
+            color = textColor; xOff = xPos * 2; yOff = 0;
+        }
+        u8 r = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)(color & 0xff), a = (u8)((color >> 24) & 0xff);
+        float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight * 2.0f);
+        int ascent; stbtt_GetFontVMetrics(&g_Font, &ascent, 0, 0);
+        ascent = (int)((float)ascent * scale);
+        int curX = xOff;
+        const char* p = convertedText;
+        while (*p) {
+            int cp;
+            unsigned char cu = (unsigned char)*p;
+            if (cu < 0x80) cp = *p++;
+            else if (cu < 0xE0) { cp = ((*p++ & 0x1F) << 6); cp |= (*p++ & 0x3F); }
+            else if (cu < 0xF0) { cp = ((*p++ & 0x0F) << 12); cp |= ((*p++ & 0x3F) << 6); cp |= (*p++ & 0x3F); }
+            else { cp = ((*p++ & 0x07) << 18); cp |= ((*p++ & 0x3F) << 12); cp |= ((*p++ & 0x3F) << 6); cp |= (*p++ & 0x3F); }
+            int ax, lsb, c_x1, c_y1, c_x2, c_y2;
+            stbtt_GetCodepointHMetrics(&g_Font, cp, &ax, &lsb);
+            stbtt_GetCodepointBitmapBox(&g_Font, cp, scale, scale, &c_x1, &c_y1, &c_x2, &c_y2);
+            int out_x = curX + (int)((float)lsb * scale), out_y = yOff + ascent + c_y1, b_w = c_x2 - c_x1, b_h = c_y2 - c_y1;
+            if (b_w > 0 && b_h > 0) {
+                u8* bmp = (u8*)malloc(b_w * b_h);
+                stbtt_MakeCodepointBitmap(&g_Font, bmp, b_w, b_h, b_w, scale, scale, cp);
+                for (int py = 0; py < b_h; py++) {
+                    if (out_y + py < 0 || out_y + py >= TEXT_BUFFER_HEIGHT) continue;
+                    for (int px = 0; px < b_w; px++) {
+                        if (out_x + px < 0 || out_x + px >= 640) continue;
+                        u8 alpha_pixel = bmp[py * b_w + px];
+                        if (alpha_pixel == 0) continue;
+                        u8* dst_px = &pixels[(out_y + py) * 640 * 4 + (out_x + px) * 4];
+                        dst_px[0] = (u8)((a * alpha_pixel) / 255);
+                        dst_px[1] = r; dst_px[2] = g; dst_px[3] = b;
+                    }
+                }
+                free(bmp);
+            }
+            curX += (int)((float)ax * scale);
+        }
+    }
+#endif
 
     // Once we get an API abstraction layer for surface operations, this needs to change
     //   We really shouldn't be clobbering the texture format
@@ -318,22 +390,27 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     {
         free(outTexture->textureData);
         outTexture->textureData = (u8 *)malloc(outTexture->width * outTexture->height * 4);
-        memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
+        if (outTexture->textureData) {
+            memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
+        }
     }
 
     outTexture->format = TEX_FMT_A8R8G8B8;
+#ifndef __PS3__
     SDL_Surface *textureSurface = SDL_CreateRGBSurfaceWithFormatFrom(
-        outTexture->textureData, outTexture->width, outTexture->height, SDL_BITSPERPIXEL(SDL_PIXELFORMAT_RGBA32),
-        outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32), SDL_PIXELFORMAT_RGBA32);
+        outTexture->textureData, outTexture->width, outTexture->height, (i32)SDL_BITSPERPIXEL(SDL_PIXELFORMAT_RGBA32),
+        (i32)(outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32)), SDL_PIXELFORMAT_RGBA32);
+#endif
 
     InvertAlpha(0, 0, spriteWidth * 2, fontHeight * 2 + 6);
 
+#ifndef __PS3__
     finalCopyDst.x = 0;
     finalCopyDst.y = yPos;
     finalCopyDst.w = spriteWidth;
     finalCopyDst.h = 16;
 
-    if (SDL_SoftStretchLinear(g_TextBufferSurface, &finalCopySrc, textureSurface, &finalCopyDst) < 0)
+    if (SDL_SoftStretchLinear((SDL_Surface*)g_TextBufferSurface, &finalCopySrc, textureSurface, &finalCopyDst) < 0)
     {
         SDL_Log("SDL_BlitScaled failed! Error: %s", SDL_GetError());
     }
@@ -344,7 +421,22 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                                GL_UNSIGNED_BYTE, outTexture->textureData);
 
     SDL_FreeSurface(textureSurface);
-    
+#else
+    for (int dy = 0; dy < 16; dy++) {
+        if (yPos + dy >= (int)outTexture->height) break;
+        int sy = dy * (fontHeight * 2 - 2) / 16;
+        for (int dx = 0; dx < spriteWidth; dx++) {
+            if (dx >= (int)outTexture->width) break;
+            int sx = dx * (spriteWidth * 2 - 2) / spriteWidth;
+            memcpy(&outTexture->textureData[(yPos + dy) * outTexture->width * 4 + dx * 4],
+                   &pixels[sy * 640 * 4 + sx * 4], 4);
+        }
+    }
+    g_AnmManager->SetCurrentTexture(outTexture->handle);
+    // PS3 uses GL_ARGB_SCE (0x6007) and GL_UNSIGNED_INT_8_8_8_8 (0x8035)
+    g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, 0x6007, outTexture->width, outTexture->height, 0, 0x6007,
+                               0x8035, outTexture->textureData);
+#endif
 
     return;
 }
@@ -353,6 +445,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 void TextHelper::ReleaseTextBuffer()
 {
     if(textNotExist) return;
+#ifndef __PS3__
     if (g_Font != NULL)
     {
         TTF_CloseFont(g_Font);
@@ -361,9 +454,16 @@ void TextHelper::ReleaseTextBuffer()
 
     if (g_TextBufferSurface != NULL)
     {
-        SDL_FreeSurface(g_TextBufferSurface);
+        SDL_FreeSurface((SDL_Surface*)g_TextBufferSurface);
         g_TextBufferSurface = NULL;
     }
+#else
+    if (g_TextBufferSurface != NULL)
+    {
+        free(g_TextBufferSurface);
+        g_TextBufferSurface = NULL;
+    }
+#endif
     
     return;
 }

@@ -2022,7 +2022,9 @@ void cp_append(std::string& out, uint32_t cp) {
 		out.append(chars, 4);
 	}
 	else {
-		out.append({ static_cast<char>(0xef), static_cast<char>(0xbf), static_cast<char>(0xbd) }, 3);
+		out.push_back((char)0xEF);
+		out.push_back((char)0xBF);
+		out.push_back((char)0xBD);
 	}
 }
 
@@ -2394,19 +2396,23 @@ bool sjis_to_utf8(const char* str, size_t len, std::string& utf8) {
 			case 0x8669:
 			case 0x866B:
 			case 0x866D:
-				utf8.append({ static_cast<char>(0xcc), static_cast<char>(0x80) }, 2);
+				utf8.push_back((char)0xCC);
+				utf8.push_back((char)0x80);
 				break;
 			case 0x8668:
 			case 0x866A:
 			case 0x866C:
 			case 0x866E:
-				utf8.append({ static_cast<char>(0xcc), static_cast<char>(0x80) }, 2);
+				utf8.push_back((char)0xCC);
+				utf8.push_back((char)0x80);
 				break;
 			case 0x8685:
-				utf8.append({ static_cast<char>(0xcb), static_cast<char>(0xa5) }, 2);
+				utf8.push_back((char)0xCB);
+				utf8.push_back((char)0xA5);
 				break;
 			case 0x8686:
-				utf8.append({ static_cast<char>(0xcb), static_cast<char>(0xa9) }, 2);
+				utf8.push_back((char)0xCB);
+				utf8.push_back((char)0xA9);
 				break;
 			}
 		}

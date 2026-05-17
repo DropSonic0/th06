@@ -441,14 +441,14 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, char *textureName, i32 texture
 #else
     u8 *fileData = FileSystem::OpenPath(textureName, 0);
     if (!fileData) {
-        utils::Log("AnmManager: Failed to load %s", textureName);
+        //utils::Log("AnmManager: Failed to load %s", textureName);
         return ZUN_ERROR;
     }
 
     int width, height, channels;
     u8 *pixels = stbi_load_from_memory(fileData, g_LastFileSize, &width, &height, &channels, 4);
     if (!pixels) {
-        utils::Log("AnmManager: stbi_load_from_memory failed for %s", textureName);
+        //utils::Log("AnmManager: stbi_load_from_memory failed for %s", textureName);
         std::free(fileData);
         return ZUN_ERROR;
     }
@@ -480,7 +480,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, char *textureName, i32 texture
     
     u8* potPixels = new u8[potWidth * potHeight * 4];
     if (!potPixels) {
-        utils::Log("AnmManager: Failed to allocate %u bytes for POT texture", potWidth * potHeight * 4);
+        //utils::Log("AnmManager: Failed to allocate %u bytes for POT texture", potWidth * potHeight * 4);
         if (wasScaled) delete[] pixels; else stbi_image_free(pixels);
         std::free(fileData);
         return ZUN_ERROR;
@@ -504,7 +504,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, char *textureName, i32 texture
 
     GLenum err = g_glFuncTable.glGetError();
     if (err != GL_NO_ERROR) {
-        utils::Log("AnmManager: glTexImage2D FAILED for %s (error: 0x%x)", textureName, err);
+        //utils::Log("AnmManager: glTexImage2D FAILED for %s (error: 0x%x)", textureName, err);
         ReleaseTexture(textureIdx);
         return ZUN_ERROR;
     }
@@ -609,7 +609,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
     TextureData *textureDesc = this->textures + textureIdx;
     u8 *alphaFileData = FileSystem::OpenPath(textureName, 0);
     if (!alphaFileData) {
-        utils::Log("AnmManager: Failed to load alpha %s", textureName);
+        //utils::Log("AnmManager: Failed to load alpha %s", textureName);
         return ZUN_ERROR;
     }
 
@@ -617,7 +617,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, char *textureName,
     u8 *alphaPixels = stbi_load_from_memory(alphaFileData, g_LastFileSize, &width, &height, &channels, 4);
     std::free(alphaFileData);
     if (!alphaPixels) {
-        utils::Log("AnmManager: stbi_load_from_memory failed for alpha %s", textureName);
+        //utils::Log("AnmManager: stbi_load_from_memory failed for alpha %s", textureName);
         return ZUN_ERROR;
     }
 
@@ -1922,7 +1922,7 @@ void AnmManager::DrawStringFormat2(AnmManager *mgr, AnmVm *vm, ZunColor textColo
 ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 {
 #ifdef __PS3__
-    utils::Log("AnmManager: LoadSurface(%s)...", path);
+    //utils::Log("AnmManager: LoadSurface(%s)...", path);
     if (this->surfaces[surfaceIdx] != NULL)
     {
         this->ReleaseSurface(surfaceIdx);
@@ -1930,7 +1930,7 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
     u8 *fileData = FileSystem::OpenPath(path, 0);
     if (!fileData) {
-        utils::Log("AnmManager: Failed to load surface %s", path);
+        //utils::Log("AnmManager: Failed to load surface %s", path);
         return ZUN_ERROR;
     }
 
@@ -1938,7 +1938,7 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
     u8 *pixels = stbi_load_from_memory(fileData, g_LastFileSize, &width, &height, &channels, 4);
     std::free(fileData);
     if (!pixels) {
-        utils::Log("AnmManager: stbi_load_from_memory failed for surface %s", path);
+        //utils::Log("AnmManager: stbi_load_from_memory failed for surface %s", path);
         return ZUN_ERROR;
     }
 
