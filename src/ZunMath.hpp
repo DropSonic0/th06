@@ -105,6 +105,12 @@ struct ZunVec2 : ZunVec2POD
         this->y = y;
     }
 
+    ZunVec2(const ZunVec2POD &pod)
+    {
+        this->x = pod.x;
+        this->y = pod.y;
+    }
+
     f32 VectorLength() const
     {
         return ZUN_SQRTF((f64)(this->x * this->x + this->y * this->y));

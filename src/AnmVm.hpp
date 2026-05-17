@@ -4,6 +4,7 @@
 // #include <d3dx8math.h>
 
 #include "ZunColor.hpp"
+#include "ZunEndian.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
@@ -58,7 +59,7 @@ struct AnmLoadedSprite
 
 struct AnmRawInstr
 {
-    i16 time;
+    LE<i16> time;
     u8 opcode;
     u8 argsCount;
     u32 args[10];

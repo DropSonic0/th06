@@ -6,6 +6,7 @@
 #include <SDL_scancode.h>
 #else
 #include <cell/pad.h>
+#include <string.h>
 #endif
 
 #include "GameErrorContext.hpp"

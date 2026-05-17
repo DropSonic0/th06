@@ -15,25 +15,23 @@
 #include "utils.hpp"
 
 BulletManager g_BulletManager;
-static ChainElem g_BulletManagerCalcChain;
-static ChainElem g_BulletManagerDrawChain;
-static const u32 g_EffectsColorWithTextureBlending[28] = {
-                                             0xff000000, 0xff303030, 0xff606060, 0xff500000, 0xff900000, 0xffff2020,
+ChainElem g_BulletManagerCalcChain;
+ChainElem g_BulletManagerDrawChain;
+u32 g_EffectsColorWithTextureBlending[28] = {0xff000000, 0xff303030, 0xff606060, 0xff500000, 0xff900000, 0xffff2020,
                                              0xff400040, 0xff800080, 0xffff30ff, 0xff000050, 0xff000090, 0xff2020ff,
                                              0xff203060, 0xff304090, 0xff3080ff, 0xff005000, 0xff009000, 0xff20ff20,
                                              0xff206000, 0xff409010, 0xff80ff20, 0xff505000, 0xff909000, 0xffffff20,
                                              0xff603000, 0xff904010, 0xfff08020, 0xffffffff};
 
-static const u32 g_EffectsColorWithoutTextureBlending[28] = {
-                                                0xfff0f0f0, 0xfff0f0f0, 0xffffffff, 0xffffe0e0, 0xffffe0e0, 0xffffe0e0,
+u32 g_EffectsColorWithoutTextureBlending[28] = {0xfff0f0f0, 0xfff0f0f0, 0xffffffff, 0xffffe0e0, 0xffffe0e0, 0xffffe0e0,
                                                 0xffffe0ff, 0xffffe0ff, 0xffffe0ff, 0xffe0e0ff, 0xffe0e0ff, 0xffe0e0ff,
                                                 0xffe0ffff, 0xffe0ffff, 0xffe0ffff, 0xffe0ffe0, 0xffe0ffe0, 0xffe0ffe0,
                                                 0xffe0ffe0, 0xffe0ffe0, 0xffe0ffe0, 0xffffffe0, 0xffffffe0, 0xffffffe0,
                                                 0xffffe0e0, 0xffffe0e0, 0xffffe0e0, 0xffffffff};
-static const u32 g_BulletSpriteOffset16Px[16] = {0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 0};
-static const u32 g_BulletSpriteOffset32Px[8] = {0, 1, 1, 2, 2, 3, 4, 0};
+u32 g_BulletSpriteOffset16Px[16] = {0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 0};
+u32 g_BulletSpriteOffset32Px[8] = {0, 1, 1, 2, 2, 3, 4, 0};
 
-const u32 *g_EffectsColor = g_EffectsColorWithTextureBlending;
+u32 *g_EffectsColor = g_EffectsColorWithTextureBlending;
 
 struct BulletTypeInfo
 {
@@ -46,7 +44,7 @@ struct BulletTypeInfo
 
 #define ASB3(x) ANM_SCRIPT_BULLET3_##x
 #define ASB4(x) ANM_SCRIPT_BULLET4_##x
-static const BulletTypeInfo g_BulletTypeInfos[10] = {
+BulletTypeInfo g_BulletTypeInfos[10] = {
     {ASB3(PELLET), ASB3(SPAWN_PELLET_FAST), ASB3(SPAWN_PELLET_NORMAL), ASB3(SPAWN_PELLET_SLOW),
      ASB3(SPAWN_DONUT_SMALL)},
     {ASB3(RING_BALL), ASB3(SPAWN_BIG_BALL_FAST), ASB3(SPAWN_BIG_BALL_NORMAL), ASB3(SPAWN_BIG_BALL_SLOW),
@@ -79,7 +77,7 @@ BulletManager::BulletManager()
     this->InitializeToZero();
 }
 
-u32 BulletManager::SpawnSingleBullet(const EnemyBulletShooter *bulletProps, i32 bulletIdx1, i32 bulletIdx2, f32 angle)
+u32 BulletManager::SpawnSingleBullet(EnemyBulletShooter *bulletProps, i32 bulletIdx1, i32 bulletIdx2, f32 angle)
 {
     f32 bulletAngle;
     Bullet *bullet;
@@ -529,7 +527,7 @@ i32 BulletManager::DespawnBullets(i32 maxBonusScore, bool awardPoints)
     return totalBonusScore;
 }
 
-ZunResult BulletManager::SpawnBulletPattern(const EnemyBulletShooter *bulletProps)
+ZunResult BulletManager::SpawnBulletPattern(EnemyBulletShooter *bulletProps)
 {
     i32 idx1, idx2;
     f32 angle;
@@ -554,7 +552,7 @@ out:
     return ZUN_SUCCESS;
 }
 
-Laser *BulletManager::SpawnLaserPattern(const EnemyLaserShooter *bulletProps)
+Laser *BulletManager::SpawnLaserPattern(EnemyLaserShooter *bulletProps)
 {
     Laser *laser;
     i32 idx;
@@ -610,7 +608,7 @@ Laser *BulletManager::SpawnLaserPattern(const EnemyLaserShooter *bulletProps)
     return laser;
 }
 
-ZunResult BulletManager::RegisterChain(const char *bulletAnmPath)
+ZunResult BulletManager::RegisterChain(char *bulletAnmPath)
 {
     BulletManager *mgr = &g_BulletManager;
 
@@ -990,7 +988,6 @@ ChainCallbackResult BulletManager::OnUpdate(BulletManager *mgr)
                     laserColor = 255;
                 }
 
-                // BUG: Overwrites RGB with black instead of only setting alpha
                 curLaser->vm0.color = laserColor << 24;
             }
             else
@@ -1049,7 +1046,6 @@ ChainCallbackResult BulletManager::OnUpdate(BulletManager *mgr)
                     laserColor = 255;
                 }
 
-                // BUG: Overwrites RGB with black instead of only setting alpha
                 curLaser->vm0.color = laserColor << 24;
             }
             else
