@@ -1872,7 +1872,7 @@ void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spr
         fontHeight = 15;
     }
 
-    TextHelper::RenderTextToTexture(xPos, yPos, spriteWidth, spriteHeight, fontHeight, fontWidth, textColor,
+    TextHelper::RenderTextToTexture(xPos, yPos, spriteWidth, spriteHeight, fontWidth, fontHeight, textColor,
                                     shadowColor, strToPrint, &this->textures[textureDstIdx]);
     //
     //    this->SetCurrentTexture(this->textures[textureDstIdx].handle);

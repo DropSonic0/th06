@@ -267,8 +267,8 @@ void SurfaceOverwriteBlend(SDL_Surface *srcSurface, SDL_Surface *dstSurface, u32
 }
 #endif
 
-void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontHeight,
-                                     i32 fontWidth, ZunColor textColor, ZunColor shadowColor, char *string,
+void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 spriteHeight, i32 fontWidth,
+                                     i32 fontHeight, ZunColor textColor, ZunColor shadowColor, char *string,
                                      TextureData *outTexture)
 {
     if(textNotExist) return;

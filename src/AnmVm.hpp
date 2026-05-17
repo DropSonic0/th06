@@ -166,6 +166,8 @@ struct AnmVm
         this->pendingInterrupt = 0;
         this->posInterpEndTime = 0;
         this->currentTimeInScript.Initialize();
+        this->fontWidth = 15;
+        this->fontHeight = 15;
     }
 
     AnmVm()
