@@ -11,6 +11,11 @@
 #include <sys/ppu_thread.h>
 #include <sys/event.h>
 #include <stdio.h>
+#endif
+#ifndef __PS3__
+#include <atomic>
+#include <mutex>
+#else
 #include <sys/synchronization.h>
 #endif
 
@@ -84,6 +89,17 @@ struct MusicStream
     u32 loopEnd;
     u32 fadeoutLen;
     u32 fadeoutProgress;
+#ifdef __PS3__
+    i16 *streamCache;
+    u32 streamCacheSize; // in frames (per buffer)
+    u32 streamCachePos;  // in frames
+    u32 streamCacheValid[2]; // in frames
+    u32 activeBuffer;    // 0 or 1
+    bool bufferBusy[2];
+    double fraction;
+    i16 lastSamples[2];
+    i16 nextSamples[2];
+#endif
 };
 
 struct SoundPlayer
@@ -99,13 +115,14 @@ struct SoundPlayer
     void PlaySoundByIdx(SoundIdx idx);
     ZunResult PlayBGM(bool isLooping);
     void StopBGM();
+    void StopBGM_NoLock();
     void FadeOut(f32 seconds);
 
-    ZunResult LoadWav(char *path);
-    ZunResult LoadPos(char *path);
+    ZunResult LoadWav(const char *path);
+    ZunResult LoadPos(const char *path);
 
     void BackgroundMusicPlayerThread();
-    void MixAudio(u32 samples);
+    int MixAudio(u32 samples);
 
     SoundData soundBuffers[128];
 #ifndef __PS3__
@@ -129,6 +146,4 @@ struct SoundPlayer
     bool isLooping;
 };
 
-extern SoundBufferIdxVolume g_SoundBufferIdxVol[32];
-extern const char *g_SFXList[26];
 extern SoundPlayer g_SoundPlayer;

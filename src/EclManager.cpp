@@ -342,39 +342,39 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->flags.unk1 = 0;
                 break;
             case ECL_OPCODE_MOVEVELOCITY:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->angle = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.y, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEANGULARVELOCITY:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->angularVelocity = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEATPLAYER:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->angle = g_Player.AngleToPlayer(&enemy->position) + local_8.x;
                 enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.y, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVESPEED:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEACCELERATION:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->acceleration = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
@@ -581,10 +581,10 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 local_6c = &instruction->args.spellcardEffect;
                 enemy->effectArray[enemy->effectIdx] = g_EffectManager.SpawnParticles(
                     0xd, &enemy->position, 1, (ZunColor)g_EffectsColor[local_6c->effectColorId]);
-                enemy->effectArray[enemy->effectIdx]->pos2.x = uf32(&local_6c->pos.x);
-                enemy->effectArray[enemy->effectIdx]->pos2.y = uf32(&local_6c->pos.y);
-                enemy->effectArray[enemy->effectIdx]->pos2.z = uf32(&local_6c->pos.z);
-                enemy->effectDistance = uf32(&local_6c->effectDistance);
+                enemy->effectArray[enemy->effectIdx]->pos2.x = local_6c->pos.x;
+                enemy->effectArray[enemy->effectIdx]->pos2.y = local_6c->pos.y;
+                enemy->effectArray[enemy->effectIdx]->pos2.z = local_6c->pos.z;
+                enemy->effectDistance = local_6c->effectDistance;
                 enemy->effectIdx++;
                 break;
             case ECL_OPCODE_MOVEDIRTIMEDECELERATE:
@@ -650,15 +650,15 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->flags.shouldClampPos = 0;
                 break;
             case ECL_OPCODE_MOVERAND:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->angle = g_Rng.GetRandomF32InRange(local_8.y - local_8.x) + local_8.x;
                 break;
             case ECL_OPCODE_MOVERANDINBOUND:
-                local_8.x = uf32(&instruction->args.move.pos.x);
-                local_8.y = uf32(&instruction->args.move.pos.y);
-                local_8.z = uf32(&instruction->args.move.pos.z);
+                local_8.x = instruction->args.move.pos.x;
+                local_8.y = instruction->args.move.pos.y;
+                local_8.z = instruction->args.move.pos.z;
                 enemy->angle = g_Rng.GetRandomF32InRange(local_8.y - local_8.x) + local_8.x;
                 if (enemy->position.x < enemy->lowerMoveLimit.x + 96.0f)
                 {

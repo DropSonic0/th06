@@ -32,11 +32,6 @@ Stage::Stage()
 {
 }
 
-#define StdVec3Arg (*(ZunVec3Raw *)curInsn->args)
-#define StdF32Arg(index) (*(LE<f32> *)&curInsn->args[index])
-#define StdU32Arg(index) (*(LE<u32> *)&curInsn->args[index])
-#define StdI32Arg(index) (*(LE<i32> *)&curInsn->args[index])
-
 ChainCallbackResult Stage::OnUpdate(Stage *stage)
 {
     f32 posInterpRatio;
@@ -69,14 +64,14 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_POSITION_KEY:
             if (curInsn->frame == -1)
             {
-                stage->positionInterpInitial = StdVec3Arg;
+                stage->positionInterpInitial = *(ZunVec3 *)curInsn->args;
                 stage->position.x = stage->positionInterpInitial.x;
                 stage->position.y = stage->positionInterpInitial.y;
                 stage->position.z = stage->positionInterpInitial.z;
             }
             else if (stage->scriptTime.current >= curInsn->frame)
             {
-                pos = StdVec3Arg;
+                pos = *(ZunVec3 *)curInsn->args;
                 stage->position.x = pos.x;
                 stage->position.y = pos.y;
                 stage->position.z = pos.z;
@@ -89,15 +84,15 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
                     curInsn++;
                 }
                 stage->positionInterpEndTime = curInsn->frame;
-                stage->positionInterpFinal = StdVec3Arg;
+                stage->positionInterpFinal = *(ZunVec3 *)curInsn->args;
             }
             break;
         case STDOP_FOG:
             if (stage->scriptTime.current >= curInsn->frame)
             {
-                stage->skyFog.color = StdU32Arg(0);
-                stage->skyFog.nearPlane = StdF32Arg(1);
-                stage->skyFog.farPlane = StdF32Arg(2);
+                stage->skyFog.color = curInsn->args[0];
+                stage->skyFog.nearPlane = ((f32 *)curInsn->args)[1];
+                stage->skyFog.farPlane = ((f32 *)curInsn->args)[2];
                 if (stage->skyFogInterpDuration == 0)
                 {
                     //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
@@ -118,7 +113,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->skyFogInterpInitial = stage->skyFog;
-                stage->skyFogInterpDuration = StdI32Arg(0);
+                stage->skyFogInterpDuration = curInsn->args[0];
                 stage->skyFogInterpTimer.InitializeForPopup();
                 stage->instructionIndex++;
                 continue;
@@ -128,7 +123,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             if (stage->scriptTime.current >= curInsn->frame)
             {
                 stage->facingDirInterpInitial = stage->facingDirInterpFinal;
-                stage->facingDirInterpFinal = StdVec3Arg;
+                stage->facingDirInterpFinal = *(ZunVec3 *)curInsn->args;
                 stage->instructionIndex++;
                 continue;
             }
@@ -136,7 +131,7 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_FACING_INTERP_LINEAR:
             if (stage->scriptTime.current >= curInsn->frame)
             {
-                stage->facingDirInterpDuration = StdI32Arg(0);
+                stage->facingDirInterpDuration = curInsn->args[0];
                 stage->facingDirInterpTimer.InitializeForPopup();
                 stage->instructionIndex++;
                 continue;
@@ -230,11 +225,6 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         return CHAIN_CALLBACK_RESULT_CONTINUE;
     }
 }
-
-#undef StdVec3Arg
-#undef StdF32Arg
-#undef StdU32Arg
-#undef StdI32Arg
 
 ChainCallbackResult Stage::OnDrawHighPrio(Stage *stage)
 {
@@ -442,7 +432,7 @@ ZunResult Stage::LoadStageData(char *anmpath, char *stdpath)
     this->quadCount = this->stdData->nbFaces;
     this->objectInstances = (RawStageObjectInstance *)(this->stdData->facesOffset + ((u8 *)this->stdData));
     this->beginningOfScript = (RawStageInstr *)(this->stdData->scriptOffset + ((u8 *)this->stdData));
-    const LE<u32> *objectOffsets = (LE<u32> *)(this->stdData + 1);
+    u32 *objectOffsets = (u32 *)(this->stdData + 1);
 
     this->objects = (RawStageObject **)malloc(sizeof(RawStageObject *) * this->objectsCount);
 

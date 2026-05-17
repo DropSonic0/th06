@@ -4,6 +4,12 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "Gui.hpp"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #include "AnmManager.hpp"
 #include "AsciiManager.hpp"
 #include "Chain.hpp"

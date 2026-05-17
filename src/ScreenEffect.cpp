@@ -7,11 +7,9 @@
 #include "Supervisor.hpp"
 
 #ifndef __PS3__
-#include <SDL_video.h>
-#include <cstring>
-#else
-#include <string.h>
+#include <SDL.h>
 #endif
+#include <cstring>
 
 void ScreenEffect::Clear(ZunColor color)
 {
@@ -74,7 +72,7 @@ ChainCallbackResult ScreenEffect::CalcFadeIn(ScreenEffect *effect)
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-void ScreenEffect::DrawSquare(const ZunRect *rect, ZunColor rectColor)
+void ScreenEffect::DrawSquare(ZunRect *rect, ZunColor rectColor)
 {
     VertexDiffuseXyzrhw vertices[4];
 

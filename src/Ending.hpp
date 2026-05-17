@@ -6,6 +6,8 @@
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
+#include <string.h>
+
 enum EndingFadeType
 {
     ENDING_FADE_TYPE_NO_FADE,

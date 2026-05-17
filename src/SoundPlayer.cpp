@@ -7,7 +7,7 @@
 #include "GamePaths.hpp"
 
 #include "inttypes.hpp"
-
+#include "ZunEndian.hpp"
 #ifndef __PS3__
 #include <SDL.h>
 #include <SDL_timer.h>
@@ -454,7 +454,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     fread(&riffSize, 4, 1, fileStream);
-    riffSize = utils::Swap32(riffSize);
+    riffSize = SDL_Swap32(riffSize);
 #endif
 
     // Same bounds check done earlier on the total filesize
@@ -545,31 +545,31 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     }
 
     uint32_t fmtSize; fread(&fmtSize, 4, 1, fileStream);
-    fmtSize = utils::Swap32(fmtSize);
+    fmtSize = SDL_Swap32(fmtSize);
     if (fmtSize < 16) goto fail;
 
     uint16_t format; fread(&format, 2, 1, fileStream);
-    format = utils::Swap16(format);
+    format = SDL_Swap16(format);
     if (format != 1) goto fail;
 
     uint16_t channels; fread(&channels, 2, 1, fileStream);
-    channels = utils::Swap16(channels);
+    channels = SDL_Swap16(channels);
     if (channels != BACKGROUND_MUSIC_WAV_NUM_CHANNELS) goto fail;
 
     uint32_t sampleRate; fread(&sampleRate, 4, 1, fileStream);
-    sampleRate = utils::Swap32(sampleRate);
+    sampleRate = SDL_Swap32(sampleRate);
     if (sampleRate != BACKGROUND_MUSIC_WAV_SAMPLE_RATE) goto fail;
 
     uint32_t byteRate; fread(&byteRate, 4, 1, fileStream);
-    byteRate = utils::Swap32(byteRate);
+    byteRate = SDL_Swap32(byteRate);
     // if (byteRate != BACKGROUND_MUSIC_WAV_BYTE_RATE) goto fail;
 
     uint16_t blockAlign; fread(&blockAlign, 2, 1, fileStream);
-    blockAlign = utils::Swap16(blockAlign);
+    blockAlign = SDL_Swap16(blockAlign);
     if (blockAlign != BACKGROUND_MUSIC_WAV_BLOCK_ALIGN) goto fail;
 
     uint16_t bitsPerSample; fread(&bitsPerSample, 2, 1, fileStream);
-    bitsPerSample = utils::Swap16(bitsPerSample);
+    bitsPerSample = SDL_Swap16(bitsPerSample);
     if (bitsPerSample != BACKGROUND_MUSIC_WAV_BITS_PER_SAMPLE) goto fail;
 
     if (fmtSize > 16) fseek(fileStream, fmtSize - 16, SEEK_CUR);
@@ -582,7 +582,7 @@ ZunResult SoundPlayer::LoadWav(const char *path)
         }
         uint32_t chunkSize;
         if (fread(&chunkSize, 4, 1, fileStream) != 1) goto fail;
-        chunkSize = utils::Swap32(chunkSize);
+        chunkSize = SDL_Swap32(chunkSize);
 
         if (std::strncmp(idBuf, "data", 4) == 0) {
             wavDataSize = chunkSize;
@@ -687,8 +687,8 @@ ZunResult SoundPlayer::LoadPos(const char *path)
     this->backgroundMusic.loopStart = SDL_SwapLE32(*((u32 *)fileData));
     this->backgroundMusic.loopEnd = SDL_SwapLE32(*(u32 *)(fileData + 4));
 #else
-    this->backgroundMusic.loopStart = utils::Swap32(*((u32 *)fileData));
-    this->backgroundMusic.loopEnd = utils::Swap32(*(u32 *)(fileData + 4));
+    this->backgroundMusic.loopStart = SDL_Swap32(*((u32 *)fileData));
+    this->backgroundMusic.loopEnd = SDL_Swap32(*(u32 *)(fileData + 4));
 #endif
 
     utils::Log("SoundPlayer: LoadPos %s: loopStart=%u, loopEnd=%u (max samples=%u)", path, this->backgroundMusic.loopStart, this->backgroundMusic.loopEnd, this->backgroundMusic.srcWav.samples);
@@ -838,14 +838,14 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
         while (offset + 8 <= g_LastFileSize) {
             u32 chunkSize;
             memcpy(&chunkSize, wavRawData + offset + 4, 4);
-            chunkSize = utils::Swap32(chunkSize);
+            chunkSize = SDL_Swap32(chunkSize);
             if (std::strncmp((char*)wavRawData + offset, "fmt ", 4) == 0) {
                 memcpy(&sfxChannels, wavRawData + offset + 8 + 2, 2);
-                sfxChannels = utils::Swap16(sfxChannels);
+                sfxChannels = SDL_Swap16(sfxChannels);
                 memcpy(&sfxSampleRate, wavRawData + offset + 8 + 4, 4);
-                sfxSampleRate = utils::Swap32(sfxSampleRate);
+                sfxSampleRate = SDL_Swap32(sfxSampleRate);
                 memcpy(&sfxBitsPerSample, wavRawData + offset + 8 + 14, 2);
-                sfxBitsPerSample = utils::Swap16(sfxBitsPerSample);
+                sfxBitsPerSample = SDL_Swap16(sfxBitsPerSample);
             }
             if (std::strncmp((char*)wavRawData + offset, "data", 4) == 0) {
                 sfxWavDataSize = chunkSize;
@@ -883,8 +883,8 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
             } else {
                 memcpy(&s0, wavRawData + sfxWavDataOffset + (i0 * sfxChannels + srcCh) * 2, 2);
                 memcpy(&s1, wavRawData + sfxWavDataOffset + (i1 * sfxChannels + srcCh) * 2, 2);
-                s0 = utils::Swap16(s0);
-                s1 = utils::Swap16(s1);
+                s0 = SDL_Swap16(s0);
+                s1 = SDL_Swap16(s1);
             }
             this->soundBuffers[idx].samples[i * 2 + ch] = (i16)(s0 + (i32)(s1 - s0) * frac);
         }

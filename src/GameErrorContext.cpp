@@ -20,19 +20,13 @@ const char *GameErrorContext::Log(GameErrorContext *ctx, const char *fmt, ...)
     va_list args;
 
     va_start(args, fmt);
-#ifndef __PS3__
-    tmpBufferSize = std::vsnprintf(tmpBuffer, sizeof(tmpBuffer), fmt, args);
-#else
-    tmpBufferSize = ::vsnprintf(tmpBuffer, sizeof(tmpBuffer), fmt, args);
-#endif
+    std::vsprintf(tmpBuffer, fmt, args);
+
+    tmpBufferSize = std::strlen(tmpBuffer);
 
     if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
     {
-#ifndef __PS3__
         std::strcpy(ctx->m_BufferEnd, tmpBuffer);
-#else
-        ::strcpy(ctx->m_BufferEnd, tmpBuffer);
-#endif
 
         ctx->m_BufferEnd += tmpBufferSize;
         *ctx->m_BufferEnd = '\0';
@@ -50,19 +44,13 @@ const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
     va_list args;
 
     va_start(args, fmt);
-#ifndef __PS3__
-    tmpBufferSize = std::vsnprintf(tmpBuffer, sizeof(tmpBuffer), fmt, args);
-#else
-    tmpBufferSize = ::vsnprintf(tmpBuffer, sizeof(tmpBuffer), fmt, args);
-#endif
+    std::vsprintf(tmpBuffer, fmt, args);
+
+    tmpBufferSize = std::strlen(tmpBuffer);
 
     if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
     {
-#ifndef __PS3__
         std::strcpy(ctx->m_BufferEnd, tmpBuffer);
-#else
-        ::strcpy(ctx->m_BufferEnd, tmpBuffer);
-#endif
 
         ctx->m_BufferEnd += tmpBufferSize;
         *ctx->m_BufferEnd = '\0';
@@ -95,3 +83,4 @@ void GameErrorContext::Flush()
         }
     }
 }
+

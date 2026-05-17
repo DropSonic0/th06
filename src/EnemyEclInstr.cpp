@@ -9,6 +9,12 @@
 #include "Player.hpp"
 #include "Rng.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
+#include <SDL.h>
+#else
+#include <stdio.h>
+#define SDL_Log printf
+#endif
 
 namespace EnemyEclInstr
 {
@@ -24,13 +30,13 @@ struct PatchouliShottypeVars
     } shotVars[2];
 };
 
-static const PatchouliShottypeVars g_PatchouliShottypeVars[2] = {{{{0, 3, 1}, {2, 3, 4}}}, {{{1, 4, 0}, {4, 2, 3}}}};
-static i32 g_PlayerShot;
-static f32 g_PlayerDistance;
-static f32 g_PlayerAngle;
-static f32 g_StarAngleTable[6];
-static ZunVec3 g_EnemyPosVector;
-static ZunVec3 g_PlayerPosVector;
+PatchouliShottypeVars g_PatchouliShottypeVars[2] = {{{{0, 3, 1}, {2, 3, 4}}}, {{{1, 4, 0}, {4, 2, 3}}}};
+i32 g_PlayerShot;
+f32 g_PlayerDistance;
+f32 g_PlayerAngle;
+f32 g_StarAngleTable[6];
+ZunVec3 g_EnemyPosVector;
+ZunVec3 g_PlayerPosVector;
 
 void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
 {
@@ -38,14 +44,14 @@ void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
     f32 angle;
 
     alu = &instr->args.alu;
-    angle = GetVarFloatValue(enemy, (f32)alu->arg1.f32Param, NULL);
+    angle = GetVarFloatValue(enemy, alu->arg1.f32Param, NULL);
 
-    enemy->moveInterp.x = ZUN_COSF(angle) * (f32)alu->arg2.f32Param * (i32)alu->res / 2.0f;
-    enemy->moveInterp.y = ZUN_SINF(angle) * (f32)alu->arg2.f32Param * (i32)alu->res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * alu->arg2.f32Param * alu->res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * alu->arg2.f32Param * alu->res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
-    enemy->moveInterpStartTime = (i32)alu->res;
+    enemy->moveInterpStartTime = alu->res;
 
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
@@ -57,13 +63,13 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     ZunVec3 newPos;
     EclRawInstrAluArgs *alu = &instr->args.alu;
 
-    newPos.x = GetVarFloatValue(enemy, (f32)alu->arg1.f32Param, NULL);
-    newPos.y = GetVarFloatValue(enemy, (f32)alu->arg2.f32Param, NULL);
-    newPos.z = GetVarFloatValue(enemy, (f32)alu->arg3.f32Param, NULL);
+    newPos.x = GetVarFloatValue(enemy, alu->arg1.f32Param, NULL);
+    newPos.y = GetVarFloatValue(enemy, alu->arg2.f32Param, NULL);
+    newPos.z = GetVarFloatValue(enemy, alu->arg3.f32Param, NULL);
 
     enemy->moveInterp = newPos - enemy->position;
     enemy->moveInterpStartPos = enemy->position;
-    enemy->moveInterpStartTime = (i32)alu->res;
+    enemy->moveInterpStartTime = alu->res;
 
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
@@ -71,20 +77,20 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
 }
 
-void MoveTime(Enemy *enemy, const EclRawInstr *instr)
+void MoveTime(Enemy *enemy, EclRawInstr *instr)
 {
-    const EclRawInstrAluArgs *alu;
     f32 angle;
-
-    alu = &instr->args.alu;
+    SDL_Log("mt 1");
+    EclVarId res = instr->args.alu.res;
+    SDL_Log("mt 2");
     angle = *GetVarFloat(enemy, &enemy->angle, NULL);
 
-    enemy->moveInterp.x = ZUN_COSF(angle) * enemy->speed * (i32)alu->res / 2.0f;
-    enemy->moveInterp.y = ZUN_SINF(angle) * enemy->speed * (i32)alu->res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * enemy->speed * res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * enemy->speed * res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
-    enemy->moveInterpStartTime = (i32)alu->res;
+    enemy->moveInterpStartTime = res;
 
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
@@ -231,7 +237,8 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
 
 f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
 {
-    i32 varId = (i32)*eclVarId;
+
+    i32 varId = uf32(eclVarId);
     i32 *res = GetVar(enemy, (EclVarId *)&varId, valueType);
     if (res == &varId)
     {
@@ -243,11 +250,11 @@ f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
     }
 }
 
-void SetVar(Enemy *enemy, EclVarId lhs, const void *rhs)
+void SetVar(Enemy *enemy, EclVarId lhs, void *rhs)
 {
     i32 *lhsPtr;
     EclValueType lhsType;
-    const i32 *rhsPtr;
+    i32 *rhsPtr;
 
     rhsPtr = GetVar(enemy, (EclVarId *)rhs, NULL);
     lhsPtr = GetVar(enemy, &lhs, &lhsType);
@@ -266,128 +273,108 @@ void MathAdd(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsV
 {
     EclValueType outType;
     i32 *outPtr;
-    const i32 *lhsPtr;
-    const i32 *rhsPtr;
 
     // Get output variable.
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr + *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr + *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr + rhsPtr;
     }
-    return;
 }
 
 void MathSub(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    const i32 *lhsPtr;
-    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr - *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr - *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr - rhsPtr;
     }
-    return;
 }
 
 void MathMul(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    const i32 *lhsPtr;
-    const i32 *rhsPtr;
 
-    lhsPtr = GetVar(enemy, lhsVarId, NULL);
-    rhsPtr = GetVar(enemy, rhsVarId, NULL);
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr * *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr * *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr * rhsPtr;
     }
-    return;
 }
 
 void MathDiv(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    const i32 *lhsPtr;
-    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr / *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = *(f32 *)lhsPtr / *(f32 *)rhsPtr;
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = lhsPtr / rhsPtr;
     }
-    return;
 }
 
 void MathMod(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
-    const i32 *lhsPtr;
-    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr % *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = ZUN_FMODF(*(f32 *)lhsPtr, *(f32 *)rhsPtr);
+        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = ZUN_FMODF(lhsPtr, rhsPtr);
     }
-    return;
 }
 
 void MathAtan2(Enemy *enemy, EclVarId outVarId, f32 x1, f32 y1, f32 y2, f32 x2)
 {
     EclValueType outType;
     f32 *outPtr;
-    const f32 *y1Ptr;
-    const f32 *x1Ptr;
-    const f32 *x2Ptr;
-    const f32 *y2Ptr;
+    f32 *y1Ptr, *x1Ptr, *x2Ptr, *y2Ptr;
 
     outPtr = (f32 *)GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_FLOAT)
@@ -412,7 +399,7 @@ void ExInsCirnoRainbowBallJank(Enemy *enemy, EclRawInstr *instr)
     ZunVec3 velocityVector;
 
     currentBullet = g_BulletManager.bullets;
-    effectIndex = (i32)instr->args.exInstr.i32Param;
+    effectIndex = instr->args.exInstr.i32Param;
 
     g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_12, &enemy->position, 1, COLOR_WHITE);
     for (i = 0; i < ARRAY_SIZE_SIGNED(g_BulletManager.bullets); i++, currentBullet++)
@@ -454,7 +441,7 @@ void ExInsShootAtRandomArea(Enemy *enemy, EclRawInstr *instr)
 {
     f32 bulletSpeed;
 
-    bulletSpeed = (f32)instr->args.exInstr.i32Param;
+    bulletSpeed = instr->args.exInstr.i32Param;
     enemy->bulletProps.position = enemy->position + enemy->shootOffset;
     enemy->bulletProps.position.x =
         (g_Rng.GetRandomF32ZeroToOne() * bulletSpeed + (enemy->position).x) - bulletSpeed / 2.0f;
@@ -542,10 +529,10 @@ void ExInsStage56Func4(Enemy *enemy, EclRawInstr *instr)
     i32 i;
     ZunVec2 playerBulletOffset;
 
-    if ((i32)instr->args.exInstr.i32Param < 2)
+    if (instr->args.exInstr.i32Param < 2)
     {
         g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_12, &enemy->position, 1, COLOR_WHITE);
-        g_GameManager.isTimeStopped = (u8)instr->args.exInstr.u8Param;
+        g_GameManager.isTimeStopped = instr->args.exInstr.u8Param;
     }
     else
     {
@@ -569,8 +556,8 @@ void ExInsStage56Func4(Enemy *enemy, EclRawInstr *instr)
                                                   currentBullet->sprites.spriteBullet.baseSpriteIndex +
                                                       currentBullet->spriteOffset);
 
-                    playerBulletOffset.x = (f32)currentBullet->pos.x - g_Player.positionCenter.x;
-                    playerBulletOffset.y = (f32)currentBullet->pos.y - g_Player.positionCenter.y;
+                    playerBulletOffset.x = (currentBullet->pos.x) - g_Player.positionCenter.x;
+                    playerBulletOffset.y = (currentBullet->pos.y) - g_Player.positionCenter.y;
 
                     if (playerBulletOffset.VectorLength() > 128.0f)
                     {
@@ -610,8 +597,8 @@ void ExInsStage56Func4(Enemy *enemy, EclRawInstr *instr)
                                                   currentBullet->sprites.spriteBullet.baseSpriteIndex +
                                                       currentBullet->spriteOffset);
 
-                    playerBulletOffset.x = (f32)currentBullet->pos.x - g_Player.positionCenter.x;
-                    playerBulletOffset.y = (f32)currentBullet->pos.y - g_Player.positionCenter.y;
+                    playerBulletOffset.x = (currentBullet->pos.x) - g_Player.positionCenter.x;
+                    playerBulletOffset.y = (currentBullet->pos.y) - g_Player.positionCenter.y;
 
                     if (playerBulletOffset.VectorLength() > 128.0f)
                     {
@@ -786,7 +773,7 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
 
     ZunVec3 positionVectors[8];
 
-    attackType = (i32)instr->args.exInstr.i32Param;
+    attackType = instr->args.exInstr.i32Param;
     randomAngleModifier = g_Rng.GetRandomF32ZeroToOne() * (ZUN_PI * 2);
 
     for (outerLoopCount = 0; outerLoopCount < 2; outerLoopCount++)
@@ -891,7 +878,7 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
 void ExInsStage6Func8(Enemy *enemy, EclRawInstr *instr)
 {
     i32 changedBullets;
-    const Bullet *currentBullet;
+    Bullet *currentBullet;
     i32 i;
 
     changedBullets = 0;
@@ -934,6 +921,7 @@ void ExInsStage6Func9(Enemy *enemy, EclRawInstr *instr)
     f32 randomAngleModifier;
 
     currentBullet = g_BulletManager.bullets;
+    EnemyBulletShooter unusedBulletProps;
 
     randomAngleModifier = g_Rng.GetRandomF32InRange(ZUN_PI * 2) - ZUN_PI;
     g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_12, &enemy->position, 1, COLOR_WHITE);
@@ -956,8 +944,8 @@ void ExInsStage6Func9(Enemy *enemy, EclRawInstr *instr)
             currentBullet->speed = 0.01f;
             currentBullet->timer.InitializeForPopup();
             currentBullet->ex5Int0 = 120;
-            distance = ((f32)enemy->position.x - (f32)currentBullet->pos.x) * ((f32)enemy->position.x - (f32)currentBullet->pos.x) +
-                       ((f32)enemy->position.y - (f32)currentBullet->pos.y) * ((f32)enemy->position.y - (f32)currentBullet->pos.y);
+            distance = (enemy->position.x - currentBullet->pos.x) * (enemy->position.x - currentBullet->pos.x) +
+                       (enemy->position.y - currentBullet->pos.y) * (enemy->position.y - currentBullet->pos.y);
             if (distance > 0.1f)
             {
                 distance = ZUN_SQRTF(distance);
@@ -976,9 +964,12 @@ void ExInsStage6Func11(Enemy *enemy, EclRawInstr *instr)
 {
     Bullet *currentBullet;
     i32 i;
+    f32 unusedRandomNumber;
 
     currentBullet = g_BulletManager.bullets;
+    EnemyBulletShooter unusedBulletProps;
 
+    unusedRandomNumber = g_Rng.GetRandomF32InRange(ZUN_PI * 2) - ZUN_PI;
     g_EffectManager.SpawnParticles(PARTICLE_EFFECT_UNK_12, &enemy->position, 1, COLOR_WHITE);
 
     for (i = 0; i < ARRAY_SIZE_SIGNED(g_BulletManager.bullets); i++, currentBullet++)
@@ -1026,7 +1017,7 @@ void ExInsStage6XFunc10(Enemy *enemy, EclRawInstr *instr)
     }
     else
     {
-        if (enemy->exInsFunc10Timer.current > 0 && (enemy->exInsFunc10Timer.Decrement(1), (i32)enemy->exInsFunc10Timer.current == 0))
+        if (enemy->exInsFunc10Timer > 0 && (enemy->exInsFunc10Timer.Decrement(1), enemy->exInsFunc10Timer == 0))
         {
             if (enemy->anmExLeft < 0)
             {
@@ -1062,7 +1053,7 @@ void ExInsStageXFunc13(Enemy *enemy, EclRawInstr *instr)
     i32 i;
     i32 numPatterns;
 
-    numPatterns = (i32)instr->args.exInstr.i32Param;
+    numPatterns = instr->args.exInstr.i32Param;
     basePatternAngle = enemy->currentContext.float2;
     if (enemy->currentContext.var3 % 6 == 0)
     {
@@ -1083,7 +1074,7 @@ void ExInsStageXFunc14(Enemy *enemy, EclRawInstr *instr)
     f32 angleCos;
     f32 angleSin;
     ZunVec3 bulletPosition;
-    const Laser *currentLaser;
+    Laser *currentLaser;
     i32 i;
     f32 positionMultiplier;
 
@@ -1098,8 +1089,8 @@ void ExInsStageXFunc14(Enemy *enemy, EclRawInstr *instr)
 
             while (currentLaser->endOffset > positionMultiplier)
             {
-                bulletPosition.x = angleCos * positionMultiplier + (f32)currentLaser->pos.x;
-                bulletPosition.y = angleSin * positionMultiplier + (f32)currentLaser->pos.y;
+                bulletPosition.x = angleCos * positionMultiplier + currentLaser->pos.x;
+                bulletPosition.y = angleSin * positionMultiplier + currentLaser->pos.y;
                 bulletPosition.z = 0.0f;
                 enemy->bulletProps.position = bulletPosition;
                 g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);
@@ -1124,6 +1115,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
 
     totalIterations = 0;
     currentBullet = g_BulletManager.bullets;
+    EnemyBulletShooter unusedBulletProps;
 
     for (i = 0; i < ARRAY_SIZE_SIGNED(g_BulletManager.bullets); i++, currentBullet++)
     {
@@ -1136,7 +1128,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
             currentBullet->sprites.spriteBullet.sprite->heightPx >= 30.0f)
         {
             totalIterations++;
-            enemyAngle = ZUN_ATAN2F((f32)currentBullet->pos.y - enemy->position.y, (f32)currentBullet->pos.x - enemy->position.x);
+            enemyAngle = ZUN_ATAN2F(currentBullet->pos.y - enemy->position.y, currentBullet->pos.x - enemy->position.x);
 
             for (j = 0, innerBullet = g_BulletManager.bullets; j < ARRAY_SIZE_SIGNED(g_BulletManager.bullets);
                  j++, innerBullet++)
@@ -1149,8 +1141,8 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
                 if (innerBullet->sprites.spriteBullet.sprite != NULL &&
                     innerBullet->sprites.spriteBullet.sprite->heightPx < 30.0f && innerBullet->speed == 0.0f &&
                     (distance = ZUN_SQRTF(
-                         ((f32)innerBullet->pos.x - (f32)currentBullet->pos.x) * ((f32)innerBullet->pos.x - (f32)currentBullet->pos.x) +
-                         ((f32)innerBullet->pos.y - (f32)currentBullet->pos.y) * ((f32)innerBullet->pos.y - (f32)currentBullet->pos.y))) <
+                         (innerBullet->pos.x - currentBullet->pos.x) * (innerBullet->pos.x - currentBullet->pos.x) +
+                         (innerBullet->pos.y - currentBullet->pos.y) * (innerBullet->pos.y - currentBullet->pos.y))) <
                         64.0f)
                 {
                     innerBullet->exFlags |= 0x10;
@@ -1158,7 +1150,7 @@ void ExInsStageXFunc15(Enemy *enemy, EclRawInstr *instr)
                     innerBullet->timer.InitializeForPopup();
                     innerBullet->ex5Int0 = 120;
                     bulletsAngle =
-                        ZUN_ATAN2F((f32)innerBullet->pos.y - enemy->position.y, (f32)innerBullet->pos.x - enemy->position.x);
+                        ZUN_ATAN2F(innerBullet->pos.y - enemy->position.y, innerBullet->pos.x - enemy->position.x);
                     innerBullet->angle = (bulletsAngle - enemyAngle) * 2.2f + enemyAngle;
                     sincosmul(&innerBullet->ex4Acceleration, innerBullet->angle, 0.01f);
                     innerBullet->spriteOffset += 1;
@@ -1180,12 +1172,12 @@ void ExInsStageXFunc16(Enemy *enemy, EclRawInstr *instr)
     i32 remainingLife;
 
     remainingLife = enemy->life;
-    if ((i32)enemy->bossTimer.current >= MAX_BOSS_TIME)
+    if (enemy->bossTimer >= MAX_BOSS_TIME)
     {
         remainingLife = 0;
     }
 
-    if ((i32)instr->args.exInstr.i32Param == 0)
+    if (instr->args.exInstr.i32Param == 0)
     {
         enemy->currentContext.float3 = 2.0f - (remainingLife * 1.0f) / 6000.0f;
         enemy->currentContext.var5 = (remainingLife * 240) / 6000 + 40;
