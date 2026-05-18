@@ -831,6 +831,10 @@ ZunResult Supervisor::LoadConfig(const char *path)
     {
         GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DO_NOT_USE_DIRECTINPUT);
     }
+#ifdef __PS3__
+    this->cfg.opts |= (1 << GCOS_DONT_USE_VERTEX_BUF);
+#endif
+
     if (FileSystem::WriteDataToFile(path, &g_Supervisor.cfg, sizeof(GameConfiguration)) != 0)
     {
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FILE_CANNOT_BE_EXPORTED, path);

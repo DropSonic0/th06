@@ -60,10 +60,17 @@ GfxInterface *FixedFunctionGL::Init()
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
     {
         g_glFuncTable.glEnable(GL_FOG);
+#ifdef __PS3__
+        g_glFuncTable.glHint(GL_FOG_HINT, GL_NICEST);
+#endif
     }
 
     g_glFuncTable.glFogf(GL_FOG_DENSITY, 1.0f);
-    g_glFuncTable.glFogf(GL_FOG_MODE, GL_LINEAR);
+#ifdef __PS3__
+    g_glFuncTable.glFogi(GL_FOG_MODE, GL_LINEAR);
+#else
+    g_glFuncTable.glFogf(GL_FOG_MODE, (GLfloat)GL_LINEAR);
+#endif
 
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 

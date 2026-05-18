@@ -47,7 +47,7 @@ GLuint createShader(const char *source, GLenum type, const char *descString, u32
         fullShaderSource[shaderSourceIndex++] = "#define USE_FRAG_DEPTH\n";
     }
 
-    if (g_Supervisor.cfg.opts & (1 >> GCOS_DONT_USE_FOG))
+    if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1)
     {
         fullShaderSource[shaderSourceIndex++] = "#define NO_FOG\n";
         omittedUniforms |= (1 << UNIFORM_FOG_NEAR);
@@ -55,12 +55,9 @@ GLuint createShader(const char *source, GLenum type, const char *descString, u32
         omittedUniforms |= (1 << UNIFORM_FOG_COLOR);
     }
 
-    if (g_Supervisor.cfg.opts & (1 >> GCOS_DONT_USE_VERTEX_BUF))
+    if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1)
     {
         fullShaderSource[shaderSourceIndex++] = "#define NO_VERTEX_BUFFER\n";
-    }
-    else
-    {
         omittedUniforms |= (1 << UNIFORM_ENV_DIFFUSE);
     }
 
@@ -200,7 +197,7 @@ bool WebGL::Init()
 
     for (u32 i = 0; i < ARRAY_SIZE(this->uniforms); i++)
     {
-        if (this->uniforms[i] == -1 && (omittedUniforms & (1 << i)) != 0)
+        if (this->uniforms[i] == -1 && (omittedUniforms & (1 << i)) == 0)
         {
             utils::DebugPrint("Get uniform %i location failed!", i);
         }

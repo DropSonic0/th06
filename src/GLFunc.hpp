@@ -50,11 +50,13 @@ struct GLFuncTable
     void (GLAPIENTRY *glFlush)(void);
     void (GLAPIENTRY *glFogf)(GLenum pname, GLfloat param);
     void (GLAPIENTRY *glFogfv)(GLenum pname, const GLfloat *params);
+    void (GLAPIENTRY *glFogi)(GLenum pname, GLint param);
     void (GLAPIENTRY *glGenTextures)(GLsizei n, GLuint *textures);
     void (GLAPIENTRY *glGenBuffers)(GLsizei n, GLuint *buffers);
     GLenum (GLAPIENTRY *glGetError)(void);
     void (GLAPIENTRY *glGetFloatv)(GLenum pname, GLfloat *params);
     void (GLAPIENTRY *glGetIntegerv)(GLenum pname, GLint *params);
+    void (GLAPIENTRY *glHint)(GLenum target, GLenum mode);
     void (GLAPIENTRY *glLoadIdentity)(void);
     void (GLAPIENTRY *glLoadMatrixf)(const GLfloat *m);
     void (GLAPIENTRY *glMatrixMode)(GLenum mode);

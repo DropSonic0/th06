@@ -2117,6 +2117,11 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     }
     g_glFuncTable.glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
+    {
+        g_glFuncTable.glEnable(GL_FOG);
+    }
+
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
 
