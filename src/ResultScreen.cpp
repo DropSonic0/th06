@@ -1817,17 +1817,17 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 if (ShootScoreListNodeA->data->stage <= 6)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(%d)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score, ShootScoreListNodeA->data->stage);
+                                                 (u32)ShootScoreListNodeA->data->score, ShootScoreListNodeA->data->stage);
                 }
                 else if (ShootScoreListNodeA->data->stage == 7)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(1)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score);
+                                                 (u32)ShootScoreListNodeA->data->score);
                 }
                 else
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(C)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score);
+                                                 (u32)ShootScoreListNodeA->data->score);
                 }
                 spritePos.x += 300.0f;
                 if (resultScreen->resultScreenState == RESULT_SCREEN_STATE_WRITING_HIGHSCORE_NAME)
@@ -1862,17 +1862,17 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 if (ShootScoreListNodeB->data->stage <= 6)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(%d)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score, ShootScoreListNodeB->data->stage);
+                                                 (u32)ShootScoreListNodeB->data->score, ShootScoreListNodeB->data->stage);
                 }
                 else if (ShootScoreListNodeB->data->stage == 7)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(1)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score);
+                                                 (u32)ShootScoreListNodeB->data->score);
                 }
                 else
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(C)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score);
+                                                 (u32)ShootScoreListNodeB->data->score);
                 }
 
                 spritePos.x -= 336.0f;
@@ -1916,8 +1916,8 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
 
                 spritePos.x += 368.0f;
 
-                g_AsciiManager.AddFormatText(&spritePos, "%3d/%3d", g_GameManager.catk[spellcardIdx].numSuccess,
-                                             g_GameManager.catk[spellcardIdx].numAttempts);
+                g_AsciiManager.AddFormatText(&spritePos, "%3d/%3d", (u16)g_GameManager.catk[spellcardIdx].numSuccess,
+                                             (u16)g_GameManager.catk[spellcardIdx].numAttempts);
                 spritePos.x -= 368.0f;
                 spritePos.y += 30.0f;
             }
@@ -2013,7 +2013,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d %8s %8s %7s %9d", row + 1, &resultScreen->replayName,
                                              resultScreen->defaultReplay.date,
                                              g_ShortCharacterList2[g_GameManager.CharacterShotType()],
-                                             resultScreen->defaultReplay.score);
+                                             (i32)resultScreen->defaultReplay.score);
                 g_AsciiManager.color = 0xfff0f0ff;
 
                 SDL_Log("strcpy 6");

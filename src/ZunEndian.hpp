@@ -115,6 +115,78 @@ struct LE {
         raw = bit_cast_to_size<T>(ui);
         return *this;
     }
+
+    inline LE &operator++() {
+        *this = (T)*this + 1;
+        return *this;
+    }
+
+    inline T operator++(int) {
+        T ret = (T)*this;
+        ++(*this);
+        return ret;
+    }
+
+    inline LE &operator--() {
+        *this = (T)*this - 1;
+        return *this;
+    }
+
+    inline T operator--(int) {
+        T ret = (T)*this;
+        --(*this);
+        return ret;
+    }
+
+    template <typename U> inline LE &operator+=(const U &a) {
+        *this = (T)*this + (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator-=(const U &a) {
+        *this = (T)*this - (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator*=(const U &a) {
+        *this = (T)*this * (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator/=(const U &a) {
+        *this = (T)*this / (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator%=(const U &a) {
+        *this = (T)*this % (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator&=(const U &a) {
+        *this = (T)*this & (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator|=(const U &a) {
+        *this = (T)*this | (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator^=(const U &a) {
+        *this = (T)*this ^ (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator<<=(const U &a) {
+        *this = (T)*this << (T)a;
+        return *this;
+    }
+
+    template <typename U> inline LE &operator>>=(const U &a) {
+        *this = (T)*this >> (T)a;
+        return *this;
+    }
 };
 
 template <>
