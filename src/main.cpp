@@ -27,6 +27,16 @@
 
 #ifdef __PS3__
 SYS_PROCESS_PARAM(1001, 0x100000)
+
+void sysutil_callback(uint64_t status, uint64_t param, void *userdata)
+{
+    (void)param;
+    (void)userdata;
+    if (status == CELL_SYSUTIL_REQUEST_EXITGAME)
+    {
+        g_GameWindow.isAppClosing = 1;
+    }
+}
 #endif
 
 int main(int argc, char *argv[])
@@ -84,6 +94,7 @@ restart:
         dlog("GameWindow creation failed. Exiting...");
         return 1;
     }
+    cellSysutilRegisterCallback(0, sysutil_callback, NULL);
 #endif
 
     dlog("new AnmManager");
@@ -135,6 +146,10 @@ restart:
         }
 #else
         cellSysutilCheckCallback();
+        if (g_GameWindow.isAppClosing)
+        {
+            goto stop;
+        }
 #endif
 
         if (firstRender)
@@ -261,6 +276,8 @@ stop:
     g_GameErrorContext.Flush();
 #ifndef __PS3__
     SDL_Quit();
+#else
+    cellSysutilUnregisterCallback(0);
 #endif
     return 0;
 }
