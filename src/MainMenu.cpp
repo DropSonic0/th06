@@ -1535,7 +1535,7 @@ ZunResult MainMenu::DrawReplayMenu()
         g_AsciiManager.isSelected = false;
 
         vmRef = &this->vm[97];
-        g_AsciiManager.AddFormatText(&vmRef->pos, "       %2.3f%%", this->currentReplay->header->slowdownRate);
+        g_AsciiManager.AddFormatText(&vmRef->pos, "       %2.3f%%", (f32)this->currentReplay->header->slowdownRate);
 
         vmRef = &this->vm[114];
         g_AsciiManager.AddFormatText(&vmRef->pos, "Stage  LastScore");
@@ -1570,7 +1570,7 @@ ZunResult MainMenu::DrawReplayMenu()
             if (this->currentReplay->stageReplayData[i])
             {
                 g_AsciiManager.AddFormatText(&vmRef->pos, "%s %9d", g_StageList[i],
-                                             this->currentReplay->stageReplayData[i]->score);
+                                             (i32)this->currentReplay->stageReplayData[i]->score);
             }
             else
             {

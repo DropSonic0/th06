@@ -360,7 +360,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         } else {
             color = textColor; xOff = 0; yOff = 0;
         }
-        u8 r = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)(color & 0xff);
+        u8 b = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), r = (u8)(color & 0xff);
         u8 a = 0xff;
         float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight);
         int ascent; stbtt_GetFontVMetrics(&g_Font, &ascent, 0, 0);
@@ -417,7 +417,7 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         (i32)(outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32)), SDL_PIXELFORMAT_RGBA32);
 #endif
 
-    InvertAlpha(0, 0, 640, TEXT_BUFFER_HEIGHT);
+    InvertAlpha(0, 0, 640, fontHeight + 2);
 
 #ifndef __PS3__
     finalCopyDst.x = 0;

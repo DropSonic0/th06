@@ -2034,7 +2034,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d %8s %8s %7s %9d", row + 1,
                                              resultScreen->replays[row].name, resultScreen->replays[row].date,
                                              g_ShortCharacterList2[resultScreen->replays[row].shottypeChara],
-                                             resultScreen->replays[row].score);
+                                             (i32)resultScreen->replays[row].score);
             }
         }
     }
