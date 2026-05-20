@@ -85,9 +85,10 @@ ZunResult TextHelper::CreateTextBuffer()
         textNotExist = true;
         return ZUN_SUCCESS;
     }
-    g_TextBufferSurface = malloc(640 * TEXT_BUFFER_HEIGHT * 4);
+    // PS3: Allocate 2x buffer for supersampling (1280x128)
+    g_TextBufferSurface = malloc(1280 * TEXT_BUFFER_HEIGHT * 2 * 4);
     if (g_TextBufferSurface) {
-        memset(g_TextBufferSurface, 0, 640 * TEXT_BUFFER_HEIGHT * 4);
+        memset(g_TextBufferSurface, 0, 1280 * TEXT_BUFFER_HEIGHT * 2 * 4);
     }
 #endif
 
@@ -124,7 +125,7 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
 #ifndef __PS3__
             g_TextBufferSurface->pitch
 #else
-            640 * 4
+            1280 * 4
 #endif
         );
         for (int x_grad = 0; x_grad < spriteWidth; x_grad++)
@@ -349,20 +350,23 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     }
 #else
     u8 *pixels = (u8 *)g_TextBufferSurface;
-    memset(pixels, 0, 640 * TEXT_BUFFER_HEIGHT * 4);
+    memset(pixels, 0, 1280 * TEXT_BUFFER_HEIGHT * 2 * 4);
 
     for (int pass = 0; pass < 2; pass++) {
         ZunColor color;
         int xOff, yOff;
         if (pass == 0) {
             if (shadowColor == COLOR_WHITE) continue;
-            color = shadowColor; xOff = 3; yOff = 2;
+            color = shadowColor;
+            // Scale offsets for 2x buffer
+            xOff = 6; yOff = 4;
         } else {
             color = textColor; xOff = 0; yOff = 0;
         }
         u8 b = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), r = (u8)(color & 0xff);
         u8 a = 0xff;
-        float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight);
+        // Render at 2x scale for supersampling
+        float scale = stbtt_ScaleForPixelHeight(&g_Font, (float)fontHeight * 2.0f);
         int ascent; stbtt_GetFontVMetrics(&g_Font, &ascent, 0, 0);
         ascent = (int)((float)ascent * scale);
         int curX = xOff;
@@ -382,14 +386,28 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                 u8* bmp = (u8*)malloc(b_w * b_h);
                 stbtt_MakeCodepointBitmap(&g_Font, bmp, b_w, b_h, b_w, scale, scale, cp);
                 for (int py = 0; py < b_h; py++) {
-                    if (out_y + py < 0 || out_y + py >= TEXT_BUFFER_HEIGHT) continue;
+                    if (out_y + py < 0 || out_y + py >= TEXT_BUFFER_HEIGHT * 2) continue;
                     for (int px = 0; px < b_w; px++) {
-                        if (out_x + px < 0 || out_x + px >= 640) continue;
+                        if (out_x + px < 0 || out_x + px >= 1280) continue;
                         u8 alpha_pixel = bmp[py * b_w + px];
                         if (alpha_pixel == 0) continue;
-                        u8* dst_px = &pixels[(out_y + py) * 640 * 4 + (out_x + px) * 4];
-                        dst_px[0] = (u8)((a * alpha_pixel) / 255);
-                        dst_px[1] = r; dst_px[2] = g; dst_px[3] = b;
+
+                        // Fake bold: render multiple times with slight offsets in 2x space
+                        for (int boldY = 0; boldY < 2; boldY++) {
+                            for (int boldX = 0; boldX < 2; boldX++) {
+                                int bx = out_x + px + boldX;
+                                int by = out_y + py + boldY;
+                                if (bx >= 1280 || by >= TEXT_BUFFER_HEIGHT * 2) continue;
+
+                                u8* dst_px = &pixels[by * 1280 * 4 + bx * 4];
+                                u8 new_a = (u8)((a * alpha_pixel) / 255);
+                                // For the text pass (pass 1), we want to prioritize its color over the shadow
+                                if (pass == 1 || new_a > dst_px[0]) {
+                                    dst_px[0] = std::max(new_a, dst_px[0]);
+                                    dst_px[1] = r; dst_px[2] = g; dst_px[3] = b;
+                                }
+                            }
+                        }
                     }
                 }
                 free(bmp);
@@ -403,8 +421,8 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     //   We really shouldn't be clobbering the texture format
     if (!outTexture->textureData || outTexture->format != TEX_FMT_A8R8G8B8)
     {
-        free(outTexture->textureData);
-        outTexture->textureData = (u8 *)malloc(outTexture->width * outTexture->height * 4);
+        delete[] outTexture->textureData;
+        outTexture->textureData = new u8[outTexture->width * outTexture->height * 4];
         if (outTexture->textureData) {
             memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
         }
@@ -415,9 +433,9 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     SDL_Surface *textureSurface = SDL_CreateRGBSurfaceWithFormatFrom(
         outTexture->textureData, outTexture->width, outTexture->height, (i32)SDL_BITSPERPIXEL(SDL_PIXELFORMAT_RGBA32),
         (i32)(outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32)), SDL_PIXELFORMAT_RGBA32);
-#endif
 
     InvertAlpha(0, 0, 640, fontHeight + 2);
+#endif
 
 #ifndef __PS3__
     finalCopyDst.x = 0;
@@ -437,14 +455,32 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 
     SDL_FreeSurface(textureSurface);
 #else
-    for (int dy = 0; dy < TEXT_BUFFER_HEIGHT; dy++) {
+    // Apply gradient on 2x buffer
+    InvertAlpha(0, 0, 1280, fontHeight * 2 + 4);
+
+    // Downsample 2x2 to 1x1
+   for (int dy = 0; dy < fontHeight + 2; dy++) {
         if (yPos + dy >= (int)outTexture->height) break;
         if (dy >= TEXT_BUFFER_HEIGHT) break;
         for (int dx = 0; dx < spriteWidth; dx++) {
             if (xPos + dx >= (int)outTexture->width) break;
             if (dx >= 640) break;
-            memcpy(&outTexture->textureData[(yPos + dy) * outTexture->width * 4 + (xPos + dx) * 4],
-                   &pixels[dy * 640 * 4 + dx * 4], 4);
+
+            u32 a = 0, r = 0, g = 0, b = 0;
+            for (int sy = 0; sy < 2; sy++) {
+                for (int sx = 0; sx < 2; sx++) {
+                    u8* src_px = &pixels[(dy * 2 + sy) * 1280 * 4 + (dx * 2 + sx) * 4];
+                    a += src_px[0];
+                    r += src_px[1];
+                    g += src_px[2];
+                    b += src_px[3];
+                }
+            }
+            u8* dst_px = &outTexture->textureData[(yPos + dy) * outTexture->width * 4 + (xPos + dx) * 4];
+            dst_px[0] = (u8)(a / 4);
+            dst_px[1] = (u8)(r / 4);
+            dst_px[2] = (u8)(g / 4);
+            dst_px[3] = (u8)(b / 4);
         }
     }
     g_AnmManager->SetCurrentTexture(outTexture->handle);
