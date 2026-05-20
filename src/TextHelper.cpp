@@ -10,7 +10,7 @@
 #include <cstdlib>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "../3rdparty/imgui/imstb_truetype.h"
-#include "../th06.ttc.h"
+#include "font/msgothic.ttc.h"
 #endif
 #include <algorithm>
 #include <cstring>
@@ -63,7 +63,7 @@ ZunResult TextHelper::CreateTextBuffer()
         return ZUN_SUCCESS;
     }
     #else
-    if (g_Font = TTF_OpenFont("th06.ttc", 10), g_Font == NULL)
+    if (g_Font = TTF_OpenFont("msgothic.ttc.h", 10), g_Font == NULL)
     {
         std::printf("%s\n", TTF_GetError());
 
@@ -78,9 +78,9 @@ ZunResult TextHelper::CreateTextBuffer()
 
     SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
 #else
-    int font_offset = stbtt_GetFontOffsetForIndex(th06_ttc, 0);
+    int font_offset = stbtt_GetFontOffsetForIndex(msgothic_ttc, 0);
     if (font_offset < 0) font_offset = 0;
-    if (!stbtt_InitFont(&g_Font, th06_ttc, font_offset))
+    if (!stbtt_InitFont(&g_Font, msgothic_ttc, font_offset))
     {
         textNotExist = true;
         return ZUN_SUCCESS;

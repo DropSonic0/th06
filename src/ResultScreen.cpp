@@ -354,11 +354,12 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
         if (parsedPscr->base.magic == PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
         {
             pscr = parsedPscr;
-            if (pscr->character >= PSCR_NUM_CHARS_SHOTTYPES || pscr->difficulty >= PSCR_NUM_DIFFICULTIES + 1 ||
-                pscr->stage >= PSCR_NUM_STAGES + 1)
+            if (pscr->character >= PSCR_NUM_CHARS_SHOTTYPES || pscr->difficulty >= PSCR_NUM_DIFFICULTIES ||
+                pscr->stage >= PSCR_NUM_STAGES)
                 break;
 
-            outClrd[pscr->character * 6 * 4 + pscr->stage * 4 + pscr->difficulty] = *pscr;
+            outClrd[pscr->character * PSCR_NUM_STAGES * PSCR_NUM_DIFFICULTIES + pscr->stage * PSCR_NUM_DIFFICULTIES +
+                    pscr->difficulty] = *pscr;
         }
         cursor -= parsedPscr->base.th6kLen;
         parsedPscr = parsedPscr->ShiftBytes(parsedPscr->base.th6kLen);
@@ -493,7 +494,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         }
     }
     scoreRaw = (ScoreRaw *)fileBuffer;
-    scoreRaw->dataOffset = sizeof(Pscr);
+    scoreRaw->dataOffset = sizeof(ScoreRaw);
     scoreRaw->fileLen = sizeOfFile;
     scoreRaw->csum = 0;
 
@@ -573,7 +574,7 @@ i32 ResultScreen::HandleResultKeyboard()
         this->hscr.difficulty = this->diffSelected;
         this->hscr.score = g_GameManager.score;
         this->hscr.base.version = 16;
-        this->hscr.base.magic = *(i32 *)"HSCR";
+        this->hscr.base.magic = HSCR_MAGIC;
 
         if (g_GameManager.isGameCompleted == 0)
         {
@@ -900,7 +901,7 @@ i32 ResultScreen::HandleReplaySaveKeyboard()
             this->frameTimer = 0;
             sprintf(this->defaultReplay.date, "%02i/%02i/%02i", tm->tm_mon, tm->tm_mday, tm->tm_year % 100);
             (this->defaultReplay).score = g_GameManager.score;
-            if (*(i32 *)&this->replays[this->cursor].magic != *(i32 *)&"T6RP" ||
+            if (std::strncmp(this->replays[this->cursor].magic, "T6RP", 4) != 0 ||
                 this->replays[this->cursor].version != GAME_VERSION)
             {
                 sprite = &this->unk_40[0];
@@ -1609,10 +1610,13 @@ ChainCallbackResult ResultScreen::OnUpdate(ResultScreen *resultScreen)
         if (resultScreen->charUsed != resultScreen->cursor && resultScreen->frameTimer == 20)
         {
             resultScreen->charUsed = resultScreen->cursor;
-            AnmManager::DrawStringFormat2(g_AnmManager, &resultScreen->unk_28a0[0], COLOR_RGB(COLOR_WHITE),
-                                          COLOR_RGB(COLOR_BLACK), g_CharacterList[resultScreen->charUsed * 2]);
-            AnmManager::DrawStringFormat2(g_AnmManager, &resultScreen->unk_28a0[1], COLOR_RGB(COLOR_WHITE),
-                                          COLOR_RGB(COLOR_BLACK), g_CharacterList[resultScreen->charUsed * 2 + 1]);
+            if (resultScreen->charUsed >= 0 && resultScreen->charUsed * 2 + 1 < ARRAY_SIZE_SIGNED(g_CharacterList))
+            {
+                AnmManager::DrawStringFormat2(g_AnmManager, &resultScreen->unk_28a0[0], COLOR_RGB(COLOR_WHITE),
+                                              COLOR_RGB(COLOR_BLACK), g_CharacterList[resultScreen->charUsed * 2]);
+                AnmManager::DrawStringFormat2(g_AnmManager, &resultScreen->unk_28a0[1], COLOR_RGB(COLOR_WHITE),
+                                              COLOR_RGB(COLOR_BLACK), g_CharacterList[resultScreen->charUsed * 2 + 1]);
+            }
         }
         if (resultScreen->frameTimer < 30)
         {
@@ -1778,6 +1782,10 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
             spritePos.x -= 320.0f;
             spritePos.y += 36.0f;
 
+            if (resultScreen->charUsed < 0)
+            {
+                goto SKIP_DRAWING;
+            }
             ShootScoreListNodeA = resultScreen->scores[resultScreen->diffSelected][resultScreen->charUsed * 2].next;
             ShootScoreListNodeB = resultScreen->scores[resultScreen->diffSelected][resultScreen->charUsed * 2 + 1].next;
             for (row = 0; row < 10; row++)
@@ -1887,6 +1895,10 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
             spritePos = sprite->pos;
             spritePos.y += 16.0f;
 
+            if (resultScreen->lastSpellcardSelected < 0)
+            {
+                goto SKIP_DRAWING;
+            }
             for (row = 0; row < 10; row++)
             {
                 spellcardIdx = resultScreen->lastSpellcardSelected * 10 + row;
@@ -1923,6 +1935,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
             }
         }
     }
+SKIP_DRAWING:
     if (resultScreen->resultScreenState == RESULT_SCREEN_STATE_WRITING_HIGHSCORE_NAME ||
         resultScreen->resultScreenState == RESULT_SCREEN_STATE_WRITING_REPLAY_NAME)
     {
@@ -2024,7 +2037,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 name[resultScreen->cursor >= 8 ? 7 : resultScreen->cursor] = '_';
                 g_AsciiManager.AddFormatText(&spritePos, "      %8s", &name);
             }
-            else if (*(i32 *)&resultScreen->replays[row].magic != *(i32 *)"T6RP" ||
+            else if (std::strncmp(resultScreen->replays[row].magic, "T6RP", 4) != 0 ||
                      resultScreen->replays[row].version != GAME_VERSION)
             {
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d -------- --/--/-- -------         0", row + 1);
@@ -2148,7 +2161,8 @@ ZunResult ResultScreen::AddedCallback(ResultScreen *resultScreen)
         ParsePscr(resultScreen->scoreDat, (Pscr *)g_GameManager.pscr);
     }
 
-    if (resultScreen->resultScreenState == RESULT_SCREEN_STATE_EXIT &&
+    if (resultScreen->resultScreenState == RESULT_SCREEN_STATE_EXIT && g_GameManager.currentStage > 0 &&
+        g_GameManager.difficulty < PSCR_NUM_DIFFICULTIES &&
         g_GameManager.pscr[g_GameManager.CharacterShotType()][g_GameManager.currentStage - 1][g_GameManager.difficulty]
                 .score < g_GameManager.score)
     {
