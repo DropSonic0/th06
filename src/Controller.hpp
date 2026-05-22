@@ -6,6 +6,7 @@
 #include <SDL_gamecontroller.h>
 #define TH_CONTROLLER_BUTTON_MAX SDL_CONTROLLER_BUTTON_MAX
 #else
+#include <cell/keyboard.h>
 #include <cell/pad.h>
 #define TH_CONTROLLER_BUTTON_MAX 32
 #endif

@@ -15,6 +15,9 @@
 #include "ZunMath.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
+#ifdef __PS3__
+#include "ps3/Ps3Save.hpp"
+#endif
 // #include <direct.h>
 #include <cstdio>
 #include <cstdlib>
@@ -526,6 +529,9 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
     }
     FileSystem::WriteDataToFile("score.dat", fileBuffer, sizeOfFile);
     std::free(fileBuffer);
+#ifdef __PS3__
+    Ps3Save::SaveToNative();
+#endif
 }
 
 i32 ResultScreen::LinkScoreEx(Hscr *out, i32 difficulty, i32 character)

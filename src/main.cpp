@@ -5,6 +5,7 @@
 #include <PSGL/psgl.h>
 #include <sysutil/sysutil_common.h>
 #include "ZunEndian.hpp"
+#include "ps3/Ps3Save.hpp"
 #endif
 #include <stdio.h>
 
@@ -107,6 +108,10 @@ restart:
         return 1;
     }
 
+#ifdef __PS3__
+    Ps3Save::LoadFromNative();
+#endif
+
     dlog("InitializeDSound");
     g_SoundPlayer.InitializeDSound();
     dlog("GetJoystickCaps");
@@ -204,23 +209,24 @@ stop:
     delete g_AnmManager;
     g_AnmManager = NULL;
 
-    // Clean up GL resources while the context is still valid.
-    // THPrac::THPracGuiShutdown();
-    // {
-    //     SDL_GLContext ctx = g_Renderer ? g_Renderer->glContext : nullptr;
-    //     if (g_Renderer)
-    //         g_Renderer->Release();
-    //     if (ctx)
-    //         SDL_GL_DeleteContext(ctx);
-    // }
+#ifdef __PS3__
+    {
+        GameConfiguration swappedCfgFinalAtStop = g_Supervisor.cfg;
+        swappedCfgFinalAtStop.SwapEndian();
+        FileSystem::WriteDataToFile(TH_CONFIG_FILE, &swappedCfgFinalAtStop, sizeof(g_Supervisor.cfg));
+        Ps3Save::SaveToNative();
+    }
+#endif
 
 #ifndef __PS3__
     SDL_DestroyWindow(g_GameWindow.window);
     SDL_GL_DeleteContext(g_GameWindow.glContext);
 #else
+    Ps3Save::Shutdown();
     psglDestroyContext(g_GameWindow.glContext);
     psglDestroyDevice(g_GameWindow.device);
     psglExit();
+    cellSysutilUnregisterCallback(0);
 #endif
 
     if (renderResult == 2)
@@ -253,31 +259,17 @@ stop:
         goto restart;
     }
 
-#ifdef __PS3__
+#ifndef __PS3__
     GameConfiguration swappedCfgFinal = g_Supervisor.cfg;
-    swappedCfgFinal.version = SDL_Swap32(swappedCfgFinal.version);
-    swappedCfgFinal.opts = SDL_Swap32(swappedCfgFinal.opts);
-    swappedCfgFinal.padXAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padXAxis);
-    swappedCfgFinal.padYAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padYAxis);
-    
-    i16* swappedMappingFinal = (i16*)&swappedCfgFinal.controllerMapping;
-    for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
-        swappedMappingFinal[i] = (i16)SDL_Swap16((u16)swappedMappingFinal[i]);
-    }
+    swappedCfgFinal.SwapEndian();
     FileSystem::WriteDataToFile(TH_CONFIG_FILE, &swappedCfgFinal, sizeof(g_Supervisor.cfg));
-#else
-    FileSystem::WriteDataToFile(TH_CONFIG_FILE, &g_Supervisor.cfg, sizeof(g_Supervisor.cfg));
 #endif
 
 #ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);
+    SDL_Quit();
 #endif
     // GameErrorContext::Log(&g_GameErrorContext, TH_ERR_LOGGER_END);
     g_GameErrorContext.Flush();
-#ifndef __PS3__
-    SDL_Quit();
-#else
-    cellSysutilUnregisterCallback(0);
-#endif
     return 0;
 }

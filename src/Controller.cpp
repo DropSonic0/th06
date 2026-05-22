@@ -5,6 +5,7 @@
 #include <SDL_keyboard.h>
 #include <SDL_scancode.h>
 #else
+#include <cell/keyboard.h>
 #include <cell/pad.h>
 #include <string.h>
 #endif
@@ -19,7 +20,17 @@ static u16 g_FocusButtonConflictState;
 static u8 *keyboardState;
 
 #ifdef __PS3__
+#define TH_PS3_KB_MAX 7
 static CellPadData g_LastPS3PadData;
+static CellKbData g_LastPS3KbState[TH_PS3_KB_MAX];
+static uint8_t g_PS3KbConnected[TH_PS3_KB_MAX];
+
+// Fallback declarations for missing SDK headers
+extern "C"
+{
+    int cellKbSetCodeType(uint32_t port_no, uint32_t type);
+    int cellKbSetReadMode(uint32_t port_no, uint32_t mode);
+}
 #endif
 
 u16 Controller::GetJoystickCaps(void)
@@ -457,6 +468,129 @@ u16 Controller::GetInput(void)
 {
     u16 buttons = 0;
 
+#ifdef __PS3__
+    CellKbInfo kbInfo;
+    CellKbData kbData;
+
+    if (cellKbGetInfo(&kbInfo) == 0)
+    {
+        for (int i = 0; i < TH_PS3_KB_MAX; i++)
+        {
+            if (i < (int)kbInfo.max_connect && kbInfo.status[i] == 1)
+            {
+                if (!g_PS3KbConnected[i])
+                {
+                    cellKbSetCodeType(i, CELL_KB_CODETYPE_RAW);
+                    cellKbSetReadMode(i, CELL_KB_RMODE_PACKET);
+                    g_PS3KbConnected[i] = 1;
+                }
+
+                // Drain queue to get latest state, but limit to avoid freezes
+                int safety = 0;
+                while (cellKbRead(i, &kbData) == 0 && safety < 64)
+                {
+                    g_LastPS3KbState[i] = kbData;
+                    safety++;
+                }
+            }
+            else
+            {
+                if (g_PS3KbConnected[i])
+                {
+                    memset(&g_LastPS3KbState[i], 0, sizeof(CellKbData));
+                    g_PS3KbConnected[i] = 0;
+                }
+            }
+        }
+    }
+
+    for (int k = 0; k < TH_PS3_KB_MAX; k++)
+    {
+        // Modifiers are stored in mkey bitmask
+        if (g_LastPS3KbState[k].mkey & (CELL_KB_MKEY_L_SHIFT | CELL_KB_MKEY_R_SHIFT))
+        {
+            buttons |= TH_BUTTON_FOCUS;
+        }
+        if (g_LastPS3KbState[k].mkey & (CELL_KB_MKEY_L_CTRL | CELL_KB_MKEY_R_CTRL))
+        {
+            buttons |= TH_BUTTON_SKIP;
+        }
+
+        int len = g_LastPS3KbState[k].len;
+        if (len > CELL_KB_MAX_KEYCODES)
+        {
+            len = CELL_KB_MAX_KEYCODES;
+        }
+        for (int i = 0; i < len; i++)
+        {
+            // In RAW mode, keycode contains the HID usage code
+            u16 keycode = g_LastPS3KbState[k].keycode[i] & 0xFF;
+
+            switch (keycode)
+            {
+            case CELL_KEYC_UP_ARROW:
+                buttons |= TH_BUTTON_UP;
+                break;
+            case CELL_KEYC_DOWN_ARROW:
+                buttons |= TH_BUTTON_DOWN;
+                break;
+            case CELL_KEYC_LEFT_ARROW:
+                buttons |= TH_BUTTON_LEFT;
+                break;
+            case CELL_KEYC_RIGHT_ARROW:
+                buttons |= TH_BUTTON_RIGHT;
+                break;
+            case CELL_KEYC_Z:
+                buttons |= TH_BUTTON_SHOOT;
+                break;
+            case CELL_KEYC_X:
+                buttons |= TH_BUTTON_BOMB;
+                break;
+            case CELL_KEYC_ESCAPE:
+                buttons |= TH_BUTTON_MENU;
+                break;
+            case CELL_KEYC_Q:
+                buttons |= TH_BUTTON_Q;
+                break;
+            case CELL_KEYC_S:
+                buttons |= TH_BUTTON_S;
+                break;
+            case CELL_KEYC_ENTER:
+            case CELL_KEYC_KPAD_ENTER:
+                buttons |= TH_BUTTON_ENTER;
+                break;
+            case CELL_KEYC_HOME:
+                buttons |= TH_BUTTON_HOME;
+                break;
+            case CELL_KEYC_KPAD_2:
+                buttons |= TH_BUTTON_DOWN;
+                break;
+            case CELL_KEYC_KPAD_4:
+                buttons |= TH_BUTTON_LEFT;
+                break;
+            case CELL_KEYC_KPAD_6:
+                buttons |= TH_BUTTON_RIGHT;
+                break;
+            case CELL_KEYC_KPAD_8:
+                buttons |= TH_BUTTON_UP;
+                break;
+            case CELL_KEYC_KPAD_7:
+                buttons |= TH_BUTTON_UP | TH_BUTTON_LEFT;
+                break;
+            case CELL_KEYC_KPAD_9:
+                buttons |= TH_BUTTON_UP | TH_BUTTON_RIGHT;
+                break;
+            case CELL_KEYC_KPAD_1:
+                buttons |= TH_BUTTON_DOWN | TH_BUTTON_LEFT;
+                break;
+            case CELL_KEYC_KPAD_3:
+                buttons |= TH_BUTTON_DOWN | TH_BUTTON_RIGHT;
+                break;
+            }
+        }
+    }
+#endif
+
 #ifndef __PS3__
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_UP, SDL_SCANCODE_UP);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_DOWN, SDL_SCANCODE_DOWN);
@@ -488,6 +622,12 @@ u16 Controller::GetInput(void)
 
 void Controller::ResetKeyboard(void)
 {
+#ifdef __PS3__
+    cellKbInit(TH_PS3_KB_MAX);
+    memset(g_LastPS3KbState, 0, sizeof(g_LastPS3KbState));
+    memset(g_PS3KbConnected, 0, sizeof(g_PS3KbConnected));
+#endif
+
 #ifndef __PS3__
     keyboardState = (u8 *)SDL_GetKeyboardState(NULL);
 
