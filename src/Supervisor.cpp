@@ -746,20 +746,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
     }
     else
     {
-#ifdef __PS3__
         g_Supervisor.cfg = *data;
-        g_Supervisor.cfg.version = SDL_Swap32(g_Supervisor.cfg.version);
-        g_Supervisor.cfg.opts = SDL_Swap32(g_Supervisor.cfg.opts);
-        g_Supervisor.cfg.padXAxis = (i16)SDL_Swap16((u16)g_Supervisor.cfg.padXAxis);
-        g_Supervisor.cfg.padYAxis = (i16)SDL_Swap16((u16)g_Supervisor.cfg.padYAxis);
-        
-        i16* swappedMapping = (i16*)&g_Supervisor.cfg.controllerMapping;
-        for (int i = 0; i < (int)(sizeof(ControllerMapping) / 2); ++i) {
-            swappedMapping[i] = (i16)SDL_Swap16((u16)swappedMapping[i]);
-        }
-#else
-        g_Supervisor.cfg = *data;
-#endif
         if ((g_Supervisor.cfg.lifeCount >= 5) || (g_Supervisor.cfg.bombCount >= 4) ||
             (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 3) ||
             (g_Supervisor.cfg.defaultDifficulty >= 5) || (g_Supervisor.cfg.playSounds >= 2) ||
@@ -848,21 +835,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
     this->cfg.opts |= (1 << GCOS_DONT_USE_VERTEX_BUF);
 #endif
 
-#ifdef __PS3__
-    GameConfiguration swappedCfgFinal = g_Supervisor.cfg;
-    swappedCfgFinal.version = SDL_Swap32(swappedCfgFinal.version);
-    swappedCfgFinal.opts = SDL_Swap32(swappedCfgFinal.opts);
-    swappedCfgFinal.padXAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padXAxis);
-    swappedCfgFinal.padYAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padYAxis);
-    
-    i16* swappedMappingFinal = (i16*)&swappedCfgFinal.controllerMapping;
-    for (int i = 0; i < (int)(sizeof(ControllerMapping) / 2); ++i) {
-        swappedMappingFinal[i] = (i16)SDL_Swap16((u16)swappedMappingFinal[i]);
-    }
-    if (FileSystem::WriteDataToFile(path, &swappedCfgFinal, sizeof(GameConfiguration)) != 0)
-#else
     if (FileSystem::WriteDataToFile(path, &g_Supervisor.cfg, sizeof(GameConfiguration)) != 0)
-#endif
     {
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FILE_CANNOT_BE_EXPORTED, path);
         GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FOLDER_HAS_WRITE_PROTECT_OR_DISK_FULL);

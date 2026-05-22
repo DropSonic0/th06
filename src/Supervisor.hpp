@@ -10,7 +10,6 @@
 #include "MidiOutput.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
-#include "ZunEndian.hpp"
 #include "inttypes.hpp"
 #include "pbg3/Pbg3Archive.hpp"
 
@@ -75,22 +74,6 @@ struct GameConfiguration
     u32 IsSoftwareTexturing()
     {
         return (this->opts >> GCOS_NO_COLOR_COMP & 1) | (this->opts >> GCOS_USE_D3D_HW_TEXTURE_BLENDING & 1);
-    }
-
-    void SwapEndian()
-    {
-#ifdef __PS3__
-        this->version = SDL_Swap32(this->version);
-        this->opts = SDL_Swap32(this->opts);
-        this->padXAxis = (i16)SDL_Swap16((u16)this->padXAxis);
-        this->padYAxis = (i16)SDL_Swap16((u16)this->padYAxis);
-
-        i16 *swappedMapping = (i16 *)&this->controllerMapping;
-        for (int i = 0; i < (int)(sizeof(ControllerMapping) / 2); ++i)
-        {
-            swappedMapping[i] = (i16)SDL_Swap16((u16)swappedMapping[i]);
-        }
-#endif
     }
 };
 

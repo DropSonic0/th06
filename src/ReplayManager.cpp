@@ -12,9 +12,6 @@
 #include "Rng.hpp"
 #include "Supervisor.hpp"
 #include "utils.hpp"
-#ifdef __PS3__
-#include "ps3/Ps3Save.hpp"
-#endif
 
 ReplayManager *g_ReplayManager;
 
@@ -482,9 +479,6 @@ void ReplayManager::SaveReplay(char *replayPath, char *replayName)
                     }
                 }
                 std::fclose(file);
-#ifdef __PS3__
-                Ps3Save::SaveToNative();
-#endif
             }
             for (stageIdx = 0; stageIdx < ARRAY_SIZE_SIGNED(mgr->replayData->stageReplayData); stageIdx += 1)
             {
