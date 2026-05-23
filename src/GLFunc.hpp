@@ -10,6 +10,8 @@
 #include <SDL_opengl.h>
 #else
 #include <PSGL/psgl.h>
+#include <PSGL/psglu.h>
+#define PSGL_USE_GL_NAMES
 #ifndef GLAPIENTRY
 #define GLAPIENTRY
 #endif

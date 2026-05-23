@@ -358,12 +358,12 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         if (pass == 0) {
             if (shadowColor == COLOR_WHITE) continue;
             color = shadowColor;
-            // Scale offsets for 2x buffer. PC EoSD is 1px shadow, so 2px at 2x scale.
-            xOff = 2; yOff = 2;
+            // Scale offsets for 2x buffer. PC EoSD is 1.5px shadow, so 3px at 2x scale.
+            xOff = 3; yOff = 2;
         } else {
             color = textColor; xOff = 0; yOff = 0;
         }
-        u8 r = (u8)((color >> 16) & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)(color & 0xff);
+        u8 r = (u8)(color & 0xff), g = (u8)((color >> 8) & 0xff), b = (u8)((color >> 16) & 0xff);
         u8 a = (u8)((color >> 24) & 0xff);
         if (a == 0 && (r != 0 || g != 0 || b != 0)) a = 0xff; // Fallback for 24-bit color constants
         // Render at 2x scale for supersampling
@@ -394,9 +394,9 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                         if (alpha_pixel == 0) continue;
 
                         // Fake bold: render multiple times with slight offsets in 2x space
-                        // 3x3 stamp (+2px) for a strong bold effect matching PC version
-                        for (int boldY = 0; boldY < 3; boldY++) {
-                            for (int boldX = 0; boldX < 3; boldX++) {
+                        // 2x2 stamp (+1px) for a sharper look than the previous 3x3
+                        for (int boldY = 0; boldY < 2; boldY++) {
+                            for (int boldX = 0; boldX < 2; boldX++) {
                                 int bx = out_x + px + boldX;
                                 int by = out_y + py + boldY;
                                 if (bx >= 1280 || by >= TEXT_BUFFER_HEIGHT * 2) continue;
@@ -411,20 +411,19 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                                         dst_px[1] = r; dst_px[2] = g; dst_px[3] = b;
                                     }
                                 } else {
-                                    // Text pass: alpha blend over shadow
+                                    // Text pass: overwrite shadow to match PC SurfaceOverwriteBlend
                                     if (glyph_a > 0) {
-                                        u32 old_a = dst_px[0];
-                                        if (glyph_a >= 250 || old_a == 0) {
+                                        if (glyph_a >= dst_px[0] || glyph_a > 200) {
                                             dst_px[0] = glyph_a;
                                             dst_px[1] = r; dst_px[2] = g; dst_px[3] = b;
                                         } else {
+                                            // Blend only for very soft edges
+                                            u32 old_a = dst_px[0];
                                             u32 out_a = glyph_a + (old_a * (255 - glyph_a)) / 255;
-                                            if (out_a > 0) {
-                                                dst_px[1] = (u8)((r * glyph_a + (u32)dst_px[1] * old_a * (255 - glyph_a) / 255) / out_a);
-                                                dst_px[2] = (u8)((g * glyph_a + (u32)dst_px[2] * old_a * (255 - glyph_a) / 255) / out_a);
-                                                dst_px[3] = (u8)((b * glyph_a + (u32)dst_px[3] * old_a * (255 - glyph_a) / 255) / out_a);
-                                                dst_px[0] = (u8)out_a;
-                                            }
+                                            dst_px[1] = (u8)((r * glyph_a + (u32)dst_px[1] * old_a * (255 - glyph_a) / 255) / out_a);
+                                            dst_px[2] = (u8)((g * glyph_a + (u32)dst_px[2] * old_a * (255 - glyph_a) / 255) / out_a);
+                                            dst_px[3] = (u8)((b * glyph_a + (u32)dst_px[3] * old_a * (255 - glyph_a) / 255) / out_a);
+                                            dst_px[0] = (u8)out_a;
                                         }
                                     }
                                 }
@@ -475,8 +474,9 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 
     SDL_FreeSurface(textureSurface);
 #else
-    // Apply gradient on 2x buffer
-    InvertAlpha(0, 0, 1280, fontHeight * 2 + 4);
+    // Apply gradient on 2x buffer. 
+    // Match PC EoSD behavior: gradient only covers top ~half of the 2x rendered text.
+    InvertAlpha(0, 0, 1280, fontHeight + 2);
 
     // Downsample 2x2 to 1x1 using premultiplied alpha for better quality AA
     for (int dy = 0; dy < fontHeight + 2; dy++) {
@@ -500,7 +500,12 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
             
             u8* dst_px = &outTexture->textureData[(yPos + dy) * outTexture->width * 4 + (xPos + dx) * 4];
             if (total_a > 0) {
-                dst_px[0] = (u8)(total_a / 4);
+                // Sharpening: If a pixel is mostly opaque in the 2x buffer, make it fully opaque
+                u32 avg_a = total_a / 4;
+                if (avg_a > 230) avg_a = 255;
+                else if (avg_a < 20) avg_a = 0;
+
+                dst_px[0] = (u8)avg_a;
                 dst_px[1] = (u8)(total_r / total_a);
                 dst_px[2] = (u8)(total_g / total_a);
                 dst_px[3] = (u8)(total_b / total_a);
