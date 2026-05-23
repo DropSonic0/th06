@@ -86,6 +86,9 @@ RenderResult GameWindow::Render()
             //gamewindowdlog("RedrawWholeFrame");
             if (g_Supervisor.RedrawWholeFrame())
             {
+                g_glFuncTable.glDisable(GL_SCISSOR_TEST);
+                g_AnmManager->gfxBackend->Clear(COLOR_BLACK);
+
                 viewport.x = 0;
                 viewport.y = 0;
                 viewport.width = GAME_WINDOW_WIDTH;

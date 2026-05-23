@@ -15,6 +15,9 @@
 #ifndef GLAPIENTRY
 #define GLAPIENTRY
 #endif
+#ifndef GL_SCISSOR_TEST
+#define GL_SCISSOR_TEST 0x0C11
+#endif
 #endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows
@@ -76,6 +79,7 @@ struct GLFuncTable
     void (GLAPIENTRY *glTexParameteri)(GLenum target, GLenum pname, GLint param);
     void (GLAPIENTRY *glTexSubImage2D)(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
                                       GLsizei height, GLenum format, GLenum type, const GLvoid *pixels);
+    void (GLAPIENTRY *glScissor)(GLint x, GLint y, GLsizei width, GLsizei height);
     void (GLAPIENTRY *glVertexPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
     void (GLAPIENTRY *glViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
     // GL(ES) 2.X / WebGL

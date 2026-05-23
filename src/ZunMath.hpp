@@ -437,10 +437,14 @@ struct ZunViewport
 
     void Set()
     {
-        g_glFuncTable.glViewport(this->x * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X,
-                                 (g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE)) -
-                                     g_GameWindow.VIEWPORT_OFF_Y,
-                                 this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE, this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE);
+        GLint vx = this->x * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X;
+        GLint vy = (g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE)) -
+                                     g_GameWindow.VIEWPORT_OFF_Y;
+        GLsizei vw = this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE;
+        GLsizei vh = this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE;
+        g_glFuncTable.glViewport(vx, vy, vw, vh);
+        g_glFuncTable.glScissor(vx, vy, vw, vh);
+        g_glFuncTable.glEnable(GL_SCISSOR_TEST);
         g_glFuncTable.glDepthRangef(this->minZ, this->maxZ);
 #ifdef __PS3__
         g_ZunCurrentViewport = *this;
