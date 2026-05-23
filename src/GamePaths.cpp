@@ -46,7 +46,10 @@ void Init()
     cellSysmoduleLoadModule(0x003e); // CELL_SYSMODULE_SYSUTIL_GAME
 
     // Assets are in USRDIR
-    ::snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/USRDIR/");
+    ::snprintf(s_userPath, sizeof(s_userPath), "/dev_bdvd/kouma/");
+#ifndef THJP
+	::snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/USRDIR/");
+#endif
     // Default save path to asset path
     ::snprintf(s_savePath, sizeof(s_savePath), "%s", s_userPath);
 #endif
