@@ -4,10 +4,6 @@
 #include <cmath>
 #include <cstring>
 
-#ifdef __PS3__
-#define static_assert(cond, msg)
-#endif 
-
 #ifndef __has_builtin
 #define __has_builtin(name) 0
 #endif

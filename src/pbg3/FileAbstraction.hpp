@@ -13,6 +13,7 @@ enum AccessMode
 class IFileAbstraction
 {
   public:
+    virtual ~IFileAbstraction() {}
     virtual i32 Open(const char *filename, const char *mode) = 0;
     virtual void Close() = 0;
     virtual i32 Read(u8 *data, u32 dataLen, u32 *numBytesRead) = 0;
@@ -29,7 +30,7 @@ class FileAbstraction : public IFileAbstraction
 {
   public:
     FileAbstraction();
-    ~FileAbstraction();
+    virtual ~FileAbstraction();
 
     virtual i32 Open(const char *filename, const char *mode);
     virtual void Close();

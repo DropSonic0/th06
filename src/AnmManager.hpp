@@ -17,6 +17,12 @@
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
+#ifndef __PS3__
+#include <cstring>
+#else
+#include <string.h>
+#endif
+
 #define TEX_FMT_UNKNOWN 0
 #define TEX_FMT_A8R8G8B8 1
 #define TEX_FMT_A1R5G5B5 2
@@ -342,7 +348,7 @@ struct AnmManager
         this->dirtyAttribArrays[attr].ptr = ptr;
         this->dirtyAttribArrays[attr].stride = stride;
 
-        if (!std::memcmp(&this->dirtyAttribArrays[attr], &this->attribArrays[attr], sizeof(*this->dirtyAttribArrays)))
+        if (!memcmp(&this->dirtyAttribArrays[attr], &this->attribArrays[attr], sizeof(*this->dirtyAttribArrays)))
         {
             return;
         }
@@ -367,9 +373,9 @@ struct AnmManager
 
     void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix)
     {
-        std::memcpy(&this->dirtyTransformMatrices[type], &matrix, sizeof(matrix));
+        memcpy(&this->dirtyTransformMatrices[type], &matrix, sizeof(matrix));
 
-        if (!std::memcmp(&this->transformMatrices[type], &matrix, sizeof(matrix)))
+        if (!memcmp(&this->transformMatrices[type], &matrix, sizeof(matrix)))
         {
             this->dirtyFlags &= ~(1 << (DIRTY_MODEL_MATRIX + (DirtyRenderStateBitShifts)type));
         }

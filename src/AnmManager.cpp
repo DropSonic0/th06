@@ -13,14 +13,21 @@
 #include <cstring>
 #include <new>
 
+#ifndef __PS3__
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_surface.h>
+#else
+#include <PSGL/psgl.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "thirdparty/stb_image.h"
+#endif
 
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4];
 static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4];
 AnmManager *g_AnmManager;
+
 
 static const SDL_PixelFormatEnum g_TextureFormatSDLMapping[6] = {SDL_PIXELFORMAT_UNKNOWN,  SDL_PIXELFORMAT_RGBA32,
                                                                  SDL_PIXELFORMAT_RGBA5551, SDL_PIXELFORMAT_RGB565,
