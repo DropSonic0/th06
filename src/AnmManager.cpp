@@ -897,20 +897,52 @@ void AnmManager::SetRenderStateForVm(AnmVm *vm)
         this->SetColorOp(COMPONENT_RGB, (ColorOp)vm->flags.colorOp);
     }
 
+    ZunColor colorToUse = vm->color;
+#ifdef __PS3__
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
+    {
+        float zDepth = vm->pos.z;
+        // In 3D stage backgrounds, the eye-space depth is often stored in the view matrix's translation
+        if (this->projectionMode == PROJECTION_MODE_PERSPECTIVE) {
+            zDepth = this->dirtyTransformMatrices[MATRIX_VIEW].m[3][2];
+        }
+
+        // OpenGL eye-space has the camera looking towards -Z. 
+        // Fog calculation expects positive distance from the camera.
+        zDepth = ZUN_FABSF(zDepth);
+
+        if (this->dirtyFogFar != this->dirtyFogNear) {
+            float fogFactor = (this->dirtyFogFar - zDepth) / (this->dirtyFogFar - this->dirtyFogNear);
+            if (fogFactor < 0.0f) fogFactor = 0.0f;
+            if (fogFactor > 1.0f) fogFactor = 1.0f;
+
+            u8 r = (u8)((COLOR_GET_COMPONENT(colorToUse, COLOR_RED_BYTE_IDX) * fogFactor) + (COLOR_GET_COMPONENT(this->dirtyFogColor, COLOR_RED_BYTE_IDX) * (1.0f - fogFactor)));
+            u8 g = (u8)((COLOR_GET_COMPONENT(colorToUse, COLOR_GREEN_BYTE_IDX) * fogFactor) + (COLOR_GET_COMPONENT(this->dirtyFogColor, COLOR_GREEN_BYTE_IDX) * (1.0f - fogFactor)));
+            u8 b = (u8)((COLOR_GET_COMPONENT(colorToUse, COLOR_BLUE_BYTE_IDX) * fogFactor) + (COLOR_GET_COMPONENT(this->dirtyFogColor, COLOR_BLUE_BYTE_IDX) * (1.0f - fogFactor)));
+            u8 a = COLOR_GET_COMPONENT(colorToUse, COLOR_ALPHA_BYTE_IDX);
+
+            COLOR_SET_COMPONENT(colorToUse, COLOR_RED_BYTE_IDX, r);
+            COLOR_SET_COMPONENT(colorToUse, COLOR_GREEN_BYTE_IDX, g);
+            COLOR_SET_COMPONENT(colorToUse, COLOR_BLUE_BYTE_IDX, b);
+            COLOR_SET_COMPONENT(colorToUse, COLOR_ALPHA_BYTE_IDX, a);
+        }
+    }
+#endif
+
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
-        this->SetTextureFactor(vm->color);
+        this->SetTextureFactor(colorToUse);
     }
     else
     {
-        g_PrimitivesToDrawNoVertexBuf[0].diffuse = vm->color;
-        g_PrimitivesToDrawNoVertexBuf[1].diffuse = vm->color;
-        g_PrimitivesToDrawNoVertexBuf[2].diffuse = vm->color;
-        g_PrimitivesToDrawNoVertexBuf[3].diffuse = vm->color;
-        g_PrimitivesToDrawUnknown[0].diffuse = vm->color;
-        g_PrimitivesToDrawUnknown[1].diffuse = vm->color;
-        g_PrimitivesToDrawUnknown[2].diffuse = vm->color;
-        g_PrimitivesToDrawUnknown[3].diffuse = vm->color;
+        g_PrimitivesToDrawNoVertexBuf[0].diffuse = colorToUse;
+        g_PrimitivesToDrawNoVertexBuf[1].diffuse = colorToUse;
+        g_PrimitivesToDrawNoVertexBuf[2].diffuse = colorToUse;
+        g_PrimitivesToDrawNoVertexBuf[3].diffuse = colorToUse;
+        g_PrimitivesToDrawUnknown[0].diffuse = colorToUse;
+        g_PrimitivesToDrawUnknown[1].diffuse = colorToUse;
+        g_PrimitivesToDrawUnknown[2].diffuse = colorToUse;
+        g_PrimitivesToDrawUnknown[3].diffuse = colorToUse;
     }
 
     this->SetDepthMask(!vm->flags.zWriteDisable);

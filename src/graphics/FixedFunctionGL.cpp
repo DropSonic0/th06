@@ -59,7 +59,9 @@ GfxInterface *FixedFunctionGL::Init()
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
     {
+#ifndef __PS3__
         g_glFuncTable.glEnable(GL_FOG);
+#endif
 #ifdef __PS3__
         g_glFuncTable.glHint(GL_FOG_HINT, GL_NICEST);
 #endif
