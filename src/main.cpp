@@ -1,5 +1,12 @@
+#ifndef __PS3__
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mouse.h>
+#else
+#include <sys/process.h>
+#include <PSGL/psgl.h>
+#include <sysutil/sysutil_common.h>
+#endif
+
 #include <cstdio>
 
 #include "AnmManager.hpp"
@@ -13,6 +20,18 @@
 #include "ZunResult.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
+
+#ifdef __PS3__
+void sysutil_callback(uint64_t status, uint64_t param, void *userdata)
+{
+    (void)param;
+    (void)userdata;
+    if (status == CELL_SYSUTIL_REQUEST_EXITGAME)
+    {
+        g_GameWindow.isAppClosing = 1;
+    }
+}
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -70,17 +89,21 @@ restart:
     {
         goto stop;
     }
+#ifndef __PS3__
     if (!g_Supervisor.cfg.windowed)
     {
         SDL_ShowCursor(SDL_DISABLE);
     }
+#endif
 
     g_GameWindow.curFrame = 0;
 
     while (true)
     {
+#ifndef __PS3__
         SDL_Event e;
 
+        //dlog("Into poolevent loop");
         while (SDL_PollEvent(&e))
         {
             if (e.type == SDL_QUIT)
@@ -88,6 +111,13 @@ restart:
                 goto stop;
             }
         }
+#else
+        cellSysutilCheckCallback();
+        if (g_GameWindow.isAppClosing)
+        {
+            goto stop;
+        }
+#endif
 
         renderResult = g_GameWindow.Render();
         if (renderResult != 0)
@@ -136,7 +166,11 @@ stop:
 
     if (g_GfxBackend != NULL)
         delete g_GfxBackend;
+#ifndef __PS3__
     SDL_Quit();
+#else
+    cellSysutilUnregisterCallback(0);
+#endif
 
     if (renderResult == 2)
     {
@@ -144,11 +178,12 @@ stop:
 
         g_GameErrorContext.Log(TH_ERR_OPTION_CHANGED_RESTART);
 
+#ifndef __PS3__
         if (!g_Supervisor.cfg.windowed)
         {
             SDL_ShowCursor(SDL_ENABLE);
         }
-
+#endif
         goto restart;
     }
 
@@ -157,7 +192,9 @@ stop:
     //    SystemParametersInfo(SPI_SETLOWPOWERACTIVE, g_GameWindow.lowPowerActive, NULL, SPIF_SENDCHANGE);
     //    SystemParametersInfo(SPI_SETPOWEROFFACTIVE, g_GameWindow.powerOffActive, NULL, SPIF_SENDCHANGE);
 
+#ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);
+#endif
     g_GameErrorContext.Flush();
     return 0;
 }

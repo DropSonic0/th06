@@ -2,19 +2,24 @@
 #include "GameWindow.hpp"
 #include "Supervisor.hpp"
 #include "i18n.hpp"
+#ifndef __PS3__
 #include <SDL2/SDL.h>
+#endif
 
 void FixedFunctionGL::SetContextFlags()
 {
+#ifndef __PS3__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+#endif
 }
 
 GfxInterface *FixedFunctionGL::Init()
 {
     SetContextFlags();
 
+#ifndef __PS3__
     SDL_Init(SDL_INIT_VIDEO);
 
     u32 flags = SDL_WINDOW_OPENGL;
@@ -52,6 +57,9 @@ GfxInterface *FixedFunctionGL::Init()
     }
 
     SDL_GL_SetSwapInterval(1);
+#else
+    FixedFunctionGL *self = new FixedFunctionGL();
+#endif
 
     g_glFuncTable.ResolveFunctions(false);
 
@@ -125,6 +133,7 @@ GfxInterface *FixedFunctionGL::Init()
 
 void FixedFunctionGL::Exit()
 {
+#ifndef __PS3__
     if (this->glContext)
     {
         SDL_GL_DeleteContext(this->glContext);
@@ -135,6 +144,7 @@ void FixedFunctionGL::Exit()
         SDL_DestroyWindow(this->window);
         this->window = NULL;
     }
+#endif
 }
 
 void FixedFunctionGL::SetFogRange(f32 nearPlane, f32 farPlane)
@@ -344,8 +354,8 @@ void FixedFunctionGL::DeleteTexture(GfxTextureHandle handle)
 
 void FixedFunctionGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data)
 {
-    GLenum glFmt;
-    GLenum glType;
+    GLenum glFmt = GL_RGBA;
+    GLenum glType = GL_UNSIGNED_BYTE;
 
     switch (fmt)
     {
@@ -388,7 +398,7 @@ void FixedFunctionGL::ReadPixels(i32 x, i32 y, i32 width, i32 height, const void
 
 void FixedFunctionGL::Draw(PrimitiveType type, i32 start, i32 count)
 {
-    GLenum glPrim;
+    GLenum glPrim = GL_TRIANGLES;
 
     switch (type)
     {
@@ -405,5 +415,9 @@ void FixedFunctionGL::Draw(PrimitiveType type, i32 start, i32 count)
 
 void FixedFunctionGL::SwapBuffers()
 {
+#ifndef __PS3__
     SDL_GL_SwapWindow(window);
+#else
+    psglSwap();
+#endif
 }

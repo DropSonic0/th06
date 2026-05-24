@@ -17,7 +17,7 @@ bool MidiDevice::OpenDevice(u32 uDeviceId)
 
     if (!printedWarning)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_MIDI_SUPPORT);
+        g_GameErrorContext.Log(TH_ERR_NO_MIDI_SUPPORT);
         printedWarning = true;
     }
 

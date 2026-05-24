@@ -1,3 +1,4 @@
+#ifndef __PS3__
 #include "WebGL.hpp"
 #include "GameWindow.hpp"
 #include "Supervisor.hpp"
@@ -37,7 +38,11 @@ GLuint createShader(const char *source, GLenum type, const char *descString,
 
     fullShaderSource[0] = "#version 100\n";
 
+#ifndef __PS3__
     if (SDL_GL_ExtensionSupported("GL_EXT_frag_depth"))
+#else
+    if (false)
+#endif
     {
         fullShaderSource[shaderSourceIndex++] = "#extension GL_EXT_frag_depth : require\n";
         fullShaderSource[shaderSourceIndex++] = "#define USE_FRAG_DEPTH\n";
@@ -121,13 +126,16 @@ bool linkProgram(GLuint programHandle)
 
 void WebGL::SetContextFlags()
 {
+#ifndef __PS3__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#endif
 }
 
 GfxInterface *WebGL::Create()
 {
+#ifndef __PS3__
     WebGL *interface = new WebGL;
 
     SetContextFlags();
@@ -177,10 +185,14 @@ GfxInterface *WebGL::Create()
     }
 
     return interface;
+#else
+    return NULL;
+#endif
 }
 
 void WebGL::Exit()
 {
+#ifndef __PS3__
     if (this->glContext)
     {
         SDL_GL_DeleteContext(this->glContext);
@@ -191,6 +203,7 @@ void WebGL::Exit()
         SDL_DestroyWindow(this->window);
         this->window = NULL;
     }
+#endif
 }
 
 bool WebGL::Init()
@@ -531,3 +544,4 @@ void WebGL::SwapBuffers()
 {
     SDL_GL_SwapWindow(window);
 }
+#endif

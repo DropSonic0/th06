@@ -1,11 +1,17 @@
 #include "GLFunc.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL_video.h>
+#endif
 
 GLFuncTable g_glFuncTable;
 
+#ifndef __PS3__
 #define TRY_RESOLVE_FUNCTION(func) this->func = (decltype(this->func))SDL_GL_GetProcAddress(#func);
 #define TRY_RESOLVE_FUNCTION_GLES(func) this->func##_ptr = (decltype(this->func##_ptr))SDL_GL_GetProcAddress(#func);
+#else
+#define TRY_RESOLVE_FUNCTION(func) this->func = ::func;
+#endif
 
 void GLFuncTable::ResolveFunctions(bool glesContext)
 {
@@ -51,6 +57,7 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
     //   when we call it because the context doesn't actually match what's needed. So instead
     //   we need to pass a parameter to identify which function version to resolve and use.
 
+#ifndef __PS3__
     if (glesContext)
     {
         TRY_RESOLVE_FUNCTION_GLES(glClearDepthf)
@@ -84,6 +91,10 @@ void GLFuncTable::ResolveFunctions(bool glesContext)
     TRY_RESOLVE_FUNCTION(glUniformMatrix4fv)
     TRY_RESOLVE_FUNCTION(glUseProgram)
     TRY_RESOLVE_FUNCTION(glVertexAttribPointer)
+#else
+    this->glClearDepth = ::glClearDepthf;
+    this->glDepthRange = ::glDepthRangef;
+#endif
 
     this->isGlesContext = glesContext;
 }

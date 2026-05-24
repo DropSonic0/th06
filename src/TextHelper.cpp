@@ -6,7 +6,14 @@
 
 #include "thirdparty/sjis_converter.h"
 
+#ifndef __PS3__
 #include <SDL2/SDL_ttf.h>
+#else
+#include <cstdlib>
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "thirdparty/imstb_truetype.h"
+#include "font/msgothic.ttc.h"
+#endif
 #include <algorithm>
 #include <cstring>
 

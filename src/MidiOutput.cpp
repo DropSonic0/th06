@@ -6,10 +6,22 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL_endian.h>
+#else
+#include <sys/sys_time.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_FALLTHROUGH
+#endif
+#ifndef __PS3__
 #include <cstdlib>
 #include <cstring>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
 
+#ifndef __PS3__
 void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
 {
     this->StopTimer();
@@ -25,12 +37,20 @@ void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
         this->timerId = SDL_AddTimer(delay, (SDL_TimerCallback)&MidiOutput::DefaultTimerCallback, this);
     }
 }
+#else
+void MidiOutput::StartTimer(u32 delay, void* cb, void *data)
+{
+    this->StopTimer();
+}
+#endif
 
 i32 MidiOutput::StopTimer()
 {
     if (this->timerId != 0)
     {
+#ifndef __PS3__
         SDL_RemoveTimer(this->timerId);
+#endif
     }
 
     this->timerId = 0;
@@ -38,7 +58,11 @@ i32 MidiOutput::StopTimer()
     return 1;
 }
 
+#ifndef __PS3__
 u32 SDLCALL MidiOutput::DefaultTimerCallback(u32 interval, MidiOutput *timer)
+#else
+u32 MidiOutput::DefaultTimerCallback(u32 interval, MidiOutput *timer)
+#endif
 {
     timer->OnTimerElapsed();
 
@@ -161,7 +185,11 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
 
     // Get a pointer to the end of the header chunk
     currentCursor += sizeof(hdrRaw);
+#ifndef __PS3__
     hdrLength = SDL_SwapBE32(*(u32 *)(hdrRaw + 4));
+#else
+    hdrLength = *(u32 *)(hdrRaw + 4);
+#endif
 
     endOfHeaderPointer = currentCursor;
     currentCursor += hdrLength;
@@ -172,13 +200,25 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
     //  sequence
     //  2: the file contains one or more sequentially independent single-track
     //  patterns
+#ifndef __PS3__
     this->format = SDL_SwapBE16(*(u16 *)endOfHeaderPointer);
+#else
+    this->format = *(u16 *)endOfHeaderPointer;
+#endif
 
     // Read the divisions in this track. Note that this doesn't appear to support
     // "negative SMPTE format", which happens when the MSB is set.
+#ifndef __PS3__
     this->divisions = SDL_SwapBE16(*(u16 *)(endOfHeaderPointer + 4));
+#else
+    this->divisions = *(u16 *)(endOfHeaderPointer + 4);
+#endif
     // Read the number of tracks in this midi file.
+#ifndef __PS3__
     this->numTracks = SDL_SwapBE16(*(u16 *)(endOfHeaderPointer + 2));
+#else
+    this->numTracks = *(u16 *)(endOfHeaderPointer + 2);
+#endif
 
     // Allocate this->divisions * 32 bytes.
     this->tracks = (MidiTrack *)ZunMemory::Alloc(sizeof(MidiTrack) * this->numTracks);
@@ -191,14 +231,18 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
         // Read a track (MTrk) chunk.
         //
         // First, read the length of the chunk
+#ifndef __PS3__
         trackLength = SDL_SwapBE32(*(u32 *)(currentCursorTrack + 4));
+#else
+        trackLength = *(u32 *)(currentCursorTrack + 4);
+#endif
         this->tracks[trackIdx].trackLength = trackLength;
         this->tracks[trackIdx].trackData = (u8 *)ZunMemory::Alloc(trackLength);
         this->tracks[trackIdx].trackPlaying = 1;
         std::memcpy(this->tracks[trackIdx].trackData, currentCursor, trackLength);
         currentCursor += trackLength;
     }
-    this->tempo = 1'000'000;
+    this->tempo = 1000;
     return ZUN_SUCCESS;
 }
 
@@ -242,7 +286,7 @@ ZunResult MidiOutput::Play()
     }
 
     this->LoadTracks();
-    this->midiOutDev.OpenDevice(0xFFFF'FFFF);
+    this->midiOutDev.OpenDevice(0xFFFFFFFF);
     this->StartTimer(1, NULL, NULL);
 
     return ZUN_SUCCESS;

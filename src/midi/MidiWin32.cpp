@@ -1,4 +1,6 @@
 #include "MidiWin32.hpp"
+
+#ifdef _WIN32
 #include "utils.hpp"
 #include <cstdlib>
 #include <cstring>
@@ -162,3 +164,33 @@ success:
 
     return ZUN_SUCCESS;
 }
+#else
+MidiDevice::MidiDevice()
+{
+}
+MidiDevice::~MidiDevice()
+{
+}
+ZunResult MidiDevice::Close()
+{
+    return ZUN_SUCCESS;
+}
+bool MidiDevice::OpenDevice(u32 uDeviceId)
+{
+    (void)uDeviceId;
+    return false;
+}
+bool MidiDevice::SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte)
+{
+    (void)midiStatus;
+    (void)firstByte;
+    (void)secondByte;
+    return false;
+}
+bool MidiDevice::SendLongMsg(const u8 *buf, u32 len)
+{
+    (void)buf;
+    (void)len;
+    return false;
+}
+#endif

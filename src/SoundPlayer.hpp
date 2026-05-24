@@ -2,18 +2,20 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
-
 #ifndef __PS3__
-#include <SDL2/SDL_audio.h>
-#include <SDL2/SDL_rwops.h>
-#include <atomic>
-#include <mutex>
+#include <SDL_audio.h>
+#include <SDL_rwops.h>
 #include <thread>
 #else
 #include <cell/audio.h>
 #include <sys/ppu_thread.h>
 #include <sys/event.h>
 #include <stdio.h>
+#endif
+#ifndef __PS3__
+#include <atomic>
+#include <mutex>
+#else
 #include <sys/synchronization.h>
 #endif
 
@@ -120,7 +122,7 @@ struct SoundPlayer
     ZunResult LoadPos(const char *path);
 
     void BackgroundMusicPlayerThread();
-    void MixAudio(u32 samples);
+    int MixAudio(u32 samples);
 
     SoundData soundBuffers[128];
 #ifndef __PS3__

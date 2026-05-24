@@ -1,5 +1,7 @@
 #include "AnmManager.hpp"
 #include "FileSystem.hpp"
+#define STB_IMAGE_IMPLEMENTATION
+#include "thirdparty/stb_image.h"
 #include "GameErrorContext.hpp"
 #include "Rng.hpp"
 #include "Supervisor.hpp"
@@ -19,8 +21,6 @@
 #include <SDL2/SDL_surface.h>
 #else
 #include <PSGL/psgl.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include "thirdparty/stb_image.h"
 #endif
 
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
@@ -377,7 +377,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 
     int x, y, n;
     // We always want 4 channels for simplicity on PS3, or we could match textureFormat
-    rawTextureData = (u8 *)stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
+    rawTextureData = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
     if (rawTextureData == NULL)
     {
         return ZUN_ERROR;

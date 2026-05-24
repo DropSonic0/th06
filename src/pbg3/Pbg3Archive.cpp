@@ -1,6 +1,12 @@
+#ifndef __PS3__
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#else
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 #include "pbg3/Pbg3Archive.hpp"
 

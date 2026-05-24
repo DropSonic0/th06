@@ -3,7 +3,9 @@
 #include "Supervisor.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
+#ifndef __PS3__
 #include <SDL2/SDL.h>
+#endif
 #include <algorithm>
 #include <cmath>
 
@@ -11,6 +13,7 @@ constexpr u8 alphaThreshold = 4;
 
 GfxInterface *Software::Init()
 {
+#ifndef __PS3__
     SDL_Init(SDL_INIT_VIDEO);
 
     u32 flags = 0;
@@ -23,8 +26,10 @@ GfxInterface *Software::Init()
     {
         flags |= SDL_WINDOW_FULLSCREEN;
     }
+#endif
     Software *self = new Software;
 
+#ifndef __PS3__
     SDL_Window *window = SDL_CreateWindow(TH_WINDOW_TITLE, x, y, width, height, flags);
     self->window = window;
     if (window == NULL)
@@ -40,12 +45,14 @@ GfxInterface *Software::Init()
         delete self;
         return NULL;
     }
+#endif
 
     self->model.Identity();
     self->view.Identity();
     self->projection.Identity();
     self->textureMatrix.Identity();
 
+#ifndef __PS3__
     SDL_Texture *framebufferTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
                                                         GAME_WINDOW_WIDTH, GAME_WINDOW_HEIGHT);
     self->framebufferTexture = framebufferTexture;
@@ -54,6 +61,7 @@ GfxInterface *Software::Init()
         delete self;
         return NULL;
     }
+#endif
     u32 *framebuffer = new u32[GAME_WINDOW_WIDTH * GAME_WINDOW_HEIGHT];
     self->framebuffer = framebuffer;
 
@@ -71,6 +79,7 @@ GfxInterface *Software::Init()
 
 void Software::Exit()
 {
+#ifndef __PS3__
     if (this->renderer)
     {
         SDL_DestroyRenderer(this->renderer);
@@ -86,6 +95,7 @@ void Software::Exit()
         SDL_DestroyTexture(this->framebufferTexture);
         this->framebufferTexture = NULL;
     }
+#endif
     if (this->framebuffer)
     {
         delete[] this->framebuffer;
@@ -96,6 +106,13 @@ void Software::Exit()
         delete[] this->depthBuffer;
         this->depthBuffer = NULL;
     }
+#ifdef __PS3__
+    for (auto texture : textures)
+    {
+        delete texture;
+    }
+    textures.clear();
+#endif
 }
 
 void Software::SetFogRange(f32 nearPlane, f32 farPlane)
@@ -226,7 +243,9 @@ void Software::SetClearColor(f32 r, f32 g, f32 b, f32 a)
 
 void Software::SetTextureFilter()
 {
+#ifndef __PS3__
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+#endif
 }
 
 void Software::SetClearDepth(f32 depth)
@@ -264,19 +283,31 @@ void Software::SetDepthFunc(DepthFunc func)
 
 GfxTextureHandle Software::CreateTexture()
 {
+#ifndef __PS3__
     std::unique_ptr<Texture> texture = std::unique_ptr<Texture>(new Texture());
+#else
+    Texture *texture = new Texture();
+#endif
 
     u32 id;
     if (!freeTextures.empty())
     {
         id = freeTextures.back();
         freeTextures.pop_back();
+#ifndef __PS3__
         textures[id] = std::move(texture);
+#else
+        textures[id] = texture;
+#endif
     }
     else
     {
         id = textures.size();
+#ifndef __PS3__
         textures.push_back(std::move(texture));
+#else
+        textures.push_back(texture);
+#endif
     }
 
     return {id};
@@ -284,11 +315,15 @@ GfxTextureHandle Software::CreateTexture()
 
 void Software::BindTexture(GfxTextureHandle handle)
 {
-    if (handle >= textures.size())
+    if (handle.id >= textures.size())
         return;
     if (!textures[handle.id])
         return;
+#ifndef __PS3__
     boundTexture = textures[handle.id].get();
+#else
+    boundTexture = textures[handle.id];
+#endif
 }
 
 void Software::DeleteTexture(GfxTextureHandle handle)
@@ -297,10 +332,16 @@ void Software::DeleteTexture(GfxTextureHandle handle)
         return;
     if (!textures[handle.id])
         return;
+#ifndef __PS3__
     textures[handle.id].reset();
+#else
+    delete textures[handle.id];
+    textures[handle.id] = nullptr;
+#endif
     freeTextures.push_back(handle.id);
 }
 
+#ifndef __PS3__
 inline SDL_PixelFormatEnum GetSDLPixelFormat(PixelFormat fmt, PixelDataType type)
 {
     switch (type)
@@ -318,9 +359,11 @@ inline SDL_PixelFormatEnum GetSDLPixelFormat(PixelFormat fmt, PixelDataType type
         return SDL_PIXELFORMAT_RGB565;
     }
 }
+#endif
 
 void Software::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data)
 {
+#ifndef __PS3__
     if (boundTexture)
     {
         u32 bpp = 2;
@@ -340,16 +383,19 @@ void Software::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelData
         boundTexture->format = fmt;
         boundTexture->type = type;
     }
+#endif
 }
 
 void Software::SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data)
 {
+#ifndef __PS3__
     if (boundTexture)
     {
         SDL_ConvertPixels(width, height, SDL_PIXELFORMAT_RGB24, data, width * 3, SDL_PIXELFORMAT_ARGB8888,
                           boundTexture->texels.data() + (yoffset * boundTexture->width) + xoffset,
                           boundTexture->width * sizeof(u32));
     }
+#endif
 }
 
 void Software::ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels)
@@ -449,11 +495,12 @@ void Software::Draw(PrimitiveType type, i32 start, i32 count)
 
         ZunVec2 tc0, tc1, tc2;
         Diffuse diffuse0, diffuse1, diffuse2;
-        u32 *texels;
-        i32 texW, texH;
+        u32 *texels = nullptr;
+        i32 texW = 0, texH = 0;
         if (useTexCoord)
         {
-            const ZunVec2 texDim = {boundTexture ? boundTexture->width : 0, boundTexture ? boundTexture->height : 0};
+            const ZunVec2 texDim = {boundTexture ? (f32)boundTexture->width : 0.0f,
+                                    boundTexture ? (f32)boundTexture->height : 0.0f};
             tc0 =
                 ProjectTexCoordToNDC(*(ZunVec2 *)((u8 *)texCoordData + texCoordStride * index), textureMatrix) * texDim;
             tc1 = ProjectTexCoordToNDC(*(ZunVec2 *)((u8 *)texCoordData + texCoordStride * (index + 1)), textureMatrix) *
@@ -462,7 +509,11 @@ void Software::Draw(PrimitiveType type, i32 start, i32 count)
                   texDim;
             if (boundTexture)
             {
+#ifndef __PS3__
                 texels = boundTexture->texels.data();
+#else
+                texels = &boundTexture->texels[0];
+#endif
                 texW = boundTexture->width;
                 texH = boundTexture->height;
             }
@@ -499,10 +550,17 @@ void Software::Draw(PrimitiveType type, i32 start, i32 count)
         v1 = NDCToScreen(v1);
         v2 = NDCToScreen(v2);
 
+#ifndef __PS3__
         i32 xmin = std::max(viewport[0], (i32)std::floor(std::min({v0.x, v1.x, v2.x})));
         i32 xmax = std::min(viewport[0] + viewport[2] - 1, (i32)std::ceil(std::max({v0.x, v1.x, v2.x})));
         i32 ymin = std::max(viewport[1], (i32)std::floor(std::min({v0.y, v1.y, v2.y})));
         i32 ymax = std::min(viewport[1] + viewport[3] - 1, (i32)std::ceil(std::max({v0.y, v1.y, v2.y})));
+#else
+        i32 xmin = std::max(viewport[0], (i32)std::floor(std::min(v0.x, std::min(v1.x, v2.x))));
+        i32 xmax = std::min(viewport[0] + viewport[2] - 1, (i32)std::ceil(std::max(v0.x, std::max(v1.x, v2.x))));
+        i32 ymin = std::max(viewport[1], (i32)std::floor(std::min(v0.y, std::min(v1.y, v2.y))));
+        i32 ymax = std::min(viewport[1] + viewport[3] - 1, (i32)std::ceil(std::max(v0.y, std::max(v1.y, v2.y))));
+#endif
 
         const ZunVec3 vP = ZunVec3(xmin + 0.5f, ymin + 0.5f, 0);
         ZunVec3 edges = {EdgeFunction(v1, v2, vP), EdgeFunction(v2, v0, vP), EdgeFunction(v0, v1, vP)};
@@ -564,7 +622,7 @@ void Software::Draw(PrimitiveType type, i32 start, i32 count)
                     const f32 clipW = 1.0f / invw; // bad
                     i32 u = uv1.x * clipW;
                     i32 v = uv1.y * clipW;
-                    f32 depth;
+                    f32 depth = 0.0f;
                     if (useDepthTest)
                     {
                         depth = ((ndcZ * clipW) * 0.5f + 0.5f) * depthDif + depthNear;
@@ -644,7 +702,9 @@ void Software::Draw(PrimitiveType type, i32 start, i32 count)
 
 void Software::SwapBuffers()
 {
+#ifndef __PS3__
     SDL_UpdateTexture(framebufferTexture, NULL, framebuffer, GAME_WINDOW_WIDTH * sizeof(u32));
     SDL_RenderCopy(renderer, framebufferTexture, NULL, NULL);
     SDL_RenderPresent(renderer);
+#endif
 }

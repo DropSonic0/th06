@@ -191,7 +191,9 @@ void GameWindow::Present()
 
 void GameWindow::CreateGameWindow()
 {
+#ifndef __PS3__
     SDL_Init(SDL_INIT_GAMECONTROLLER);
+#endif
 
     for (u32 i = 0; i < ARRAY_SIZE(s_RenderBackends); i++)
     {
@@ -512,8 +514,8 @@ void GameWindow::InitD3dDevice(void)
         g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
     }
 
-    g_AnmManager->SetFogColor(0xFF'A0'A0'A0);
-    g_AnmManager->SetFogRange(1'000.0f, 5'000.0f);
+    g_AnmManager->SetFogColor(0xFFA0A0A0);
+    g_AnmManager->SetFogRange(1000.0f, 5000.0f);
 
     // All of these are set per texture object in OpenGL (and also most are defaults)
     //    g_Supervisor.d3dDevice->SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);

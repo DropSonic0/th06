@@ -19,13 +19,24 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL_joystick.h>
 #include <SDL2/SDL_timer.h>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#else
+#include <sys/sys_time.h>
+#include <PSGL/psgl.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#define SDL_GL_SwapWindow(x) psglSwap()
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#endif
 
 Supervisor g_Supervisor;
+#ifndef __PS3__
 ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_A,
     (i16)SDL_CONTROLLER_BUTTON_B,
@@ -38,6 +49,20 @@ ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
 };
 SDL_Surface *g_TextBufferSurface;
+#else
+ControllerMapping g_ControllerMapping = {
+    14, // shoot (Cross)
+    13, // bomb (Circle)
+    11, // focus (R1)
+    3,  // menu (Start)
+    4,  // up (D-Pad Up)
+    6,  // down (D-Pad Down)
+    7,  // left (D-Pad Left)
+    5,  // right (D-Pad Right)
+    0   // skip (Select)
+};
+void *g_TextBufferSurface;
+#endif
 u16 g_LastFrameInput;
 u16 g_CurFrameInput;
 u16 g_IsEigthFrameOfHeldInput;
@@ -432,15 +457,21 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
     //    supervisor->keyboard->Acquire();
     g_GameErrorContext.Log(TH_ERR_DIRECTINPUT_INITIALIZED);
 
+#ifndef __PS3__
     int numSticks = SDL_NumJoysticks();
+#else
+    int numSticks = 0;
+#endif
 
     for (int i = 0; i < numSticks; i++)
     {
+#ifndef __PS3__
         if (SDL_IsGameController(i) && (supervisor->gameController = SDL_GameControllerOpen(i)) != NULL)
         {
 
             break;
         }
+#endif
     }
 
     //    supervisor->dinputIface->EnumDevices(DI8DEVCLASS_GAMECTRL, Supervisor::EnumGameControllersCb, NULL,
@@ -511,7 +542,9 @@ ZunResult Supervisor::DeletedCallback(Supervisor *s)
     //    }
     if (s->gameController != NULL)
     {
+#ifndef __PS3__
         SDL_GameControllerClose(s->gameController);
+#endif
         s->gameController = NULL;
     }
     //    if (s->dinputIface != NULL)

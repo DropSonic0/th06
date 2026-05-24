@@ -5,7 +5,9 @@
 #include "Rng.hpp"
 #include "Supervisor.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL_video.h>
+#endif
 #include <cstring>
 
 void ScreenEffect::Clear(ZunColor color)

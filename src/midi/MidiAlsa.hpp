@@ -2,7 +2,10 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
+
+#ifdef LIBASOUND_MIDI_SUPPORT
 #include <alsa/asoundlib.h>
+#endif
 
 struct MidiDevice
 {
@@ -19,9 +22,14 @@ struct MidiDevice
     void Reset();
     bool GetDestPort();
 
+#ifdef LIBASOUND_MIDI_SUPPORT
     snd_seq_t *sequencer;
 
     snd_midi_event_t *encoder;
+#else
+    void *sequencer;
+    void *encoder;
+#endif
     u32 encoderBufferSize;
 
     int sourcePort;

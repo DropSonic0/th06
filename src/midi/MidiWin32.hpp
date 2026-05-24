@@ -2,8 +2,11 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
+
+#ifdef _WIN32
 #include <mmsystem.h>
 #include <windows.h>
+#endif
 
 struct MidiDevice
 {
@@ -17,9 +20,13 @@ struct MidiDevice
     bool SendLongMsg(const u8 *buf, u32 len);
 
   private:
+#ifdef _WIN32
     ZunResult UnprepareHeader(LPMIDIHDR pmh);
 
     HMIDIOUT handle;
+#else
+    void *handle;
+#endif
     u32 deviceId;
 
     // EoSD stores prepared MIDI headers but never does anything with them. Microsoft's documentation
@@ -27,6 +34,10 @@ struct MidiDevice
     //   sending MIDI messages can be asynchronous. Therefore I've left the MIDI header array in, just
     //   in case unpreparing a header immediately can cause a block while waiting for a flush or something.
 
+#ifdef _WIN32
     MIDIHDR *midiHeaders[32];
+#else
+    void *midiHeaders[32];
+#endif
     u32 midiHeadersCursor;
 };

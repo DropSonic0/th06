@@ -75,8 +75,10 @@ struct WebGL : GfxInterface
     virtual void SwapBuffers();
 
   private:
+#ifndef __PS3__
     SDL_Window *window;
     SDL_GLContext glContext;
+#endif
 
     GLuint fragmentShaderHandle;
     GLuint vertexShaderHandle;

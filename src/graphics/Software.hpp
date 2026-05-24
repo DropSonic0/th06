@@ -140,14 +140,20 @@ struct Software : GfxInterface
     virtual void SwapBuffers();
 
   private:
+#ifndef __PS3__
     std::vector<std::unique_ptr<Texture>> textures;
+#else
+    std::vector<Texture *> textures;
+#endif
     std::vector<u32> freeTextures;
 
     Texture *boundTexture = nullptr;
 
+#ifndef __PS3__
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *framebufferTexture;
+#endif
     u32 *framebuffer;
     f32 *depthBuffer;
 

@@ -21,8 +21,13 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_timer.h>
+#else
+#include <sys/sys_time.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#endif
 #include <cstring>
 
 static const char *const g_ShortCharacterList[4] = {"ReimuA ", "ReimuB ", "MarisaA", "MarisaB"};
@@ -189,12 +194,12 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
         if (32 <= menu->stateTimer)
         {
             controllerData = Controller::GetControllerState();
-            for (sVar1 = 0; sVar1 < SDL_CONTROLLER_BUTTON_MAX; sVar1++)
+            for (sVar1 = 0; sVar1 < TH_CONTROLLER_BUTTON_MAX; sVar1++)
             {
                 if ((controllerData[sVar1] & 0x80) != 0)
                     break;
             }
-            if (sVar1 < SDL_CONTROLLER_BUTTON_MAX && g_LastJoystickInput != sVar1)
+            if (sVar1 < TH_CONTROLLER_BUTTON_MAX && g_LastJoystickInput != sVar1)
             {
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT);
                 switch (menu->cursor)
