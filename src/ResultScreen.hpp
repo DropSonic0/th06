@@ -4,6 +4,7 @@
 #include "ReplayData.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
+#include <cstdlib>
 
 #define TH6K_MAGIC 'K6HT'
 #define HSCR_MAGIC 'RCSH'
@@ -180,7 +181,7 @@ struct ResultScreen
     ~ResultScreen()
     {
         ScoreDat *sd = this->scoreDat;
-        free(sd);
+        std::free(sd);
     };
 
     static ZunResult RegisterChain(i32 unk);

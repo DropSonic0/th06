@@ -2,7 +2,12 @@
 
 #include "GLFunc.hpp"
 #include "GfxInterface.hpp"
+#ifndef __PS3__
 #include <SDL2/SDL.h>
+#else
+#include <PSGL/psgl.h>
+#include <PSGL/psglu.h>
+#endif
 #include <vector>
 
 enum GlShaderUniform

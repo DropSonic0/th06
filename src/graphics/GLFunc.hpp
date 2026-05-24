@@ -1,6 +1,15 @@
 #pragma once
 
+#ifndef __PS3__
 #include <SDL2/SDL_opengl.h>
+#else
+#include <PSGL/psgl.h>
+#include <PSGL/psglu.h>
+#define PSGL_USE_GL_NAMES
+#ifndef GLAPIENTRY
+#define GLAPIENTRY
+#endif
+#endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows
 //   opengl32 only goes up to OpenGL 1.1 and some of the blending parameters we need are
@@ -55,6 +64,7 @@ struct GLFuncTable
     void GLAPIENTRY (*glVertexPointer)(GLint size, GLenum type, GLsizei stride, const GLvoid *ptr);
     void GLAPIENTRY (*glViewport)(GLint x, GLint y, GLsizei width, GLsizei height);
 
+#ifndef __PS3__
     // GL(ES) 2.X / WebGL
     PFNGLATTACHSHADERPROC glAttachShader;
     PFNGLBINDATTRIBLOCATIONPROC glBindAttribLocation;
@@ -78,6 +88,7 @@ struct GLFuncTable
     PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
     PFNGLUSEPROGRAMPROC glUseProgram;
     PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+#endif
 
   private:
     // GLES forms for cases where they're different
@@ -85,8 +96,13 @@ struct GLFuncTable
     void GLAPIENTRY (*glDepthRangef_ptr)(GLclampf near_val, GLclampf far_val);
 
     // GL forms for cases where they're different
-    void GLAPIENTRY (*glClearDepth)(GLclampd depth);
-    void GLAPIENTRY (*glDepthRange)(GLclampd near_val, GLclampd far_val);
+#ifndef __PS3__
+    void (GLAPIENTRY *glClearDepth)(GLclampd depth);
+    void (GLAPIENTRY *glDepthRange)(GLclampd near_val, GLclampd far_val);
+#else
+    void (GLAPIENTRY *glClearDepth)(GLclampf depth);
+    void (GLAPIENTRY *glDepthRange)(GLclampf near_val, GLclampf far_val);
+#endif
 
     bool isGlesContext;
 };

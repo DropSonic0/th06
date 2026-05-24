@@ -2,7 +2,11 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
+#ifdef __PS3__
+#include <stdio.h>
+#else
 #include <cstdio>
+#endif
 
 namespace FileSystem
 {

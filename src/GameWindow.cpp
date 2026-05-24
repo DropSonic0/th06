@@ -12,8 +12,15 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 
+#ifndef __PS3__
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_timer.h>
+#else
+#include <sys/sys_time.h>
+#include <PSGL/psgl.h>
+#include <sysutil/sysutil_sysparam.h>
+#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
+#endif
 #include <cstring>
 
 GameWindow g_GameWindow;

@@ -1,9 +1,15 @@
 #include "GameErrorContext.hpp"
 #include "FileSystem.hpp"
+#ifndef __PS3__
 #include <SDL2/SDL_messagebox.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#else
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#endif
 
 GameErrorContext g_GameErrorContext;
 
@@ -67,12 +73,17 @@ void GameErrorContext::Flush()
 
         if (m_ShowMessageBox)
         {
+#ifndef __PS3__
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
+#endif
+            m_ShowMessageBox = false;
         }
 
-        logFile = FileSystem::FopenUTF8("./log.txt", "w");
-
-        std::fprintf(logFile, "%s", m_Buffer);
-        std::fclose(logFile);
+        if (FileSystem::WriteDataToFile("log.txt", m_Buffer, (size_t)(m_BufferEnd - m_Buffer)) != 0)
+        {
+#ifdef __PS3__
+            ::printf("Error: Could not write log.txt\n");
+#endif
+        }
     }
 }
