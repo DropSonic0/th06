@@ -6,8 +6,6 @@
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 
-#include <string.h>
-
 enum EndingFadeType
 {
     ENDING_FADE_TYPE_NO_FADE,
@@ -62,7 +60,7 @@ struct Ending
 
     ZunResult ParseEndFile();
 
-    ZunResult LoadEnding(char *endFilePath);
+    ZunResult LoadEnding(const char *endFilePath);
     void FadingEffect();
 
     ChainElem *calcChain;

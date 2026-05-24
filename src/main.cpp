@@ -1,142 +1,86 @@
-#ifndef __PS3__
-#include <SDL.h>
-#else
-#include <sys/process.h>
-#include <PSGL/psgl.h>
-#include <sysutil/sysutil_common.h>
-#include "ZunEndian.hpp"
-#endif
-#include <stdio.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mouse.h>
+#include <cstdio>
 
 #include "AnmManager.hpp"
 #include "Chain.hpp"
-#include "Controller.hpp"
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
-#include "GamePaths.hpp"
 #include "GameWindow.hpp"
-#include "MidiOutput.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
 #include "Supervisor.hpp"
-#include "TextHelper.hpp"
 #include "ZunResult.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
-#define dlog utils::DebugPrint2
-
-#ifdef __PS3__
-SYS_PROCESS_PARAM(1001, 0x100000)
-
-void sysutil_callback(uint64_t status, uint64_t param, void *userdata)
-{
-    (void)param;
-    (void)userdata;
-    if (status == CELL_SYSUTIL_REQUEST_EXITGAME)
-    {
-        g_GameWindow.isAppClosing = 1;
-    }
-}
-#endif
 
 int main(int argc, char *argv[])
 {
-    GamePaths::Init();
+    (void)argc;
+    (void)argv;
 
-    dlog("Starting");
     i32 renderResult = 0;
+    //    MSG msg;
+    //    i32 waste1, waste2, waste3, waste4, waste5, waste6;
 
-#ifdef __ANDROID__
-    // On Android, SDL must be initialized before GamePaths::Init()
-    // because SDL_AndroidGetInternalStoragePath() requires SDL_Init.
-    if (SDL_Init(0) < 0)
-    {
-        return 1;
-    }
-#endif
+    //    if (utils::CheckForRunningGameInstance())
+    //    {
+    //        g_GameErrorContext.Flush();
+    //
+    //        return 1;
+    //    }
 
-    dlog("Init Gamepath done");
+    //    g_Supervisor.hInstance = hInstance;
 
-    // if (utils::CheckForRunningGameInstance())
-    // {
-    //     g_GameErrorContext.Flush();
-
-    //     return 1;
-    // }
-
-    dlog("Load CONF File");
     if (g_Supervisor.LoadConfig(TH_CONFIG_FILE) != ZUN_SUCCESS)
     {
-#ifdef __ANDROID__
-        // On Android, config file may not exist on first run.
-        // LoadConfig sets defaults and tries to write — if write fails,
-        // continue anyway with defaults.
-        SDL_Log("LoadConfig failed (first run?), continuing with defaults");
-#else
         g_GameErrorContext.Flush();
         return -1;
-#endif
     }
 
-    // if (GameWindow::InitD3dInterface())
-    // {
-    //     g_GameErrorContext.Flush();
-    //     return 1;
-    // }
-    dlog("Start the game");
+    //    if (GameWindow::InitD3dInterface())
+    //    {
+    //        g_GameErrorContext.Flush();
+    //        return 1;
+    //    }
+
+    //    SystemParametersInfo(SPI_GETSCREENSAVEACTIVE, 0, &g_GameWindow.screenSaveActive, 0);
+    //    SystemParametersInfo(SPI_GETLOWPOWERACTIVE, 0, &g_GameWindow.lowPowerActive, 0);
+    //    SystemParametersInfo(SPI_GETPOWEROFFACTIVE, 0, &g_GameWindow.powerOffActive, 0);
+    //    SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, 0, NULL, SPIF_SENDCHANGE);
+    //    SystemParametersInfo(SPI_SETLOWPOWERACTIVE, 0, NULL, SPIF_SENDCHANGE);
+    //    SystemParametersInfo(SPI_SETPOWEROFFACTIVE, 0, NULL, SPIF_SENDCHANGE);
 
 restart:
-    dlog("Create game window");
     GameWindow::CreateGameWindow();
-#ifdef __PS3__
-    if (g_GameWindow.device == NULL || g_GameWindow.glContext == NULL)
-    {
-        dlog("GameWindow creation failed. Exiting...");
-        return 1;
-    }
-    cellSysutilRegisterCallback(0, sysutil_callback, NULL);
-#endif
 
-    dlog("new AnmManager");
     g_AnmManager = new AnmManager();
 
-    dlog("InitD3dRendering");
-    if (GameWindow::InitD3dRendering())
+    if (GameWindow::InitD3dRendering() != ZUN_SUCCESS)
     {
         g_GameErrorContext.Flush();
         return 1;
     }
 
-    dlog("InitializeDSound");
     g_SoundPlayer.InitializeDSound();
-    dlog("GetJoystickCaps");
     Controller::GetJoystickCaps();
-    dlog("ResetKeyboard");
     Controller::ResetKeyboard();
 
-    dlog("Supervisor::RegisterChain");
     if (Supervisor::RegisterChain() != ZUN_SUCCESS)
     {
         goto stop;
     }
-#ifndef __PS3__
     if (!g_Supervisor.cfg.windowed)
     {
         SDL_ShowCursor(SDL_DISABLE);
     }
-#endif
 
     g_GameWindow.curFrame = 0;
 
-    dlog("Into loop game event");
-    bool firstRender;
-    firstRender = true;
     while (true)
     {
-#ifndef __PS3__
         SDL_Event e;
 
-        //dlog("Into poolevent loop");
         while (SDL_PollEvent(&e))
         {
             if (e.type == SDL_QUIT)
@@ -144,19 +88,7 @@ restart:
                 goto stop;
             }
         }
-#else
-        cellSysutilCheckCallback();
-        if (g_GameWindow.isAppClosing)
-        {
-            goto stop;
-        }
-#endif
 
-        if (firstRender)
-        {
-            dlog("g_GameWindow.Render (first time)...");
-            firstRender = false;
-        }
         renderResult = g_GameWindow.Render();
         if (renderResult != 0)
         {
@@ -195,89 +127,37 @@ restart:
         //        }
     }
 
-
 stop:
-    dlog("stop the game");
     g_Chain.Release();
     g_SoundPlayer.Release();
 
     delete g_AnmManager;
     g_AnmManager = NULL;
 
-    // Clean up GL resources while the context is still valid.
-    // THPrac::THPracGuiShutdown();
-    // {
-    //     SDL_GLContext ctx = g_Renderer ? g_Renderer->glContext : nullptr;
-    //     if (g_Renderer)
-    //         g_Renderer->Release();
-    //     if (ctx)
-    //         SDL_GL_DeleteContext(ctx);
-    // }
-
-#ifndef __PS3__
-    SDL_DestroyWindow(g_GameWindow.window);
-    SDL_GL_DeleteContext(g_GameWindow.glContext);
-#else
-    psglDestroyContext(g_GameWindow.glContext);
-    psglDestroyDevice(g_GameWindow.device);
-    psglExit();
-#endif
+    if (g_GfxBackend != NULL)
+        delete g_GfxBackend;
+    SDL_Quit();
 
     if (renderResult == 2)
     {
-        // Clean up resources that leak across restart cycles.
-        // We cannot call Supervisor::DeletedCallback() here because
-        // ReleasePbg3() has a built-in double-free (calls Release() then
-        // delete which calls Release() again) that crashes on modern heaps.
-        // PBG3 archives are re-released internally by LoadPbg3() on reload,
-        // so only these three resources actually leak:
-        if (g_Supervisor.midiOutput != NULL)
-        {
-            g_Supervisor.midiOutput->StopPlayback();
-            delete g_Supervisor.midiOutput;
-            g_Supervisor.midiOutput = NULL;
-        }
-        TextHelper::ReleaseTextBuffer();
-        // Controller::CloseSDLController();
-
         g_GameErrorContext.ResetContext();
 
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_OPTION_CHANGED_RESTART);
+        g_GameErrorContext.Log(TH_ERR_OPTION_CHANGED_RESTART);
 
-#ifndef __PS3__
         if (!g_Supervisor.cfg.windowed)
         {
             SDL_ShowCursor(SDL_ENABLE);
         }
-#endif
+
         goto restart;
     }
 
-#ifdef __PS3__
-    GameConfiguration swappedCfgFinal = g_Supervisor.cfg;
-    swappedCfgFinal.version = SDL_Swap32(swappedCfgFinal.version);
-    swappedCfgFinal.opts = SDL_Swap32(swappedCfgFinal.opts);
-    swappedCfgFinal.padXAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padXAxis);
-    swappedCfgFinal.padYAxis = (i16)SDL_Swap16((u16)swappedCfgFinal.padYAxis);
-    
-    i16* swappedMappingFinal = (i16*)&swappedCfgFinal.controllerMapping;
-    for (int i = 0; i < sizeof(ControllerMapping) / 2; ++i) {
-        swappedMappingFinal[i] = (i16)SDL_Swap16((u16)swappedMappingFinal[i]);
-    }
-    FileSystem::WriteDataToFile(TH_CONFIG_FILE, &swappedCfgFinal, sizeof(g_Supervisor.cfg));
-#else
     FileSystem::WriteDataToFile(TH_CONFIG_FILE, &g_Supervisor.cfg, sizeof(g_Supervisor.cfg));
-#endif
+    //    SystemParametersInfo(SPI_SETSCREENSAVEACTIVE, g_GameWindow.screenSaveActive, NULL, SPIF_SENDCHANGE);
+    //    SystemParametersInfo(SPI_SETLOWPOWERACTIVE, g_GameWindow.lowPowerActive, NULL, SPIF_SENDCHANGE);
+    //    SystemParametersInfo(SPI_SETPOWEROFFACTIVE, g_GameWindow.powerOffActive, NULL, SPIF_SENDCHANGE);
 
-#ifndef __PS3__
     SDL_ShowCursor(SDL_ENABLE);
-#endif
-    // GameErrorContext::Log(&g_GameErrorContext, TH_ERR_LOGGER_END);
     g_GameErrorContext.Flush();
-#ifndef __PS3__
-    SDL_Quit();
-#else
-    cellSysutilUnregisterCallback(0);
-#endif
     return 0;
 }

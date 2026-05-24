@@ -3,12 +3,10 @@
 #include "inttypes.hpp"
 
 #ifndef __PS3__
-#include <SDL_gamecontroller.h>
-#define TH_CONTROLLER_BUTTON_MAX SDL_CONTROLLER_BUTTON_MAX
+#include <SDL2/SDL_gamecontroller.h>
 #else
 #include <cell/keyboard.h>
 #include <cell/pad.h>
-#define TH_CONTROLLER_BUTTON_MAX 32
 #endif
 
 enum TouhouButton

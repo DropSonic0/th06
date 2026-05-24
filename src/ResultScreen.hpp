@@ -2,7 +2,6 @@
 
 #include "AnmVm.hpp"
 #include "ReplayData.hpp"
-#include "ZunEndian.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 
@@ -61,19 +60,19 @@ enum ResultScreenMainMenuCursor
 
 struct Th6k
 {
-    Th6k *ShiftOneByte()
+    Th6k *ShiftOneByte() const
     {
         return (Th6k *)(((u8 *)this) + 1);
     };
 
-    Th6k *ShiftBytes(i32 value)
+    Th6k *ShiftBytes(i32 value) const
     {
         return (Th6k *)(((u8 *)this) + value);
     };
 
-    LE<u32> magic;
-    LE<u16> th6kLen;
-    LE<u16> unkLen;
+    u32 magic;
+    u16 th6kLen;
+    u16 unkLen;
     u8 version;
     u8 unk_9;
 };
@@ -81,15 +80,15 @@ struct Th6k
 struct Catk
 {
     Th6k base;
-    LE<i32> captureScore;
-    LE<u16> idx;
+    i32 captureScore;
+    u16 idx;
     u8 nameCsum;
     u8 characterShotType;
-    LE<u32> unk_14;
+    u32 unk_14;
     char name[32];
-    LE<u32> unk_38;
-    LE<u16> numAttempts;
-    LE<u16> numSuccess;
+    u32 unk_38;
+    u16 numAttempts;
+    u16 numSuccess;
 };
 
 struct Clrd
@@ -102,18 +101,18 @@ struct Clrd
 
 struct Pscr
 {
-    Pscr *ShiftOneByte()
+    Pscr *ShiftOneByte() const
     {
         return (Pscr *)(((u8 *)this) + 1);
     };
 
-    Pscr *ShiftBytes(i32 value)
+    Pscr *ShiftBytes(i32 value) const
     {
         return (Pscr *)(((u8 *)this) + value);
     };
 
     Th6k base;
-    LE<i32> score;
+    i32 score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -121,13 +120,13 @@ struct Pscr
 
 struct Hscr
 {
-    Hscr *ShiftBytes(i32 value)
+    Hscr *ShiftBytes(i32 value) const
     {
         return (Hscr *)(((u8 *)this) + value);
     };
 
     Th6k base;
-    LE<u32> score;
+    u32 score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -150,23 +149,23 @@ struct ScoreListNode
 
 struct ScoreRaw
 {
-    Th6k *ShiftOneByte()
+    Th6k *ShiftOneByte() const
     {
         return (Th6k *)(((u8 *)this) + 1);
     };
 
-    Th6k *ShiftBytes(i32 value)
+    Th6k *ShiftBytes(i32 value) const
     {
         return (Th6k *)(((u8 *)this) + value);
     };
 
     u8 xorseed[2];
-    LE<u16> csum;
-    LE<u16> unk_8;
+    u16 csum;
+    u16 unk_8;
     u8 unk[2];
-    LE<u32> dataOffset;
-    LE<u32> padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
-    LE<u32> fileLen;
+    u32 dataOffset;
+    u32 padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
+    u32 fileLen;
 };
 
 struct ScoreDat
@@ -190,7 +189,7 @@ struct ResultScreen
     static ZunResult AddedCallback(ResultScreen *r);
     static ZunResult DeletedCallback(ResultScreen *r);
 
-    static ScoreDat *OpenScore(char *path);
+    static ScoreDat *OpenScore(const char *path);
     static ZunResult ParseCatk(ScoreDat *s, Catk *catk);
     static ZunResult ParseClrd(ScoreDat *s, Clrd *out);
     static ZunResult ParsePscr(ScoreDat *s, Pscr *out);
@@ -211,7 +210,7 @@ struct ResultScreen
 
     static i32 LinkScore(ScoreListNode *, Hscr *);
     i32 LinkScoreEx(Hscr *out, i32 difficulty, i32 character);
-    u32 DrawFinalStats();
+    u32 DrawFinalStats() const;
 
     ScoreDat *scoreDat;
     i32 frameTimer;

@@ -9,12 +9,6 @@
 #include "Player.hpp"
 #include "Rng.hpp"
 #include "utils.hpp"
-#ifndef __PS3__
-#include <SDL.h>
-#else
-#include <stdio.h>
-#define SDL_Log printf
-#endif
 
 namespace EnemyEclInstr
 {
@@ -30,13 +24,13 @@ struct PatchouliShottypeVars
     } shotVars[2];
 };
 
-PatchouliShottypeVars g_PatchouliShottypeVars[2] = {{{{0, 3, 1}, {2, 3, 4}}}, {{{1, 4, 0}, {4, 2, 3}}}};
-i32 g_PlayerShot;
-f32 g_PlayerDistance;
-f32 g_PlayerAngle;
-f32 g_StarAngleTable[6];
-ZunVec3 g_EnemyPosVector;
-ZunVec3 g_PlayerPosVector;
+static const PatchouliShottypeVars g_PatchouliShottypeVars[2] = {{{{0, 3, 1}, {2, 3, 4}}}, {{{1, 4, 0}, {4, 2, 3}}}};
+static i32 g_PlayerShot;
+static f32 g_PlayerDistance;
+static f32 g_PlayerAngle;
+static f32 g_StarAngleTable[6];
+static ZunVec3 g_EnemyPosVector;
+static ZunVec3 g_PlayerPosVector;
 
 void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
 {
@@ -44,10 +38,10 @@ void MoveDirTime(Enemy *enemy, EclRawInstr *instr)
     f32 angle;
 
     alu = &instr->args.alu;
-    angle = GetVarFloatValue(enemy, alu->arg1.f32Param, NULL);
+    angle = *GetVarFloat(enemy, &alu->arg1.f32Param, NULL);
 
-    enemy->moveInterp.x = ZUN_COSF(angle) * alu->arg2.f32Param * alu->res / 2.0f;
-    enemy->moveInterp.y = ZUN_SINF(angle) * alu->arg2.f32Param * alu->res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * alu->arg2.f32Param * (i32)alu->res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * alu->arg2.f32Param * (i32)alu->res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
@@ -63,9 +57,9 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     ZunVec3 newPos;
     EclRawInstrAluArgs *alu = &instr->args.alu;
 
-    newPos.x = GetVarFloatValue(enemy, alu->arg1.f32Param, NULL);
-    newPos.y = GetVarFloatValue(enemy, alu->arg2.f32Param, NULL);
-    newPos.z = GetVarFloatValue(enemy, alu->arg3.f32Param, NULL);
+    newPos.x = *GetVarFloat(enemy, &alu->arg1.f32Param, NULL);
+    newPos.y = *GetVarFloat(enemy, &alu->arg2.f32Param, NULL);
+    newPos.z = *GetVarFloat(enemy, &alu->arg3.f32Param, NULL);
 
     enemy->moveInterp = newPos - enemy->position;
     enemy->moveInterpStartPos = enemy->position;
@@ -77,20 +71,20 @@ void MovePosTime(Enemy *enemy, EclRawInstr *instr)
     enemy->axisSpeed = ZunVec3(0.0f, 0.0f, 0.0f);
 }
 
-void MoveTime(Enemy *enemy, EclRawInstr *instr)
+void MoveTime(Enemy *enemy, const EclRawInstr *instr)
 {
+    const EclRawInstrAluArgs *alu;
     f32 angle;
-    SDL_Log("mt 1");
-    EclVarId res = instr->args.alu.res;
-    SDL_Log("mt 2");
+
+    alu = &instr->args.alu;
     angle = *GetVarFloat(enemy, &enemy->angle, NULL);
 
-    enemy->moveInterp.x = ZUN_COSF(angle) * enemy->speed * res / 2.0f;
-    enemy->moveInterp.y = ZUN_SINF(angle) * enemy->speed * res / 2.0f;
+    enemy->moveInterp.x = ZUN_COSF(angle) * enemy->speed * (i32)alu->res / 2.0f;
+    enemy->moveInterp.y = ZUN_SINF(angle) * enemy->speed * (i32)alu->res / 2.0f;
     enemy->moveInterp.z = 0.0f;
 
     enemy->moveInterpStartPos = enemy->position;
-    enemy->moveInterpStartTime = res;
+    enemy->moveInterpStartTime = alu->res;
 
     enemy->moveInterpTimer.SetCurrent(enemy->moveInterpStartTime);
 
@@ -237,8 +231,7 @@ i32 *GetVar(Enemy *enemy, EclVarId *eclVarId, EclValueType *valueType)
 
 f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
 {
-
-    i32 varId = uf32(eclVarId);
+    i32 varId = *eclVarId;
     i32 *res = GetVar(enemy, (EclVarId *)&varId, valueType);
     if (res == &varId)
     {
@@ -250,11 +243,11 @@ f32 *GetVarFloat(Enemy *enemy, f32 *eclVarId, EclValueType *valueType)
     }
 }
 
-void SetVar(Enemy *enemy, EclVarId lhs, void *rhs)
+void SetVar(Enemy *enemy, EclVarId lhs, const void *rhs)
 {
     i32 *lhsPtr;
     EclValueType lhsType;
-    i32 *rhsPtr;
+    const i32 *rhsPtr;
 
     rhsPtr = GetVar(enemy, (EclVarId *)rhs, NULL);
     lhsPtr = GetVar(enemy, &lhs, &lhsType);
@@ -273,116 +266,136 @@ void MathAdd(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsV
 {
     EclValueType outType;
     i32 *outPtr;
+    const i32 *lhsPtr;
+    const i32 *rhsPtr;
 
     // Get output variable.
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr + *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = lhsPtr + rhsPtr;
+        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = *(f32 *)lhsPtr + *(f32 *)rhsPtr;
     }
+    return;
 }
 
 void MathSub(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
+    const i32 *lhsPtr;
+    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr - *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = lhsPtr - rhsPtr;
+        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = *(f32 *)lhsPtr - *(f32 *)rhsPtr;
     }
+    return;
 }
 
 void MathMul(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
+    const i32 *lhsPtr;
+    const i32 *rhsPtr;
 
+    lhsPtr = GetVar(enemy, lhsVarId, NULL);
+    rhsPtr = GetVar(enemy, rhsVarId, NULL);
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr * *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = lhsPtr * rhsPtr;
+        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = *(f32 *)lhsPtr * *(f32 *)rhsPtr;
     }
+    return;
 }
 
 void MathDiv(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
+    const i32 *lhsPtr;
+    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr / *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = lhsPtr / rhsPtr;
+        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = *(f32 *)lhsPtr / *(f32 *)rhsPtr;
     }
+    return;
 }
 
 void MathMod(Enemy *enemy, EclVarId outVarId, EclVarId *lhsVarId, EclVarId *rhsVarId)
 {
     EclValueType outType;
     i32 *outPtr;
+    const i32 *lhsPtr;
+    const i32 *rhsPtr;
 
     outPtr = GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_INT)
     {
-        i32 *lhsPtr = GetVar(enemy, lhsVarId, NULL);
-        i32 *rhsPtr = GetVar(enemy, rhsVarId, NULL);
+        lhsPtr = GetVar(enemy, lhsVarId, NULL);
+        rhsPtr = GetVar(enemy, rhsVarId, NULL);
         *outPtr = *lhsPtr % *rhsPtr;
     }
     else if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        f32 lhsPtr = *GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
-        f32 rhsPtr = *GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
-        *(f32 *)outPtr = ZUN_FMODF(lhsPtr, rhsPtr);
+        lhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)lhsVarId, NULL);
+        rhsPtr = (i32 *)GetVarFloat(enemy, (f32 *)rhsVarId, NULL);
+        *(f32 *)outPtr = ZUN_FMODF(*(f32 *)lhsPtr, *(f32 *)rhsPtr);
     }
+    return;
 }
 
-void MathAtan2(Enemy *enemy, EclVarId outVarId, f32 x1, f32 y1, f32 y2, f32 x2)
+void MathAtan2(Enemy *enemy, EclVarId outVarId, f32 *x1, f32 *y1, f32 *y2, f32 *x2)
 {
     EclValueType outType;
     f32 *outPtr;
-    f32 *y1Ptr, *x1Ptr, *x2Ptr, *y2Ptr;
+    const f32 *y1Ptr;
+    const f32 *x1Ptr;
+    const f32 *x2Ptr;
+    const f32 *y2Ptr;
 
     outPtr = (f32 *)GetVar(enemy, &outVarId, &outType);
     if (outType == ECL_VALUE_TYPE_FLOAT)
     {
-        y1Ptr = GetVarFloat(enemy, &x1, NULL);
-        x1Ptr = GetVarFloat(enemy, &y1, NULL);
-        y2Ptr = GetVarFloat(enemy, &y2, NULL);
-        x2Ptr = GetVarFloat(enemy, &x2, NULL);
+        y1Ptr = GetVarFloat(enemy, x1, NULL);
+        x1Ptr = GetVarFloat(enemy, y1, NULL);
+        y2Ptr = GetVarFloat(enemy, y2, NULL);
+        x2Ptr = GetVarFloat(enemy, x2, NULL);
         *outPtr = ZUN_ATAN2F(*x2Ptr - *x1Ptr, *y2Ptr - *y1Ptr);
     }
     return;
@@ -878,7 +891,7 @@ void ExInsStage6Func7(Enemy *enemy, EclRawInstr *instr)
 void ExInsStage6Func8(Enemy *enemy, EclRawInstr *instr)
 {
     i32 changedBullets;
-    Bullet *currentBullet;
+    const Bullet *currentBullet;
     i32 i;
 
     changedBullets = 0;
@@ -1074,7 +1087,7 @@ void ExInsStageXFunc14(Enemy *enemy, EclRawInstr *instr)
     f32 angleCos;
     f32 angleSin;
     ZunVec3 bulletPosition;
-    Laser *currentLaser;
+    const Laser *currentLaser;
     i32 i;
     f32 positionMultiplier;
 

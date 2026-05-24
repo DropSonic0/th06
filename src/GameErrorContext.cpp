@@ -1,19 +1,13 @@
 #include "GameErrorContext.hpp"
 #include "FileSystem.hpp"
-#ifndef __PS3__
-#include <SDL_messagebox.h>
+#include <SDL2/SDL_messagebox.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
-#else
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#endif
 
 GameErrorContext g_GameErrorContext;
 
-const char *GameErrorContext::Log(GameErrorContext *ctx, const char *fmt, ...)
+const char *GameErrorContext::Log(const char *fmt, ...)
 {
     char tmpBuffer[512];
     size_t tmpBufferSize;
@@ -24,12 +18,12 @@ const char *GameErrorContext::Log(GameErrorContext *ctx, const char *fmt, ...)
 
     tmpBufferSize = std::strlen(tmpBuffer);
 
-    if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
+    if (this->m_BufferEnd + tmpBufferSize < &this->m_Buffer[sizeof(this->m_Buffer) - 1])
     {
-        std::strcpy(ctx->m_BufferEnd, tmpBuffer);
+        std::strcpy(this->m_BufferEnd, tmpBuffer);
 
-        ctx->m_BufferEnd += tmpBufferSize;
-        *ctx->m_BufferEnd = '\0';
+        this->m_BufferEnd += tmpBufferSize;
+        *this->m_BufferEnd = '\0';
     }
 
     va_end(args);
@@ -37,7 +31,7 @@ const char *GameErrorContext::Log(GameErrorContext *ctx, const char *fmt, ...)
     return fmt;
 }
 
-const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
+const char *GameErrorContext::Fatal(const char *fmt, ...)
 {
     char tmpBuffer[512];
     size_t tmpBufferSize;
@@ -48,39 +42,37 @@ const char *GameErrorContext::Fatal(GameErrorContext *ctx, const char *fmt, ...)
 
     tmpBufferSize = std::strlen(tmpBuffer);
 
-    if (ctx->m_BufferEnd + tmpBufferSize < &ctx->m_Buffer[sizeof(ctx->m_Buffer) - 1])
+    if (this->m_BufferEnd + tmpBufferSize < &this->m_Buffer[sizeof(this->m_Buffer) - 1])
     {
-        std::strcpy(ctx->m_BufferEnd, tmpBuffer);
+        std::strcpy(this->m_BufferEnd, tmpBuffer);
 
-        ctx->m_BufferEnd += tmpBufferSize;
-        *ctx->m_BufferEnd = '\0';
+        this->m_BufferEnd += tmpBufferSize;
+        *this->m_BufferEnd = '\0';
     }
 
     va_end(args);
 
-    ctx->m_ShowMessageBox = true;
+    this->m_ShowMessageBox = true;
 
     return fmt;
 }
 
 void GameErrorContext::Flush()
 {
+    FILE *logFile;
+
     if (m_BufferEnd != m_Buffer)
     {
+        g_GameErrorContext.Log(TH_ERR_LOGGER_END);
+
         if (m_ShowMessageBox)
         {
-#ifndef __PS3__
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
-#endif
-            m_ShowMessageBox = false;
         }
 
-        if (FileSystem::WriteDataToFile("log.txt", m_Buffer, (size_t)(m_BufferEnd - m_Buffer)) != 0)
-        {
-#ifdef __PS3__
-            ::printf("Error: Could not write log.txt\n");
-#endif
-        }
+        logFile = FileSystem::FopenUTF8("./log.txt", "w");
+
+        std::fprintf(logFile, "%s", m_Buffer);
+        std::fclose(logFile);
     }
 }
-

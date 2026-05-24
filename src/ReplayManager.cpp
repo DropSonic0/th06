@@ -15,7 +15,7 @@
 
 ReplayManager *g_ReplayManager;
 
-ZunResult ReplayManager::ValidateReplayData(ReplayHeader *data, i32 fileSize)
+ZunResult ReplayManager::ValidateReplayData(const ReplayHeader *data, i32 fileSize)
 {
     u8 *checksumCursor;
     u32 checksum;
@@ -65,7 +65,7 @@ ZunResult ReplayManager::ValidateReplayData(ReplayHeader *data, i32 fileSize)
     return ZUN_SUCCESS;
 }
 
-ZunResult ReplayManager::RegisterChain(i32 isDemo, char *replayFile)
+ZunResult ReplayManager::RegisterChain(i32 isDemo, const char *replayFile)
 {
     ReplayManager *replayMgr;
 
@@ -355,11 +355,11 @@ void ReplayManager::StopRecording()
     }
 }
 
-void ReplayManager::SaveReplay(char *replayPath, char *replayName)
+void ReplayManager::SaveReplay(const char *replayPath, char *replayName)
 {
     ReplayManager *mgr;
     FILE *file;
-    u8 *checksumCursor;
+    const u8 *checksumCursor;
     ReplayHeader replayCopy;
     u8 *obfuscateCursor;
     i32 obfStagePos;
@@ -370,7 +370,7 @@ void ReplayManager::SaveReplay(char *replayPath, char *replayName)
     f32 slowDown;
     i32 stageIdx;
     std::time_t time;
-    std::tm *tm;
+    const std::tm *tm;
 
     time = std::time(NULL);
     tm = std::localtime(&time);
@@ -410,8 +410,7 @@ void ReplayManager::SaveReplay(char *replayPath, char *replayName)
                 replayCopy.slowdownRate2 = replayCopy.slowdownRate + 1.12f;
                 replayCopy.slowdownRate3 = replayCopy.slowdownRate + 2.34f;
                 mgr->replayData->stageReplayData[g_GameManager.currentStage - 1]->score = g_GameManager.score;
-
-                std::snprintf(replayCopy.name, sizeof(replayCopy.name), "%s", replayName);
+                std::strcpy(replayCopy.name, replayName);
                 std::sprintf(replayCopy.date, "%02i/%02i/%02i", tm->tm_mon, tm->tm_mday, tm->tm_year % 100);
                 replayCopy.key = g_Rng.GetRandomU16InRange(128) + 64;
                 replayCopy.rngValue3 = g_Rng.GetRandomU16InRange(256);

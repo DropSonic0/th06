@@ -1,16 +1,15 @@
 #pragma once
 
-#include "GLFunc.hpp"
-#include "GameWindow.hpp"
 #include "inttypes.hpp"
-#include "ZunEndian.hpp"
 #include <cmath>
 #include <cstring>
+
 #ifdef __PS3__
 #define static_assert(cond, msg)
-#include <math.h>
-#define GL_DEPTH_RANGE 0x0B70
-#define GL_VIEWPORT 0x0BA2
+#endif 
+
+#ifndef __has_builtin
+#define __has_builtin(name) 0
 #endif
 
 #if __cplusplus >= 202002L
@@ -23,7 +22,13 @@ inline u32 CountrZero(u32 n)
 {
     return std::countr_zero(n);
 }
-#elif defined(__GNUC__)
+inline u16 RotateLeft16(u16 n, u8 s)
+{
+    return std::rotl(n, s);
+}
+#else
+
+#if __has_builtin(__builtin_clz)
 inline u32 BitCeil(u32 n)
 {
     // Check if n is a power of 2
@@ -35,11 +40,6 @@ inline u32 BitCeil(u32 n)
     u32 highestBit = 31 - __builtin_clz(n);
 
     return 1 << (highestBit + 1);
-}
-
-inline u32 CountrZero(u32 n)
-{
-    return __builtin_ctz(n);
 }
 #else
 // Shamelessly stolen from https://graphics.stanford.edu/%7Eseander/bithacks.html#RoundUpPowerOf2
@@ -55,7 +55,14 @@ inline u32 BitCeil(u32 n)
 
     return n;
 }
+#endif
 
+#if __has_builtin(__builtin_ctz)
+inline u32 CountrZero(u32 n)
+{
+    return __builtin_ctz(n);
+}
+#else
 // https://graphics.stanford.edu/%7Eseander/bithacks.html#ZerosOnRightMultLookup
 inline u32 CountrZero(u32 n)
 {
@@ -64,6 +71,20 @@ inline u32 CountrZero(u32 n)
 
     return multiplyDeBruijnBitPosition[((u32)((n & -n) * 0x077CB531U)) >> 27];
 }
+#endif
+
+#if __has_builtin(__builtin_rotateleft16)
+inline u16 RotateLeft16(u16 n, u8 s)
+{
+    return __builtin_rotateleft16(n, s);
+}
+#else
+inline u16 RotateLeft16(u16 n, u8 s)
+{
+    return (u32)n >> 16 - s | n << s;
+}
+#endif
+
 #endif
 
 // EoSD makes extensive use of the float versions of math functions made standard in C99
@@ -78,25 +99,16 @@ inline u32 CountrZero(u32 n)
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(n)))
+#define ZUN_RINTF(n) (std::rintf((f32)(x)))
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 
-struct ZunVec2Raw
-{
-    LE<f32> x;
-    LE<f32> y;
-};
-
-struct ZunVec2POD
+// Replacing all former uses of D3DXVECTOR2
+struct ZunVec2
 {
     f32 x;
     f32 y;
-};
 
-// Replacing all former uses of D3DXVECTOR2
-struct ZunVec2 : ZunVec2POD
-{
     ZunVec2()
     {
     }
@@ -107,15 +119,32 @@ struct ZunVec2 : ZunVec2POD
         this->y = y;
     }
 
-    ZunVec2(const ZunVec2POD &pod)
+    ZunVec2 operator+(const ZunVec2 &b) const
     {
-        this->x = pod.x;
-        this->y = pod.y;
+        return ZunVec2(this->x + b.x, this->y + b.y);
+    }
+
+    ZunVec2 &operator+=(const ZunVec2 &b)
+    {
+        this->x += b.x;
+        this->y += b.y;
+
+        return *this;
+    }
+
+    ZunVec2 operator*(const f32 mult) const
+    {
+        return ZunVec2(this->x * mult, this->y * mult);
+    }
+
+    ZunVec2 operator*(const ZunVec2 &mult) const
+    {
+        return ZunVec2(this->x * mult.x, this->y * mult.y);
     }
 
     f32 VectorLength() const
     {
-        return ZUN_SQRTF((f64)(this->x * this->x + this->y * this->y));
+        return std::sqrt((f64)(this->x * this->x + this->y * this->y));
     }
 
     f64 VectorLengthF64() const
@@ -123,25 +152,15 @@ struct ZunVec2 : ZunVec2POD
         return (f64)this->VectorLength();
     }
 };
-static_assert(sizeof(ZunVec2) == 0x08 && sizeof(ZunVec2Raw) == 0x08, "ZunVec2 has additional padding between struct members!");
+static_assert(sizeof(ZunVec2) == 0x08, "ZunVec2 has additional padding between struct members!");
 
-struct ZunVec3Raw
-{
-    LE<f32> x;
-    LE<f32> y;
-    LE<f32> z;
-};
-
-struct ZunVec3POD
+// Replacing all former uses of D3DXVECTOR3
+struct ZunVec3
 {
     f32 x;
     f32 y;
     f32 z;
-};
 
-// Replacing all former uses of D3DXVECTOR3
-struct ZunVec3 : ZunVec3POD
-{
     ZunVec3()
     {
     }
@@ -153,33 +172,12 @@ struct ZunVec3 : ZunVec3POD
         this->z = z;
     }
 
-    ZunVec3(const ZunVec3POD &pod)
-    {
-        this->x = pod.x;
-        this->y = pod.y;
-        this->z = pod.z;
-    }
-
-    inline ZunVec3 &operator=(const ZunVec3Raw &a)
-    {
-        this->x = a.x;
-        this->y = a.y;
-        this->z = a.z;
-
-        return *this;
-    }
-
     ZunVec3 operator-() const
     {
         return ZunVec3(-this->x, -this->y, -this->z);
     }
 
     ZunVec3 operator+(const ZunVec3 &b) const
-    {
-        return ZunVec3(this->x + b.x, this->y + b.y, this->z + b.z);
-    }
-
-    ZunVec3 operator+(const ZunVec3POD &b) const
     {
         return ZunVec3(this->x + b.x, this->y + b.y, this->z + b.z);
     }
@@ -265,18 +263,15 @@ struct ZunVec3 : ZunVec3POD
         bottomRightCorner->y = size->y / 2.0f + centerPosition->y;
     }
 };
-static_assert(sizeof(ZunVec3) == 0x0C && sizeof(ZunVec3Raw) == 0x0C, "ZunVec3 has additional padding between struct members!");
+static_assert(sizeof(ZunVec3) == 0x0C, "ZunVec3 has additional padding between struct members!");
 
-struct ZunVec4POD
+struct ZunVec4
 {
     f32 x;
     f32 y;
     f32 z;
     f32 w;
-};
 
-struct ZunVec4 : ZunVec4POD
-{
     ZunVec4()
     {
     }
@@ -288,13 +283,12 @@ struct ZunVec4 : ZunVec4POD
         this->z = z;
         this->w = w;
     }
-
-    ZunVec4(const ZunVec4POD &pod)
+    ZunVec4(ZunVec3 vec, f32 w)
     {
-        this->x = pod.x;
-        this->y = pod.y;
-        this->z = pod.z;
-        this->w = pod.w;
+        this->x = vec.x;
+        this->y = vec.y;
+        this->z = vec.z;
+        this->w = w;
     }
 };
 static_assert(sizeof(ZunVec4) == 0x10, "ZunVec4 has additional padding between struct members!");
@@ -331,6 +325,18 @@ struct ZunMatrix
         result.x = this->m[0][0] * b.x + this->m[1][0] * b.y + this->m[2][0] * b.z + this->m[3][0];
         result.y = this->m[0][1] * b.x + this->m[1][1] * b.y + this->m[2][1] * b.z + this->m[3][1];
         result.z = this->m[0][2] * b.x + this->m[1][2] * b.y + this->m[2][2] * b.z + this->m[3][2];
+
+        return result;
+    }
+
+    ZunVec4 operator*(const ZunVec4 &b) const
+    {
+        ZunVec4 result(0.0f, 0.0f, 0.0f, 0.0f);
+
+        result.x = this->m[0][0] * b.x + this->m[1][0] * b.y + this->m[2][0] * b.z + this->m[3][0] * b.w;
+        result.y = this->m[0][1] * b.x + this->m[1][1] * b.y + this->m[2][1] * b.z + this->m[3][1] * b.w;
+        result.z = this->m[0][2] * b.x + this->m[1][2] * b.y + this->m[2][2] * b.z + this->m[3][2] * b.w;
+        result.w = this->m[0][3] * b.x + this->m[1][3] * b.y + this->m[2][3] * b.z + this->m[3][3] * b.w;
 
         return result;
     }
@@ -435,47 +441,13 @@ struct ZunViewport
     f32 minZ;
     f32 maxZ;
 
-    void Set()
-    {
-        GLint vx = this->x * g_GameWindow.WIDTH_RESOLUTION_SCALE + g_GameWindow.VIEWPORT_OFF_X;
-        GLint vy = (g_GameWindow.GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * g_GameWindow.HEIGHT_RESOLUTION_SCALE)) -
-                                     g_GameWindow.VIEWPORT_OFF_Y;
-        GLsizei vw = this->width * g_GameWindow.WIDTH_RESOLUTION_SCALE;
-        GLsizei vh = this->height * g_GameWindow.HEIGHT_RESOLUTION_SCALE;
-        g_glFuncTable.glViewport(vx, vy, vw, vh);
-        g_glFuncTable.glScissor(vx, vy, vw, vh);
-        g_glFuncTable.glEnable(GL_SCISSOR_TEST);
-        g_glFuncTable.glDepthRangef(this->minZ, this->maxZ);
-#ifdef __PS3__
-        g_ZunCurrentViewport = *this;
-#endif
-    }
+    void Set() const;
 
-    void Get()
-    {
-#ifdef __PS3__
-        *this = g_ZunCurrentViewport;
-#else
-        GLint viewPortGet[4];
-        GLfloat depthRangeGet[2];
-
-        g_glFuncTable.glGetIntegerv(GL_VIEWPORT, viewPortGet);
-        g_glFuncTable.glGetFloatv(GL_DEPTH_RANGE, depthRangeGet);
-
-        this->x = (viewPortGet[0] - g_GameWindow.VIEWPORT_OFF_X) / g_GameWindow.WIDTH_RESOLUTION_SCALE;
-        this->y = (viewPortGet[1] - (i32)g_GameWindow.VIEWPORT_OFF_Y) / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
-        this->width = viewPortGet[2] / g_GameWindow.WIDTH_RESOLUTION_SCALE;
-        this->height = viewPortGet[3] / g_GameWindow.HEIGHT_RESOLUTION_SCALE;
-        this->minZ = depthRangeGet[0];
-        this->maxZ = depthRangeGet[1];
-
-        // Convert from OpenGL to D3D conventions
-        this->y = GAME_WINDOW_HEIGHT - (this->y + this->height);
-#endif
-    }
+    void Get();
 };
 
 #define ZUN_MIN(x, y) ((x) > (y) ? (y) : (x))
+#define ZUN_MAX(x, y) ((x) < (y) ? (y) : (x))
 #define ZUN_PI ((f32)(3.14159265358979323846))
 #define ZUN_2PI ((f32)(ZUN_PI * 2.0f))
 
@@ -511,7 +483,7 @@ inline f32 mapRange(f32 in, f32 domainLow, f32 domainHigh, f32 rangeLow, f32 ran
 }
 
 // Creates a left handed matrix, using the method from Microsoft's docs
-inline ZunMatrix createViewMatrix(ZunVec3 &camera, ZunVec3 &target, ZunVec3 &up)
+inline ZunMatrix createViewMatrix(const ZunVec3 &camera, const ZunVec3 &target, const ZunVec3 &up)
 {
     ZunMatrix lookMatrix;
 
@@ -579,46 +551,11 @@ inline ZunMatrix perspectiveMatrixFromFOV(f32 verticalFOV, f32 aspectRatio, f32 
     return perspectiveMatrix;
 }
 
-// Returns a matrix that maps screen coordinates to NDCs. Used for drawing RHW positions,
-//   since D3D interprets them has having been already transformed, but OpenGL has no option
-//   to prevent transformation
-inline ZunMatrix inverseViewportMatrix()
-{
-    ZunMatrix inverseMatrix;
-    ZunViewport viewport;
-
-    viewport.Get();
-
-    inverseMatrix.Identity();
-
-    // Mappings:
-    //   X: [viewport x .. viewport width] -> [-1 .. 1]
-    //   Y: [viewport y .. viewport height] -> [1 .. -1] (Axis inverted since NDCs are cartesian)
-    //   Z: [0 .. 1] -> [-1 .. 1]. D3D does NOT interpolate this value using the viewport's depth range!
-    //                             Therefore we must change our depth range to [0.0 .. 1.0] as well
-
-    // One difference between OpenGL and D3D is that in D3D, pixels are centered on integers, whereas
-    //   in OpenGL, they're on half-integer coordinates. Originally, this function finished with a glTranslatef
-    //   call to account for this, but OpenGL seems to be very finicky with rasterizing edges on pixel centers,
-    //   and most positions in EoSD do use whole integer coordinates for edges (D3D seems to be less
-    //   finicky about rasterization). To prevent obvious off-by-one errors with edges in the UI, no accounting
-    //   is done for the pixel coordinate discrepancy aside from changing the rounding in DrawOrthographic, if
-    //   applied, to use whole integers (OpenGL pixel boundaries), rather than half integers (D3D pixel boundaries).
-    //   Graphical output should really be checked thoroughly to make sure nothing (especially in the 3D draw functions)
-    //   ends up a half pixel off.
-
-    inverseMatrix.Translate(-1.0f, 1.0f, -1.0f);
-    inverseMatrix.Scale(1.0f / (viewport.width / 2.0f), -1.0f / (viewport.height / 2.0f), 2.0f);
-    inverseMatrix.Translate(-viewport.x, -viewport.y, 0.0f);
-
-    g_glFuncTable.glDepthRangef(0.0f, 1.0f);
-
-    return inverseMatrix;
-}
+ZunMatrix inverseViewportMatrix();
 
 // Reimplementation of D3DXVec3Project. TODO: Replace if possible once port is working
-inline void projectVec3(ZunVec3 &out, ZunVec3 &inVec, ZunViewport &viewport, ZunMatrix &projection, ZunMatrix &view,
-                        ZunMatrix &world)
+inline void projectVec3(ZunVec3 &out, const ZunVec3 &inVec, const ZunViewport &viewport, const ZunMatrix &projection,
+                        const ZunMatrix &view, const ZunMatrix &world)
 {
     // WARNING: Runs into issues if matrices do things with W (Zun's never do)
 

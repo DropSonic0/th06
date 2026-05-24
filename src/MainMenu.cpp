@@ -21,20 +21,15 @@
 #include "i18n.hpp"
 #include "utils.hpp"
 
-#ifndef __PS3__
-#include <SDL_gamecontroller.h>
-#include <SDL_timer.h>
-#else
-#include <sys/sys_time.h>
-#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
-#endif
+#include <SDL2/SDL_gamecontroller.h>
+#include <SDL2/SDL_timer.h>
 #include <cstring>
 
-const char *g_ShortCharacterList[4] = {"ReimuA ", "ReimuB ", "MarisaA", "MarisaB"};
-const char *g_DifficultyList[5] = {"Easy   ", "Normal ", "Hard   ", "Lunatic", "Extra  "};
-const char *g_StageList[7] = {"Stage1", "Stage2", "Stage3", "Stage4", "Stage5", "Stage6", "Extra "};
+static const char *const g_ShortCharacterList[4] = {"ReimuA ", "ReimuB ", "MarisaA", "MarisaB"};
+static const char *const g_DifficultyList[5] = {"Easy   ", "Normal ", "Hard   ", "Lunatic", "Extra  "};
+static const char *const g_StageList[7] = {"Stage1", "Stage2", "Stage3", "Stage4", "Stage5", "Stage6", "Extra "};
 
-i16 g_LastJoystickInput;
+static i16 g_LastJoystickInput;
 
 MainMenu::MainMenu()
 {
@@ -64,7 +59,7 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
     ZunVec3 pos3;
     ZunVec3 pos4;
     ZunVec3 pos5;
-    AnmVm *vm;
+    const AnmVm *vm;
     u32 hasLoadedSprite;
 
     if (menu->timeRelatedArrSize < ARRAY_SIZE_SIGNED(menu->timeRelatedArr))
@@ -194,12 +189,12 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
         if (32 <= menu->stateTimer)
         {
             controllerData = Controller::GetControllerState();
-            for (sVar1 = 0; sVar1 < TH_CONTROLLER_BUTTON_MAX; sVar1++)
+            for (sVar1 = 0; sVar1 < SDL_CONTROLLER_BUTTON_MAX; sVar1++)
             {
                 if ((controllerData[sVar1] & 0x80) != 0)
                     break;
             }
-            if (sVar1 < TH_CONTROLLER_BUTTON_MAX && g_LastJoystickInput != sVar1)
+            if (sVar1 < SDL_CONTROLLER_BUTTON_MAX && g_LastJoystickInput != sVar1)
             {
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT);
                 switch (menu->cursor)
@@ -279,7 +274,7 @@ ChainCallbackResult MainMenu::OnUpdate(MainMenu *menu)
         {
             if (LoadDiffCharSelect(menu) != ZUN_SUCCESS)
             {
-                GameErrorContext::Log(&g_GameErrorContext, TH_ERR_MAINMENU_LOAD_SELECT_SCREEN_FAILED);
+                g_GameErrorContext.Log(TH_ERR_MAINMENU_LOAD_SELECT_SCREEN_FAILED);
                 g_Supervisor.curState = SUPERVISOR_STATE_EXITSUCCESS;
                 return CHAIN_CALLBACK_RESULT_CONTINUE_AND_REMOVE_JOB;
             }
@@ -1270,7 +1265,7 @@ i32 MainMenu::ReplayHandling()
         {
             if (LoadReplayMenu(this))
             {
-                GameErrorContext::Log(&g_GameErrorContext, "japanese");
+                g_GameErrorContext.Log("japanese");
                 g_Supervisor.curState = SUPERVISOR_STATE_EXITSUCCESS;
                 return ZUN_SUCCESS;
             }
@@ -1434,7 +1429,7 @@ i32 MainMenu::ReplayHandling()
                 }
             }
         }
-        if (WAS_PRESSED(TH_BUTTON_SELECTMENU) && this->currentReplay[this->cursor].header->stageReplayDataOffsets)
+        if (WAS_PRESSED(TH_BUTTON_SELECTMENU) /*&& this->currentReplay[this->cursor].header->stageReplayDataOffsets*/)
         {
             g_GameManager.isInReplay = 1;
             g_Supervisor.framerateMultiplier = 1.0;
@@ -1480,11 +1475,11 @@ i32 MainMenu::ReplayHandling()
     return 0;
 }
 
-ZunResult MainMenu::DrawReplayMenu()
+ZunResult MainMenu::DrawReplayMenu() const
 {
     i32 replayAmount;
     i32 i;
-    AnmVm *vmRef;
+    const AnmVm *vmRef;
     bool isSelected;
     bool isSelected2;
 
@@ -1535,7 +1530,7 @@ ZunResult MainMenu::DrawReplayMenu()
         g_AsciiManager.isSelected = false;
 
         vmRef = &this->vm[97];
-        g_AsciiManager.AddFormatText(&vmRef->pos, "       %2.3f%%", (f32)this->currentReplay->header->slowdownRate);
+        g_AsciiManager.AddFormatText(&vmRef->pos, "       %2.3f%%", this->currentReplay->header->slowdownRate);
 
         vmRef = &this->vm[114];
         g_AsciiManager.AddFormatText(&vmRef->pos, "Stage  LastScore");
@@ -1570,7 +1565,7 @@ ZunResult MainMenu::DrawReplayMenu()
             if (this->currentReplay->stageReplayData[i])
             {
                 g_AsciiManager.AddFormatText(&vmRef->pos, "%s %9d", g_StageList[i],
-                                             (i32)this->currentReplay->stageReplayData[i]->score);
+                                             this->currentReplay->stageReplayData[i]->score);
             }
             else
             {
@@ -1583,7 +1578,7 @@ ZunResult MainMenu::DrawReplayMenu()
     return ZUN_SUCCESS;
 }
 
-void MainMenu::ColorMenuItem(AnmVm *vm, i32 item, i32 subItem, i32 subItemSelected)
+void MainMenu::ColorMenuItem(AnmVm *vm, i32 item, i32 subItem, i32 subItemSelected) const
 {
     if (subItem != subItemSelected)
     {
@@ -1890,7 +1885,7 @@ u32 MainMenu::OnUpdateOptionsMenu()
     return 0;
 }
 
-ZunResult MainMenu::ChoosePracticeLevel()
+ZunResult MainMenu::ChoosePracticeLevel() const
 {
     if (this->gameState == STATE_PRACTICE_LVL_SELECT)
     {
@@ -1919,7 +1914,7 @@ ZunResult MainMenu::ChoosePracticeLevel()
                 g_AsciiManager.color = (color >> 1) << 0x18 | 0x0080C0C0;
             }
             g_AsciiManager.AddFormatText(&textPos, "STAGE %d  %.9d", stageNum + 1,
-                                         (i32)g_GameManager.pscr[charShotType][stageNum][g_GameManager.difficulty].score);
+                                         g_GameManager.pscr[charShotType][stageNum][g_GameManager.difficulty].score);
             textPos.y += 24;
         }
         g_AsciiManager.color = 0xFFFFFFFF;
@@ -1931,7 +1926,7 @@ ChainCallbackResult MainMenu::OnDraw(MainMenu *menu)
 {
     ZunVec3 posBackup;
     ZunVec3 *pos;
-    ZunVec3 *offset;
+    const ZunVec3 *offset;
     bool shouldDraw;
     AnmVm *curVm;
     i32 vmIdx;

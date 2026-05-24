@@ -2,10 +2,6 @@
 #include "utils.hpp"
 
 #include <new>
-#include <iostream>
-void chaindlog(std::string msg){
-    std::cout<<"chain : "<<msg.c_str()<<std::endl;
-}
 
 Chain g_Chain;
 
@@ -46,15 +42,12 @@ Chain::Chain()
 
 int Chain::AddToCalcChain(ChainElem *elem, int priority)
 {
-    //chaindlog("init");
     ChainElem *cur;
 
     cur = &this->calcChain;
-    //chaindlog("debug print 2");
     utils::DebugPrint2("add calc chain (pri = %d)\n", priority);
     elem->priority = priority;
 
-    //chaindlog("while 1");
     while (cur->next != NULL)
     {
         if (cur->priority > priority)
@@ -65,7 +58,6 @@ int Chain::AddToCalcChain(ChainElem *elem, int priority)
         cur = cur->next;
     }
 
-    //chaindlog("while 2");
     if (cur->priority > priority)
     {
         elem->next = cur;
@@ -85,19 +77,15 @@ int Chain::AddToCalcChain(ChainElem *elem, int priority)
         cur->next = elem;
     }
 
-    //chaindlog("addedCallback check");
     if (elem->addedCallback != NULL)
     {
-        //chaindlog("addedCallback set");
         int res = elem->addedCallback(elem->arg);
         elem->addedCallback = NULL;
 
-        //chaindlog("finish");
         return res;
     }
     else
     {
-        //chaindlog("finish");
         return 0;
     }
 }

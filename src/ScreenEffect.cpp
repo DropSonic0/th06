@@ -1,14 +1,11 @@
 #include "ScreenEffect.hpp"
 #include "AnmManager.hpp"
 #include "ChainPriorities.hpp"
-#include "GLFunc.hpp"
 #include "GameWindow.hpp"
 #include "Rng.hpp"
 #include "Supervisor.hpp"
 
-#ifndef __PS3__
-#include <SDL.h>
-#endif
+#include <SDL2/SDL_video.h>
 #include <cstring>
 
 void ScreenEffect::Clear(ZunColor color)
@@ -18,23 +15,15 @@ void ScreenEffect::Clear(ZunColor color)
     f32 g = ((color >> 8) & 0xFF) / 255.0f;
     f32 b = (color & 0xFF) / 255.0f;
 
-    g_glFuncTable.glClearColor(r, g, b, a);
+    g_GfxBackend->SetClearColor(r, g, b, a);
 
     // D3D version clears and presents twice (probably to clear both draw buffers?)
     // For now let's copy that behaviour
 
-    g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#ifndef __PS3__
-    SDL_GL_SwapWindow(g_GameWindow.window);
-#else
-    psglSwap();
-#endif
-    g_glFuncTable.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-#ifndef __PS3__
-    SDL_GL_SwapWindow(g_GameWindow.window);
-#else
-    psglSwap();
-#endif
+    g_GfxBackend->Clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+    g_GfxBackend->SwapBuffers();
+    g_GfxBackend->Clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
+    g_GfxBackend->SwapBuffers();
 
     return;
 }
@@ -72,7 +61,7 @@ ChainCallbackResult ScreenEffect::CalcFadeIn(ScreenEffect *effect)
     return CHAIN_CALLBACK_RESULT_CONTINUE;
 }
 
-void ScreenEffect::DrawSquare(ZunRect *rect, ZunColor rectColor)
+void ScreenEffect::DrawSquare(const ZunRect *rect, ZunColor rectColor)
 {
     VertexDiffuseXyzrhw vertices[4];
 
@@ -101,7 +90,8 @@ void ScreenEffect::DrawSquare(ZunRect *rect, ZunColor rectColor)
     g_AnmManager->SetDepthMask(false);
     g_AnmManager->SetDepthFunc(DEPTH_FUNC_ALWAYS);
 
-    g_glFuncTable.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    g_GfxBackend->SetBlendMode(BLEND_INV_SRC_ALPHA);
+
     g_AnmManager->BackendDrawCall();
 
     g_AnmManager->SetCurrentSprite(NULL);

@@ -1,12 +1,6 @@
-#ifndef __PS3__
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#else
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#endif
 
 #include "pbg3/Pbg3Archive.hpp"
 
@@ -21,17 +15,9 @@ Pbg3Archive::Pbg3Archive()
     this->unk = NULL;
 }
 
-#ifdef __PS3__
-#include "utils.hpp"
-#endif
-
 i32 Pbg3Archive::ParseHeader()
 {
-    u32 magic = this->parser->ReadMagic();
-#ifdef __PS3__
-    // utils::Log("Pbg3Archive: Read magic 0x%08x (expected 0x33474250)", magic);
-#endif
-    if (magic != 0x33474250)
+    if (this->parser->ReadMagic() != 0x33474250)
     {
         if (this->parser != NULL)
         {
@@ -105,11 +91,7 @@ i32 Pbg3Archive::Release()
         delete[] this->entries;
         this->entries = NULL;
     }
-#ifndef __PS3__
     std::free(this->unk);
-#else
-    ::free(this->unk);
-#endif
     return true;
 }
 
@@ -118,16 +100,9 @@ i32 Pbg3Archive::FindEntry(const char *path)
     for (u32 entryIdx = 0; entryIdx < this->numOfEntries; entryIdx += 1)
     {
         char *entryFilename = this->entries[entryIdx].filename;
-#ifndef __PS3__
         i32 res = std::strcmp(path, entryFilename);
-#else
-        i32 res = ::strcasecmp(path, entryFilename);
-#endif
         if (res == 0)
         {
-#ifdef __PS3__
-            // utils::Log("Pbg3Archive: Found entry %s at index %d (size=%u)", entryFilename, entryIdx, this->entries[entryIdx].uncompressedSize);
-#endif
             return entryIdx;
         }
     }
@@ -354,9 +329,6 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
 
     if (this->entries[entryIdx].checksum != checksum)
     {
-#ifdef __PS3__
-        //utils::Log("Pbg3Archive: Checksum mismatch for %s: expected %u, got %u", filename, this->entries[entryIdx].checksum, checksum);
-#endif
         if (out != NULL)
         {
             free(out);
@@ -365,8 +337,5 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
         return NULL;
     }
 
-#ifdef __PS3__
-    // utils::Log("Pbg3Archive: Successfully decompressed %s", filename);
-#endif
     return out;
 }

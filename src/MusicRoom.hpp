@@ -4,7 +4,7 @@
 #include "Chain.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
-#include <string.h>
+
 struct TrackDescriptor
 {
     TrackDescriptor()

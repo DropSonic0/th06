@@ -2,22 +2,11 @@
 
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
-#ifndef __PS3__
-#include <SDL_audio.h>
-#include <SDL_rwops.h>
-#include <thread>
-#else
-#include <cell/audio.h>
-#include <sys/ppu_thread.h>
-#include <sys/event.h>
-#include <stdio.h>
-#endif
-#ifndef __PS3__
+#include <SDL2/SDL_audio.h>
+#include <SDL2/SDL_rwops.h>
 #include <atomic>
 #include <mutex>
-#else
-#include <sys/synchronization.h>
-#endif
+#include <thread>
 
 enum SoundIdx
 {
@@ -72,11 +61,7 @@ struct SoundData
 
 struct WavData
 {
-#ifndef __PS3__
     SDL_RWops *fileStream;
-#else
-    FILE *fileStream;
-#endif
     u32 dataStartOffset;
     u32 samples;
 };
@@ -89,17 +74,6 @@ struct MusicStream
     u32 loopEnd;
     u32 fadeoutLen;
     u32 fadeoutProgress;
-#ifdef __PS3__
-    i16 *streamCache;
-    u32 streamCacheSize; // in frames (per buffer)
-    u32 streamCachePos;  // in frames
-    u32 streamCacheValid[2]; // in frames
-    u32 activeBuffer;    // 0 or 1
-    bool bufferBusy[2];
-    double fraction;
-    i16 lastSamples[2];
-    i16 nextSamples[2];
-#endif
 };
 
 struct SoundPlayer
@@ -115,32 +89,19 @@ struct SoundPlayer
     void PlaySoundByIdx(SoundIdx idx);
     ZunResult PlayBGM(bool isLooping);
     void StopBGM();
-    void StopBGM_NoLock();
     void FadeOut(f32 seconds);
 
     ZunResult LoadWav(const char *path);
     ZunResult LoadPos(const char *path);
 
     void BackgroundMusicPlayerThread();
-    int MixAudio(u32 samples);
+    void MixAudio(u32 samples);
 
     SoundData soundBuffers[128];
-#ifndef __PS3__
     std::mutex soundBufMutex;
     SDL_AudioDeviceID audioDev;
     std::thread backgroundMusicThreadHandle;
     std::atomic_bool terminateFlag;
-#else
-    sys_mutex_t soundBufMutex;
-    sys_mutex_t bgmIoMutex;
-    sys_mutex_t bgmStateMutex;
-    uint32_t audioPortNum;
-    sys_ppu_thread_t backgroundMusicThreadHandle;
-    sys_ppu_thread_t bgmIoThreadHandle;
-    volatile bool terminateFlag;
-    sys_event_queue_t audioEventQueue;
-    sys_ipc_key_t audioEventKey;
-#endif
     i32 soundBuffersToPlay[3];
     MusicStream backgroundMusic;
     bool isLooping;

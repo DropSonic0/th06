@@ -1,14 +1,8 @@
 #include "Controller.hpp"
 
-#ifndef __PS3__
-#include <SDL_events.h>
-#include <SDL_keyboard.h>
-#include <SDL_scancode.h>
-#else
-#include <cell/keyboard.h>
-#include <cell/pad.h>
-#include <string.h>
-#endif
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_scancode.h>
 
 #include "GameErrorContext.hpp"
 #include "Supervisor.hpp"
@@ -19,23 +13,8 @@
 static u16 g_FocusButtonConflictState;
 static u8 *keyboardState;
 
-#ifdef __PS3__
-#define TH_PS3_KB_MAX 7
-static CellPadData g_LastPS3PadData;
-static CellKbData g_LastPS3KbState[TH_PS3_KB_MAX];
-static uint8_t g_PS3KbConnected[TH_PS3_KB_MAX];
-
-// Fallback declarations for missing SDK headers
-extern "C"
-{
-    int cellKbSetCodeType(uint32_t port_no, uint32_t type);
-    int cellKbSetReadMode(uint32_t port_no, uint32_t mode);
-}
-#endif
-
 u16 Controller::GetJoystickCaps(void)
 {
-#ifndef __PS3__
     //    JOYINFOEX pji;
 
     //    pji.dwSize = sizeof(JOYINFOEX);
@@ -48,10 +27,6 @@ u16 Controller::GetJoystickCaps(void)
     //    }
     //
     //    joyGetDevCapsA(0, &g_JoystickCaps, sizeof(g_JoystickCaps));
-#else
-    cellPadInit(7);
-    memset(&g_LastPS3PadData, 0, sizeof(g_LastPS3PadData));
-#endif
     return 0;
 }
 
@@ -62,7 +37,6 @@ u16 Controller::GetJoystickCaps(void)
 
 u16 Controller::GetControllerInput(u16 buttons)
 {
-#ifndef __PS3__
     // NOTE: Those names are like this to get perfect stack frame matching
     // TODO: Give meaningfull names that still match.
     //    JOYINFOEX aa;
@@ -172,62 +146,6 @@ u16 Controller::GetControllerInput(u16 buttons)
         //            TH_BUTTON_UP, JOYSTICK_MIDPOINT(g_JoystickCaps.wYmin, g_JoystickCaps.wYmax) - ab, aa.dwYpos);
         //
     }
-#else
-    CellPadData padData;
-    if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
-    {
-        g_LastPS3PadData = padData;
-    }
-
-    if (g_LastPS3PadData.len > 0)
-    {
-        u16 digital1 = g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_DIGITAL1];
-        u16 digital2 = g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_DIGITAL2];
-
-        // D-Pad
-        if (digital1 & CELL_PAD_CTRL_UP)
-            buttons |= TH_BUTTON_UP;
-        if (digital1 & CELL_PAD_CTRL_DOWN)
-            buttons |= TH_BUTTON_DOWN;
-        if (digital1 & CELL_PAD_CTRL_LEFT)
-            buttons |= TH_BUTTON_LEFT;
-        if (digital1 & CELL_PAD_CTRL_RIGHT)
-            buttons |= TH_BUTTON_RIGHT;
-
-        // Face buttons & Shoulders
-        if (digital2 & CELL_PAD_CTRL_CROSS)
-            buttons |= TH_BUTTON_SHOOT;
-        if (digital2 & CELL_PAD_CTRL_CIRCLE)
-            buttons |= TH_BUTTON_BOMB;
-        if (digital2 & CELL_PAD_CTRL_R1)
-            buttons |= TH_BUTTON_FOCUS;
-        if (digital2 & CELL_PAD_CTRL_L1)
-            buttons |= TH_BUTTON_SKIP;
-
-        // System buttons
-        if (digital1 & CELL_PAD_CTRL_START)
-            buttons |= TH_BUTTON_MENU;
-        if (digital1 & CELL_PAD_CTRL_SELECT)
-            buttons |= TH_BUTTON_SKIP;
-        if (digital2 & CELL_PAD_CTRL_SQUARE)
-            buttons |= TH_BUTTON_S;
-        if (digital2 & CELL_PAD_CTRL_TRIANGLE)
-            buttons |= TH_BUTTON_Q;
-
-        // Analog stick
-        int stickX = (int)(g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] & 0xFF) - 128;
-        int stickY = (int)(g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] & 0xFF) - 128;
-
-        if (stickX > 50)
-            buttons |= TH_BUTTON_RIGHT;
-        if (stickX < -50)
-            buttons |= TH_BUTTON_LEFT;
-        if (stickY > 50)
-            buttons |= TH_BUTTON_DOWN;
-        if (stickY < -50)
-            buttons |= TH_BUTTON_UP;
-    }
-#endif
     //    else
     //    {
     //        // FIXME: Next if not matching.
@@ -344,7 +262,6 @@ u32 Controller::SetButtonFromDirectInputJoystate(u16 *outButtons, i16 controller
     return inputButtons[controllerButtonToTest] & 0x80 ? touhouButton & 0xFFFF : 0;
 }
 
-#ifndef __PS3__
 u32 Controller::SetButtonFromControllerInputs(u16 *outButtons, i16 controllerButtonToTest,
                                               enum TouhouButton touhouButton, SDL_GameController *controller)
 {
@@ -361,14 +278,12 @@ u32 Controller::SetButtonFromControllerInputs(u16 *outButtons, i16 controllerBut
 
     return pressed ? touhouButton & 0xFFFF : 0;
 }
-#endif
 
-static u8 g_ControllerData[TH_CONTROLLER_BUTTON_MAX];
+static u8 g_ControllerData[SDL_CONTROLLER_BUTTON_MAX];
 
 // This is for rebinding keys
 const u8 *Controller::GetControllerState()
 {
-#ifndef __PS3__
     //    JOYINFOEX joyinfoex;
     //    u32 joyButtonBit;
     //    u32 joyButtonIndex;
@@ -391,27 +306,6 @@ const u8 *Controller::GetControllerState()
             }
         }
     }
-#else
-    CellPadData padData;
-    memset(&g_ControllerData, 0, sizeof(g_ControllerData));
-    if (cellPadGetData(0, &padData) == CELL_PAD_OK && padData.len > 0)
-    {
-        g_LastPS3PadData = padData;
-    }
-
-    if (g_LastPS3PadData.len > 0)
-    {
-        u16 digital1 = g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_DIGITAL1];
-        u16 digital2 = g_LastPS3PadData.button[CELL_PAD_BTN_OFFSET_DIGITAL2];
-        for (int i = 0; i < 8; i++)
-        {
-            if (digital1 & (1 << i))
-                g_ControllerData[i] = 0x80;
-            if (digital2 & (1 << i))
-                g_ControllerData[i + 8] = 0x80;
-        }
-    }
-#endif
 
     //
     //    if (g_Supervisor.controller == NULL)
@@ -468,130 +362,6 @@ u16 Controller::GetInput(void)
 {
     u16 buttons = 0;
 
-#ifdef __PS3__
-    CellKbInfo kbInfo;
-    CellKbData kbData;
-
-    if (cellKbGetInfo(&kbInfo) == 0)
-    {
-        for (int i = 0; i < TH_PS3_KB_MAX; i++)
-        {
-            if (i < (int)kbInfo.max_connect && kbInfo.status[i] == 1)
-            {
-                if (!g_PS3KbConnected[i])
-                {
-                    cellKbSetCodeType(i, CELL_KB_CODETYPE_RAW);
-                    cellKbSetReadMode(i, CELL_KB_RMODE_PACKET);
-                    g_PS3KbConnected[i] = 1;
-                }
-
-                // Drain queue to get latest state, but limit to avoid freezes
-                int safety = 0;
-                while (cellKbRead(i, &kbData) == 0 && safety < 64)
-                {
-                    g_LastPS3KbState[i] = kbData;
-                    safety++;
-                }
-            }
-            else
-            {
-                if (g_PS3KbConnected[i])
-                {
-                    memset(&g_LastPS3KbState[i], 0, sizeof(CellKbData));
-                    g_PS3KbConnected[i] = 0;
-                }
-            }
-        }
-    }
-
-    for (int k = 0; k < TH_PS3_KB_MAX; k++)
-    {
-        // Modifiers are stored in mkey bitmask
-        if (g_LastPS3KbState[k].mkey & (CELL_KB_MKEY_L_SHIFT | CELL_KB_MKEY_R_SHIFT))
-        {
-            buttons |= TH_BUTTON_FOCUS;
-        }
-        if (g_LastPS3KbState[k].mkey & (CELL_KB_MKEY_L_CTRL | CELL_KB_MKEY_R_CTRL))
-        {
-            buttons |= TH_BUTTON_SKIP;
-        }
-
-        int len = g_LastPS3KbState[k].len;
-        if (len > CELL_KB_MAX_KEYCODES)
-        {
-            len = CELL_KB_MAX_KEYCODES;
-        }
-        for (int i = 0; i < len; i++)
-        {
-            // In RAW mode, keycode contains the HID usage code
-            u16 keycode = g_LastPS3KbState[k].keycode[i] & 0xFF;
-
-            switch (keycode)
-            {
-            case CELL_KEYC_UP_ARROW:
-                buttons |= TH_BUTTON_UP;
-                break;
-            case CELL_KEYC_DOWN_ARROW:
-                buttons |= TH_BUTTON_DOWN;
-                break;
-            case CELL_KEYC_LEFT_ARROW:
-                buttons |= TH_BUTTON_LEFT;
-                break;
-            case CELL_KEYC_RIGHT_ARROW:
-                buttons |= TH_BUTTON_RIGHT;
-                break;
-            case CELL_KEYC_Z:
-                buttons |= TH_BUTTON_SHOOT;
-                break;
-            case CELL_KEYC_X:
-                buttons |= TH_BUTTON_BOMB;
-                break;
-            case CELL_KEYC_ESCAPE:
-                buttons |= TH_BUTTON_MENU;
-                break;
-            case CELL_KEYC_Q:
-                buttons |= TH_BUTTON_Q;
-                break;
-            case CELL_KEYC_S:
-                buttons |= TH_BUTTON_S;
-                break;
-            case CELL_KEYC_ENTER:
-            case CELL_KEYC_KPAD_ENTER:
-                buttons |= TH_BUTTON_ENTER;
-                break;
-            case CELL_KEYC_HOME:
-                buttons |= TH_BUTTON_HOME;
-                break;
-            case CELL_KEYC_KPAD_2:
-                buttons |= TH_BUTTON_DOWN;
-                break;
-            case CELL_KEYC_KPAD_4:
-                buttons |= TH_BUTTON_LEFT;
-                break;
-            case CELL_KEYC_KPAD_6:
-                buttons |= TH_BUTTON_RIGHT;
-                break;
-            case CELL_KEYC_KPAD_8:
-                buttons |= TH_BUTTON_UP;
-                break;
-            case CELL_KEYC_KPAD_7:
-                buttons |= TH_BUTTON_UP | TH_BUTTON_LEFT;
-                break;
-            case CELL_KEYC_KPAD_9:
-                buttons |= TH_BUTTON_UP | TH_BUTTON_RIGHT;
-                break;
-            case CELL_KEYC_KPAD_1:
-                buttons |= TH_BUTTON_DOWN | TH_BUTTON_LEFT;
-                break;
-            case CELL_KEYC_KPAD_3:
-                buttons |= TH_BUTTON_DOWN | TH_BUTTON_RIGHT;
-                break;
-            }
-        }
-    }
-#endif
-
-#ifndef __PS3__
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_UP, SDL_SCANCODE_UP);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_DOWN, SDL_SCANCODE_DOWN);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_LEFT, SDL_SCANCODE_LEFT);
@@ -615,20 +385,12 @@ u16 Controller::GetInput(void)
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_Q, SDL_SCANCODE_Q);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_S, SDL_SCANCODE_S);
     buttons |= KEYBOARD_KEY_PRESSED(TH_BUTTON_ENTER, SDL_SCANCODE_RETURN);
-#endif
 
     return Controller::GetControllerInput(buttons);
 }
 
 void Controller::ResetKeyboard(void)
 {
-#ifdef __PS3__
-    cellKbInit(TH_PS3_KB_MAX);
-    memset(g_LastPS3KbState, 0, sizeof(g_LastPS3KbState));
-    memset(g_PS3KbConnected, 0, sizeof(g_PS3KbConnected));
-#endif
-
-#ifndef __PS3__
     keyboardState = (u8 *)SDL_GetKeyboardState(NULL);
 
     // Ensure IMEs are disabled so they don't interfer with EoSD input
@@ -637,5 +399,4 @@ void Controller::ResetKeyboard(void)
     //   Since I can't test on Windows, it's good to be on the safe side
     SDL_StartTextInput();
     SDL_StopTextInput();
-#endif
 }

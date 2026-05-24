@@ -1,16 +1,16 @@
 #pragma once
 
-#include <stdlib.h>
+#include <cstdlib>
 
 namespace ZunMemory
 {
 inline void *Alloc(size_t size)
 {
-    return malloc(size);
+    return std::malloc(size);
 }
 
 inline void Free(void *ptr)
 {
-    free(ptr);
+    std::free(ptr);
 }
 }; // namespace ZunMemory

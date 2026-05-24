@@ -4,10 +4,16 @@
 #include "inttypes.hpp"
 
 #ifndef __PS3__
-#include <SDL_timer.h>
+#include <SDL2/SDL_timer.h>
 #endif
 
-// #include "midi/MidiDefault.hpp"
+#ifdef _WIN32
+#include "midi/MidiWin32.hpp"
+#elif defined(LIBASOUND_MIDI_SUPPORT)
+#include "midi/MidiAlsa.hpp"
+#else
+#include "midi/MidiDefault.hpp"
+#endif
 
 enum MidiOpcode
 {
@@ -123,7 +129,7 @@ struct MidiOutput
     u64 elapsedMS;
     u64 tickBase;
     MidiTrack *tracks;
-    // MidiDevice midiOutDev;
+    MidiDevice midiOutDev;
     MidiChannel channels[16];
     f32 fadeOutVolumeMultiplier;
     u32 fadeOutLastSetVolume;

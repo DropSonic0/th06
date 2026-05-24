@@ -19,29 +19,13 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
-#ifndef __PS3__
-#include <SDL_joystick.h>
-#include <SDL_timer.h>
+#include <SDL2/SDL_joystick.h>
+#include <SDL2/SDL_timer.h>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#else
-#include <sys/sys_time.h>
-#include <PSGL/psgl.h>
-#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
-#define SDL_GL_SwapWindow(x) psglSwap()
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#endif
-#include <iostream>
-#include <string>
-void supervisordlog(std::string msg){
-    std::cout<<"supervisor : "<<msg<<std::endl;
-}
 
 Supervisor g_Supervisor;
-#ifndef __PS3__
 ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_A,
     (i16)SDL_CONTROLLER_BUTTON_B,
@@ -54,20 +38,6 @@ ControllerMapping g_ControllerMapping = {
     (i16)SDL_CONTROLLER_BUTTON_RIGHTSHOULDER,
 };
 SDL_Surface *g_TextBufferSurface;
-#else
-ControllerMapping g_ControllerMapping = {
-    14, // shoot (Cross)
-    13, // bomb (Circle)
-    11, // focus (R1)
-    3,  // menu (Start)
-    4,  // up (D-Pad Up)
-    6,  // down (D-Pad Down)
-    7,  // left (D-Pad Left)
-    5,  // right (D-Pad Right)
-    0   // skip (Select)
-};
-void *g_TextBufferSurface;
-#endif
 u16 g_LastFrameInput;
 u16 g_CurFrameInput;
 u16 g_IsEigthFrameOfHeldInput;
@@ -300,7 +270,6 @@ ChainCallbackResult Supervisor::OnDraw(Supervisor *s)
 
 ZunResult Supervisor::RegisterChain()
 {
-    //supervisordlog("trying to register chain");
     ChainElem *chain;
     Supervisor *supervisor = &g_Supervisor;
 
@@ -308,43 +277,32 @@ ZunResult Supervisor::RegisterChain()
     supervisor->curState = -1;
     supervisor->calcCount = 0;
 
-    //supervisordlog("Supervisor::OnUpdate");
     chain = g_Chain.CreateElem((ChainCallback)Supervisor::OnUpdate);
     chain->arg = supervisor;
-    //supervisordlog("Supervisor::AddedCallback");
     chain->addedCallback = (ChainAddedCallback)Supervisor::AddedCallback;
-    //supervisordlog("Supervisor::DeletedCallback");
     chain->deletedCallback = (ChainDeletedCallback)Supervisor::DeletedCallback;
-    //supervisordlog("g_Chain.AddToCalcChain");
     if (g_Chain.AddToCalcChain(chain, TH_CHAIN_PRIO_CALC_SUPERVISOR) != 0)
     {
-        //supervisordlog("error");
         return ZUN_ERROR;
     }
 
-    //supervisordlog("g_Chain.CreateElem");
     chain = g_Chain.CreateElem((ChainCallback)Supervisor::OnDraw);
     chain->arg = supervisor;
-    //supervisordlog("g_Chain.AddToDrawChain");
     g_Chain.AddToDrawChain(chain, TH_CHAIN_PRIO_DRAW_SUPERVISOR);
-    //supervisordlog("finish");
+
     return ZUN_SUCCESS;
 }
 
 ZunResult Supervisor::AddedCallback(Supervisor *s)
 {
-    //supervisordlog("callback init");
     i32 i;
 
-    //supervisordlog("for pbg3Archives");
     for (i = 0; i < (i32)(sizeof(s->pbg3Archives) / sizeof(s->pbg3Archives[0])); i++)
     {
         s->pbg3Archives[i] = NULL;
     }
 
-    //supervisordlog("set g_Pbg3Archives");
     g_Pbg3Archives = s->pbg3Archives;
-    //supervisordlog("LoadPbg3");
     if (s->LoadPbg3(IN_PBG3_INDEX, TH_IN_DAT_FILE))
     {
         return ZUN_ERROR;
@@ -352,73 +310,55 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
 
     // D3DX code swaps twice to copy to both buffers
 
-    //supervisordlog("LoadSurface data/title/th06logo.jpg");
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
-    //supervisordlog("CopySurfaceToBackBuffer");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
-    //supervisordlog("SDL_GL_SwapWindow");
-    SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+    g_GfxBackend->SwapBuffers();
 
     //
-    //supervisordlog("CopySurfaceToBackBuffer 2");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
     //
 
-    //supervisordlog("SDL_GL_SwapWindow 2");
-    SDL_GL_SwapWindow(g_Supervisor.gameWindow);
+    g_GfxBackend->SwapBuffers();
 
-    //supervisordlog("ReleaseSurface");
     g_AnmManager->ReleaseSurface(0);
 
-    //supervisordlog("set startupTimeBeforeMenuMusic");
     s->startupTimeBeforeMenuMusic = SDL_GetTicks();
-    //supervisordlog("Supervisor::SetupDInput");
     Supervisor::SetupDInput(s);
 
-    //supervisordlog("new MidiOutput");
     s->midiOutput = new MidiOutput();
 
     // Replacing a seeding method that used win32 timeGetTime
-    //supervisordlog("g_Rng.Initialize");
     g_Rng.Initialize((u16)std::time(NULL));
 
-    //supervisordlog("g_SoundPlayer.InitSoundBuffers");
     g_SoundPlayer.InitSoundBuffers();
-    //supervisordlog("g_AnmManager->LoadAnm");
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
         return ZUN_ERROR;
     }
 
-    //supervisordlog("AsciiManager::RegisterChain");
     if (AsciiManager::RegisterChain() != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_ASCIIMANAGER_INIT_FAILED);
+        g_GameErrorContext.Log(TH_ERR_ASCIIMANAGER_INIT_FAILED);
         return ZUN_ERROR;
     }
 
     s->unk198 = 0;
-    //supervisordlog("g_AnmManager->SetupVertexBuffer");
     g_AnmManager->SetupVertexBuffer();
 
-    //supervisordlog("TextHelper::CreateTextBuffer");
     if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
     {
         return ZUN_ERROR;
     }
 
-    //supervisordlog("ReleasePbg3");
     s->ReleasePbg3(IN_PBG3_INDEX);
-    //supervisordlog("LoadPbg3 MD.DAT");
     if (g_Supervisor.LoadPbg3(MD_PBG3_INDEX, TH_MD_DAT_FILE) != 0)
         return ZUN_ERROR;
 
-    //supervisordlog("callback finish");
     return ZUN_SUCCESS;
 }
 
@@ -490,23 +430,17 @@ ZunResult Supervisor::SetupDInput(Supervisor *supervisor)
     //    }
     //
     //    supervisor->keyboard->Acquire();
-    GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DIRECTINPUT_INITIALIZED);
+    g_GameErrorContext.Log(TH_ERR_DIRECTINPUT_INITIALIZED);
 
-#ifndef __PS3__
     int numSticks = SDL_NumJoysticks();
-#else
-    int numSticks = 0;
-#endif
 
     for (int i = 0; i < numSticks; i++)
     {
-#ifndef __PS3__
         if (SDL_IsGameController(i) && (supervisor->gameController = SDL_GameControllerOpen(i)) != NULL)
         {
 
             break;
         }
-#endif
     }
 
     //    supervisor->dinputIface->EnumDevices(DI8DEVCLASS_GAMECTRL, Supervisor::EnumGameControllersCb, NULL,
@@ -577,9 +511,7 @@ ZunResult Supervisor::DeletedCallback(Supervisor *s)
     //    }
     if (s->gameController != NULL)
     {
-#ifndef __PS3__
         SDL_GameControllerClose(s->gameController);
-#endif
         s->gameController = NULL;
     }
     //    if (s->dinputIface != NULL)
@@ -674,7 +606,7 @@ void Supervisor::ReleasePbg3(i32 pbg3FileIdx)
     this->pbg3Archives[pbg3FileIdx] = NULL;
 }
 
-i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, char *filename)
+i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, const char *filename)
 {
     if (this->pbg3Archives[pbg3FileIdx] == NULL || strcmp(filename, this->pbg3ArchiveNames[pbg3FileIdx]) != 0)
     {
@@ -690,13 +622,12 @@ i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, char *filename)
             i32 res = this->pbg3Archives[pbg3FileIdx]->FindEntry(verPath);
             if (res < 0)
             {
-                GameErrorContext::Fatal(&g_GameErrorContext, "error : データのバージョンが違います\n");
+                g_GameErrorContext.Fatal("error : データのバージョンが違います\n");
                 return 1;
             }
         }
         else
         {
-            GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_ANMMANAGER_SPRITE_CORRUPTED, filename);
             delete this->pbg3Archives[pbg3FileIdx];
             // Let's really make sure this is null by nulling twice. I assume
             // there's some kind of inline function here, like it's actually
@@ -711,7 +642,7 @@ i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, char *filename)
 
 ZunResult Supervisor::LoadConfig(const char *path)
 {
-    GameConfiguration *data;
+    const GameConfiguration *data;
     FILE *wavFile;
     FILE *wavFile2;
 
@@ -742,7 +673,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
         g_Supervisor.cfg.windowed = false;
         g_Supervisor.cfg.frameskipConfig = 0;
         g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_CONFIG_NOT_FOUND);
+        g_GameErrorContext.Log(TH_ERR_CONFIG_NOT_FOUND);
     }
     else
     {
@@ -777,75 +708,71 @@ ZunResult Supervisor::LoadConfig(const char *path)
             g_Supervisor.cfg.controllerMapping = g_ControllerMapping;
             std::memset(&g_Supervisor.cfg.opts, 0, sizeof(GameConfigOptsShifts));
             g_Supervisor.cfg.opts |= (1 << GCOS_USE_D3D_HW_TEXTURE_BLENDING);
-            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_CONFIG_CORRUPTED);
+            g_GameErrorContext.Log(TH_ERR_CONFIG_CORRUPTED);
         }
         g_ControllerMapping = g_Supervisor.cfg.controllerMapping;
-        free(data);
+        free((void *)data);
     }
     if (((this->cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_VERTEX_BUFFER);
+        g_GameErrorContext.Log(TH_ERR_NO_VERTEX_BUFFER);
     }
     if (((this->cfg.opts >> GCOS_DONT_USE_FOG) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_FOG);
+        g_GameErrorContext.Log(TH_ERR_NO_FOG);
     }
     if (((this->cfg.opts >> GCOS_FORCE_16BIT_COLOR_MODE) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_USE_16BIT_TEXTURES);
+        g_GameErrorContext.Log(TH_ERR_USE_16BIT_TEXTURES);
     }
     if (this->RedrawWholeFrame())
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_FORCE_BACKBUFFER_CLEAR);
+        g_GameErrorContext.Log(TH_ERR_FORCE_BACKBUFFER_CLEAR);
     }
     if (((this->cfg.opts >> GCOS_DISPLAY_MINIMUM_GRAPHICS) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DONT_RENDER_ITEMS);
+        g_GameErrorContext.Log(TH_ERR_DONT_RENDER_ITEMS);
     }
     if (((this->cfg.opts >> GCOS_SUPPRESS_USE_OF_GOROUD_SHADING) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_GOURAUD_SHADING);
+        g_GameErrorContext.Log(TH_ERR_NO_GOURAUD_SHADING);
     }
     if (((this->cfg.opts >> GCOS_TURN_OFF_DEPTH_TEST) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_DEPTH_TESTING);
+        g_GameErrorContext.Log(TH_ERR_NO_DEPTH_TESTING);
     }
     if (((this->cfg.opts >> GCOS_FORCE_60FPS) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_FORCE_60FPS_MODE);
+        g_GameErrorContext.Log(TH_ERR_FORCE_60FPS_MODE);
         this->vsyncEnabled = 0;
     }
     if (((this->cfg.opts >> GCOS_NO_COLOR_COMP) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_NO_TEXTURE_COLOR_COMPOSITING);
+        g_GameErrorContext.Log(TH_ERR_NO_TEXTURE_COLOR_COMPOSITING);
     }
     if (((this->cfg.opts >> GCOS_NO_COLOR_COMP) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_LAUNCH_WINDOWED);
+        g_GameErrorContext.Log(TH_ERR_LAUNCH_WINDOWED);
     }
     if (((this->cfg.opts >> GCOS_REFERENCE_RASTERIZER_MODE) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_FORCE_REFERENCE_RASTERIZER);
+        g_GameErrorContext.Log(TH_ERR_FORCE_REFERENCE_RASTERIZER);
     }
     if (((this->cfg.opts >> GCOS_NO_DIRECTINPUT_PAD) & 1) != 0)
     {
-        GameErrorContext::Log(&g_GameErrorContext, TH_ERR_DO_NOT_USE_DIRECTINPUT);
+        g_GameErrorContext.Log(TH_ERR_DO_NOT_USE_DIRECTINPUT);
     }
-#ifdef __PS3__
-    this->cfg.opts |= (1 << GCOS_DONT_USE_VERTEX_BUF);
-#endif
-
     if (FileSystem::WriteDataToFile(path, &g_Supervisor.cfg, sizeof(GameConfiguration)) != 0)
     {
-        GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FILE_CANNOT_BE_EXPORTED, path);
-        GameErrorContext::Fatal(&g_GameErrorContext, TH_ERR_FOLDER_HAS_WRITE_PROTECT_OR_DISK_FULL);
+        g_GameErrorContext.Fatal(TH_ERR_FILE_CANNOT_BE_EXPORTED, path);
+        g_GameErrorContext.Fatal(TH_ERR_FOLDER_HAS_WRITE_PROTECT_OR_DISK_FULL);
         return ZUN_ERROR;
     }
 
     return ZUN_SUCCESS;
 }
 
-bool Supervisor::ReadMidiFile(u32 midiFileIdx, char *path)
+bool Supervisor::ReadMidiFile(u32 midiFileIdx, const char *path)
 {
     // Return conventions seem opposite of normal? But they're never used anyway
     if (g_Supervisor.cfg.musicMode == MIDI)
@@ -878,7 +805,7 @@ ZunResult Supervisor::PlayMidiFile(i32 midiFileIdx)
     return ZUN_ERROR;
 }
 
-ZunResult Supervisor::PlayAudio(char *path)
+ZunResult Supervisor::PlayAudio(const char *path)
 {
     char wavName[256];
     char wavPos[256];

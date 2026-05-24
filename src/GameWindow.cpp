@@ -7,43 +7,17 @@
 #include "Supervisor.hpp"
 #include "ZunMath.hpp"
 #include "graphics/FixedFunctionGL.hpp"
+#include "graphics/Software.hpp"
 #include "graphics/WebGL.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
 
-#ifndef __PS3__
-#include <SDL.h>
-#include <SDL_timer.h>
-#else
-#include <sys/sys_time.h>
-#include <PSGL/psgl.h>
-#include <sysutil/sysutil_sysparam.h>
-#define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
-#endif
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_timer.h>
 #include <cstring>
-#include <iostream>
-#include <string>
-void gamewindowdlog(std::string msg){
-    std::cout<<"gamewindow : "<<msg<<std::endl;
-}
 
 GameWindow g_GameWindow;
-ZunViewport g_ZunCurrentViewport;
-
-#ifdef __PS3__
-extern "C" void FixedFunctionGL_SetContextFlags_Helper();
-extern "C" GfxInterface *FixedFunctionGL_Init_Helper();
-
-// Initialize data members that can't be initialized in the struct for old compilers
-void InitGameWindowPS3(int width, int height) {
-    g_GameWindow.GAME_WINDOW_WIDTH_REAL = width;
-    g_GameWindow.GAME_WINDOW_HEIGHT_REAL = height;
-    g_GameWindow.VIEWPORT_WIDTH = width;
-    g_GameWindow.VIEWPORT_OFF_X = 0;
-    g_GameWindow.VIEWPORT_HEIGHT = height;
-    g_GameWindow.VIEWPORT_OFF_Y = 0;
-}
-#endif
+GfxInterface *g_GfxBackend;
 i32 g_TickCountToEffectiveFramerate;
 f64 g_LastFrameTime;
 
@@ -52,20 +26,13 @@ f64 g_LastFrameTime;
 static const struct
 {
     const char *name;
-    bool isEsContext;
-    void (*setContextFlags)();
-    GfxInterface *(*init)();
-} s_RenderBackends[] = {
-#ifndef __PS3__
-                        {"GL(ES) 2.0 / WebGL", true, WebGL::SetContextFlags, WebGL::Create},
-                        {"Fixed function GL(ES)", false, FixedFunctionGL::SetContextFlags, FixedFunctionGL::Init}};
-#else
-                        {"Fixed function GL(ES)", false, FixedFunctionGL_SetContextFlags_Helper, FixedFunctionGL_Init_Helper}};
-#endif
+    GfxInterface *(*TryInit)();
+} s_RenderBackends[] = {{"GL(ES) 2.0 / WebGL", WebGL::Create},
+                        {"Fixed function GL(ES)", FixedFunctionGL::Init},
+                        {"Software fallback (VERY SLOW)", Software::Init}};
 
 RenderResult GameWindow::Render()
 {
-    //gamewindowdlog("render start");
     i32 res;
     f64 slowdown;
     ZunViewport viewport;
@@ -79,49 +46,40 @@ RenderResult GameWindow::Render()
 
     if (this->curFrame == 0)
     {
-    //gamewindowdlog("first frame run chains");
     RUN_CHAINS:
         if (g_Supervisor.cfg.frameskipConfig <= this->curFrame)
         {
-            //gamewindowdlog("RedrawWholeFrame");
             if (g_Supervisor.RedrawWholeFrame())
             {
-                g_glFuncTable.glDisable(GL_SCISSOR_TEST);
-                g_AnmManager->gfxBackend->Clear(COLOR_BLACK);
-
                 viewport.x = 0;
                 viewport.y = 0;
                 viewport.width = GAME_WINDOW_WIDTH;
                 viewport.height = GAME_WINDOW_HEIGHT;
                 viewport.minZ = 0.0;
                 viewport.maxZ = 1.0;
-                //gamewindowdlog("viewport.Set");
                 viewport.Set();
-                //gamewindowdlog("g_glFuncTable.glClearColor");
-                g_AnmManager->gfxBackend->Clear(g_Stage.skyFog.color);
-                //gamewindowdlog("SetProjectionMode");
+                g_GfxBackend->SetClearColor(
+                    ((g_Stage.skyFog.color >> 16) & 0xFF) / 255.0f, ((g_Stage.skyFog.color >> 8) & 0xFF) / 255.0f,
+                    (g_Stage.skyFog.color & 0xFF) / 255.0f, (g_Stage.skyFog.color >> 24) / 255.0f);
+                g_GfxBackend->Clear(CLEAR_COLOR_BUFFER | CLEAR_DEPTH_BUFFER);
                 g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
-                //gamewindowdlog("viewport.Set");
                 g_Supervisor.viewport.Set();
             }
 
-            //gamewindowdlog("RunDrawChain");
+            g_AnmManager->ClearVertexBuffer();
+            g_AnmManager->flushesThisFrame = 0;
             g_Chain.RunDrawChain();
-            //gamewindowdlog("SetCurrentTexture");
             g_AnmManager->SetCurrentTexture(0);
         }
 
+        g_AnmManager->FlushVertexBuffer();
         g_Supervisor.viewport.x = 0;
         g_Supervisor.viewport.y = 0;
         g_Supervisor.viewport.width = GAME_WINDOW_WIDTH;
         g_Supervisor.viewport.height = GAME_WINDOW_HEIGHT;
-        //gamewindowdlog("SetProjectionMode");
         g_AnmManager->SetProjectionMode(PROJECTION_MODE_PERSPECTIVE);
-        //gamewindowdlog("viewport.Set");
         g_Supervisor.viewport.Set();
-        //gamewindowdlog("RunCalcChain");
         res = g_Chain.RunCalcChain();
-        //gamewindowdlog("PlaySounds");
         g_SoundPlayer.PlaySounds();
 
         if (res == 0)
@@ -135,20 +93,16 @@ RenderResult GameWindow::Render()
         this->curFrame++;
     }
 
-    //TODO check windowed
-    if(true)
-    // if (g_Supervisor.cfg.windowed || g_Supervisor.ShouldRunAt60Fps())
+    if (g_Supervisor.cfg.windowed || g_Supervisor.ShouldRunAt60Fps())
     {
         if (this->curFrame != 0)
         {
             g_Supervisor.framerateMultiplier = 1.0;
-            //gamewindowdlog("SDL_GetTicks 2");
             slowdown = SDL_GetTicks();
             if (slowdown < g_LastFrameTime)
             {
                 g_LastFrameTime = slowdown;
             }
-            //gamewindowdlog("std::fabs");
             delta = std::fabs(slowdown - g_LastFrameTime);
             if (delta >= FRAME_TIME)
             {
@@ -158,8 +112,6 @@ RenderResult GameWindow::Render()
                     delta -= FRAME_TIME;
                 } while (delta >= FRAME_TIME);
 
-                g_Supervisor.effectiveFramerateMultiplier = 1.0;
-
                 if (g_Supervisor.cfg.frameskipConfig < this->curFrame)
                     goto I_HAVE_NO_CLUE_WHY_BUT_I_MUST_JUMP_HERE;
                 goto RUN_CHAINS;
@@ -168,23 +120,18 @@ RenderResult GameWindow::Render()
     }
     else
     {
-        //gamewindowdlog("second frame run chains");
         if (g_Supervisor.cfg.frameskipConfig >= this->curFrame)
         {
-            //gamewindowdlog("present second frame");
             Present();
-            //gamewindowdlog("present loaded");
             goto RUN_CHAINS;
         }
 
     I_HAVE_NO_CLUE_WHY_BUT_I_MUST_JUMP_HERE:
-        //gamewindowdlog("goto I_HAVE_NO_CLUE_WHY_BUT_I_MUST_JUMP_HERE");
         Present();
         if (g_Supervisor.framerateMultiplier == 0.f)
         {
             if (2 <= g_TickCountToEffectiveFramerate)
             {
-                //gamewindowdlog("SDL_GetTicks 3");
                 curtime = SDL_GetTicks();
                 if (curtime < g_Supervisor.lastFrameTime)
                 {
@@ -217,7 +164,6 @@ RenderResult GameWindow::Render()
         this->curFrame = 0;
         g_TickCountToEffectiveFramerate = g_TickCountToEffectiveFramerate + 1;
     }
-    //gamewindowdlog("finish");
     return RENDER_RESULT_KEEP_RUNNING;
 }
 
@@ -225,194 +171,31 @@ void GameWindow::Present()
 {
     // In D3D, this was done after the present call, but SDL makes no guarantees
     // about the color buffer state immediately after a swap, so it has to be moved to be before it
-    //gamewindowdlog("present TakeScreenshotIfRequested");
     g_AnmManager->TakeScreenshotIfRequested();
     if (g_Supervisor.unk198 != 0)
     {
         g_Supervisor.unk198--;
     }
 
-    //gamewindowdlog("present SDL_GL_SwapWindow");
-#ifndef __PS3__
-    SDL_GL_SwapWindow(g_GameWindow.window);
-#else
-    // utils::Log("GameWindow: psglSwap()...");
-    psglSwap();
-    // utils::Log("GameWindow: psglSwap() done.");
-#endif
+    g_GfxBackend->SwapBuffers();
 
-    //gamewindowdlog("present finish");
     return;
 }
 
 void GameWindow::CreateGameWindow()
 {
-#ifndef __PS3__
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK);
+    SDL_Init(SDL_INIT_GAMECONTROLLER);
 
-    u32 flags = SDL_WINDOW_OPENGL;
-    i32 height = g_GameWindow.GAME_WINDOW_HEIGHT_REAL;
-    i32 width = g_GameWindow.GAME_WINDOW_WIDTH_REAL;
-    i32 x = SDL_WINDOWPOS_UNDEFINED;
-    i32 y = SDL_WINDOWPOS_UNDEFINED;
-
-    g_GameWindow.window = NULL;
-    g_GameWindow.glContext = NULL;
-
-    #ifdef __ANDROID__
-    SDL_DisplayMode mode;
-    if (SDL_GetCurrentDisplayMode(0, &mode) == 0) {
-        SDL_Log("format: %u\n", mode.format);
-        SDL_Log("w: %d\n", mode.w);
-        SDL_Log("h: %d\n", mode.h);
-        SDL_Log("refresh_rate: %d\n", mode.refresh_rate);
-        width = mode.w;
-        height = mode.h;
-        g_GameWindow.GAME_WINDOW_WIDTH_REAL = width;
-        g_GameWindow.GAME_WINDOW_HEIGHT_REAL = height;
-    }
-    #endif
-    SDL_Log("WIDTH %d",width);
-    SDL_Log("HEIGHT %d",height);
-    g_GameWindow.CONFIGURE_VIEW();
-    SDL_Log("VIEWPORT WIDTH %d",g_GameWindow.VIEWPORT_WIDTH);
-    SDL_Log("VIEWPORT HEIGHT %d",g_GameWindow.VIEWPORT_HEIGHT);
-    if (g_Supervisor.cfg.windowed == 0)
-    {
-        flags |= SDL_WINDOW_FULLSCREEN;
-    }
     for (u32 i = 0; i < ARRAY_SIZE(s_RenderBackends); i++)
     {
-        s_RenderBackends[i].setContextFlags();
-
-        g_GameWindow.window = SDL_CreateWindow(TH_WINDOW_TITLE, x, y, width, height, flags);
-
-        if (g_GameWindow.window == NULL)
+        g_GfxBackend = s_RenderBackends[i].TryInit();
+        if (g_GfxBackend)
         {
-            goto fail;
+            utils::DebugPrint2("Using renderer backend %s", s_RenderBackends[i].name);
+            break;
         }
-
-        g_GameWindow.glContext = SDL_GL_CreateContext(g_GameWindow.window);
-
-        if (g_GameWindow.glContext == NULL)
-        {
-            goto fail;
-        }
-
-        if (SDL_GL_MakeCurrent(g_GameWindow.window, g_GameWindow.glContext) != 0)
-        {
-            goto fail;
-        }
-
-        utils::DebugPrint2("Using renderer backend %s", s_RenderBackends[i].name);
-        g_glFuncTable.ResolveFunctions(s_RenderBackends[i].isEsContext);
-        g_GameWindow.renderBackendIndex = i;
-        break;
-    fail:
-        if (g_GameWindow.glContext != NULL)
-        {
-            SDL_GL_DeleteContext(g_GameWindow.glContext);
-            g_GameWindow.glContext = NULL;
-        }
-
-        if (g_GameWindow.window != NULL)
-        {
-            SDL_DestroyWindow(g_GameWindow.window);
-            g_GameWindow.window = NULL;
-        }
-
         utils::DebugPrint2("Renderer creation for backend %s failed", s_RenderBackends[i].name);
     }
-
-    g_Supervisor.gameWindow = g_GameWindow.window;
-#else
-    //utils::Log("PSGL: cellVideoOutGetState...");
-    CellVideoOutState videoState;
-    if (cellVideoOutGetState(CELL_VIDEO_OUT_PRIMARY, 0, &videoState) == CELL_OK)
-    {
-        //utils::Log("Video: State %d, ColorSpace %d, RefreshRate %d", videoState.state, videoState.colorSpace, videoState.displayMode.refreshRates);
-        CellVideoOutResolution res;
-        cellVideoOutGetResolution(videoState.displayMode.resolutionId, &res);
-        //utils::Log("Video: Display Resolution: %dx%d", res.width, res.height);
-    }
-    else
-    {
-        //utils::Log("Video: FAILED to get state!");
-    }
-
-    //utils::Log("PSGL: psglInit...");
-    PSGLinitOptions initOptions;
-    memset(&initOptions, 0, sizeof(PSGLinitOptions));
-    initOptions.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
-    initOptions.maxSPUs = 1;
-    initOptions.initializeSPUs = GL_TRUE;
-    initOptions.hostMemorySize = 128 * 1024 * 1024; // 128MB
-    psglInit(&initOptions);
-    //utils::Log("PSGL: psglInit done.");
-
-    cellSysutilCheckCallback();
-
-    //utils::Log("PSGL: psglCreateDeviceExtended...");
-    PSGLdeviceParameters params;
-    memset(&params, 0, sizeof(params));
-    params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | 
-                    PSGL_DEVICE_PARAMETERS_MULTISAMPLING_MODE | PSGL_DEVICE_PARAMETERS_BUFFERING_MODE | 
-                    PSGL_DEVICE_PARAMETERS_RESC_ADJUST_ASPECT_RATIO | PSGL_DEVICE_PARAMETERS_RESC_RATIO_MODE;
-    params.bufferingMode = PSGL_BUFFERING_MODE_TRIPLE;
-    params.colorFormat = GL_ARGB_SCE;
-    params.depthFormat = GL_DEPTH_COMPONENT24;
-    params.multisamplingMode = GL_MULTISAMPLING_NONE_SCE;
-    params.rescRatioMode = RESC_RATIO_MODE_FULLSCREEN;
-    g_GameWindow.device = psglCreateDeviceExtended(&params);
-
-    if (g_GameWindow.device == NULL)
-    {
-        //utils::Log("PSGL: psglCreateDeviceExtended FAILED. Retrying with psglCreateDeviceAuto(0,0,0)...");
-        g_GameWindow.device = psglCreateDeviceAuto(0, 0, 0);
-    }
-
-    if (g_GameWindow.device == NULL)
-    {
-        //utils::Log("PSGL: FATAL: Failed to create PSGL device.");
-        return;
-    }
-    //utils::Log("PSGL: Device created successfully (%p).", g_GameWindow.device);
-
-    //utils::Log("PSGL: psglCreateContext...");
-    g_GameWindow.glContext = psglCreateContext();
-    //utils::Log("PSGL: psglCreateContext done (%p).", g_GameWindow.glContext);
-
-    if (g_GameWindow.glContext == NULL)
-    {
-        //utils::Log("PSGL: psglCreateContext FAILED!");
-        return;
-    }
-
-    //utils::Log("PSGL: psglMakeCurrent...");
-    psglMakeCurrent(g_GameWindow.glContext, g_GameWindow.device);
-    //utils::Log("PSGL: psglMakeCurrent done.");
-
-    GLuint width = 0, height = 0;
-    //utils::Log("PSGL: psglGetDeviceDimensions...");
-    psglGetDeviceDimensions(g_GameWindow.device, &width, &height);
-    //utils::Log("PSGL: Device dimensions: %dx%d", width, height);
-    InitGameWindowPS3(width, height);
-    g_GameWindow.CONFIGURE_VIEW();
-
-    //utils::Log("PSGL: ResolveFunctions...");
-    g_glFuncTable.ResolveFunctions(false);
-
-    g_glFuncTable.glViewport(0, 0, width, height);
-
-    g_ZunCurrentViewport.x = 0;
-    g_ZunCurrentViewport.y = 0;
-    g_ZunCurrentViewport.width = GAME_WINDOW_WIDTH;
-    g_ZunCurrentViewport.height = GAME_WINDOW_HEIGHT;
-    g_ZunCurrentViewport.minZ = 0.0f;
-    g_ZunCurrentViewport.maxZ = 1.0f;
-
-    g_GameWindow.renderBackendIndex = 0; // FixedFunctionGL
-#endif
 
     g_GameWindow.lastActiveAppValue = 1;
 }
@@ -466,11 +249,13 @@ void GameWindow::CreateGameWindow()
 //     return DefWindowProcA(hWnd, uMsg, wParam, lParam);
 // }
 
-i32 GameWindow::InitD3dRendering(void)
+ZunResult GameWindow::InitD3dRendering()
 {
-#ifdef __PS3__
-    //utils::Log("GameWindow: InitD3dRendering...");
-#endif
+    if (!g_GfxBackend)
+    {
+        g_GameErrorContext.Fatal(TH_ERR_D3D_INIT_FAILED);
+        return ZUN_ERROR;
+    }
     //    u8 using_d3d_hal;
     //    D3DPRESENT_PARAMETERS present_params;
     //    D3DDISPLAYMODE display_mode;
@@ -483,16 +268,18 @@ i32 GameWindow::InitD3dRendering(void)
     f32 field_of_view_y;
     f32 camera_distance;
 
-    utils::DebugPrint2("GameWindow: Initializing gfxBackend via s_RenderBackends (index %d, addr %p)...", 
-               g_GameWindow.renderBackendIndex, s_RenderBackends[g_GameWindow.renderBackendIndex].init);
-    g_AnmManager->gfxBackend = s_RenderBackends[g_GameWindow.renderBackendIndex].init();
-    //utils::Log("GameWindow: gfxBackend initialized.");
+    // OpenGL considers textures to be incomplete if the bound texture has no image defined
+    // Incomplete textures result in texturing being turned off, but EoSD has places where it
+    // uses the texturing engine to color fragments without using the texture itself. The dummy
+    // texture is necessary to ensure the texture can't be considered incomplete in these cases.
+    g_AnmManager->CreateTextureObject();
+    g_AnmManager->dummyTextureHandle = g_AnmManager->currentTextureHandle;
+    g_GfxBackend->SetTextureImage(1, 1, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE, NULL);
 
     //    using_d3d_hal = 1;
     //    std::memset(&present_params, 0, sizeof(D3DPRESENT_PARAMETERS));
     //    g_Supervisor.d3dIface->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &display_mode);
-    //TODO check windowed 2
-    if (!g_Supervisor.cfg.windowed && false)
+    if (!g_Supervisor.cfg.windowed)
     {
         if ((((g_Supervisor.cfg.opts >> GCOS_FORCE_16BIT_COLOR_MODE) & 1) == 1))
         {
@@ -505,7 +292,7 @@ i32 GameWindow::InitD3dRendering(void)
             //            {
             //                present_params.BackBufferFormat = D3DFMT_X8R8G8B8;
             g_Supervisor.cfg.colorMode16bit = 0;
-            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_SCREEN_INIT_32BITS);
+            g_GameErrorContext.Log(TH_ERR_SCREEN_INIT_32BITS);
             //            }
             //            else
             //            {
@@ -534,10 +321,6 @@ i32 GameWindow::InitD3dRendering(void)
             //            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_SET_REFRESH_RATE_60HZ);
         }
 
-#ifndef __PS3__
-        SDL_GL_SetSwapInterval(1);
-#endif
-
         //        if (g_Supervisor.cfg.frameskipConfig == 0)
         //        {
         //            present_params.SwapEffect = D3DSWAPEFFECT_FLIP;
@@ -559,9 +342,6 @@ i32 GameWindow::InitD3dRendering(void)
     //    present_params.AutoDepthStencilFormat = D3DFMT_D16;
     //    present_params.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 
-#ifndef __PS3__
-    SDL_GL_SetSwapInterval(1);
-#endif
     g_Supervisor.vsyncEnabled = 1;
 
     g_Supervisor.lockableBackbuffer = 1;
@@ -671,9 +451,7 @@ i32 GameWindow::InitD3dRendering(void)
     //    g_Supervisor.d3dDevice->SetTransform(D3DTS_VIEW, &g_Supervisor.viewMatrix);
     //    g_Supervisor.d3dDevice->SetTransform(D3DTS_PROJECTION, &g_Supervisor.projectionMatrix);
     g_Supervisor.viewport.Get();
-#ifdef __PS3__
-    //utils::Log("GameWindow: InitD3dDevice...");
-#endif
+
     //    g_Supervisor.d3dDevice->GetDeviceCaps(&g_Supervisor.d3dCaps);
     //    if (((((g_Supervisor.cfg.opts >> GCOS_USE_D3D_HW_TEXTURE_BLENDING) & 1) == 0) &&
     //         ((g_Supervisor.d3dCaps.TextureOpCaps & D3DTEXOPCAPS_ADD) == 0)))
@@ -701,42 +479,34 @@ i32 GameWindow::InitD3dRendering(void)
     //            GameErrorContext::Log(&g_GameErrorContext, TH_ERR_D3DFMT_A8R8G8B8_UNSUPPORTED);
     //        }
     //    }
-    //utils::Log("GameWindow: Calling InitD3dDevice...");
     InitD3dDevice();
-    //utils::Log("GameWindow: Calling ScreenEffect::SetViewport(0)...");
     ScreenEffect::SetViewport(0);
     g_GameWindow.isAppClosing = 0;
     g_Supervisor.lastFrameTime = 0;
     g_Supervisor.framerateMultiplier = 0.0;
-    g_Supervisor.effectiveFramerateMultiplier = 1.0;
-    return 0;
+    return ZUN_SUCCESS;
 }
 
 void GameWindow::InitD3dDevice(void)
 {
-#ifdef __PS3__
-    //utils::Log("GameWindow: InitD3dDevice details...");
-#endif
     AnmManager *anm1;
     AnmManager *anm2;
     AnmManager *anm3;
     AnmManager *anm4;
 
-    g_glFuncTable.glEnable(GL_BLEND);
+    g_GfxBackend->Enable(CAPS_BLEND);
 
-    g_glFuncTable.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    g_GfxBackend->SetBlendMode(BLEND_INV_SRC_ALPHA);
 
     if (((g_Supervisor.cfg.opts >> GCOS_TURN_OFF_DEPTH_TEST) & 1) == 0)
     {
-        g_glFuncTable.glEnable(GL_DEPTH_TEST);
+        g_GfxBackend->Enable(CAPS_DEPTH_TEST);
         g_AnmManager->SetDepthMask(true);
         g_AnmManager->SetDepthFunc(DEPTH_FUNC_LEQUAL);
     }
 
-    g_AnmManager->SetFogColor(0xFFA0A0A0);
-    g_AnmManager->SetFogRange(1000.0f, 5000.0f);
-
-    //    g_AnmManager->gfxBackend->Init();
+    g_AnmManager->SetFogColor(0xFF'A0'A0'A0);
+    g_AnmManager->SetFogRange(1'000.0f, 5'000.0f);
 
     // All of these are set per texture object in OpenGL (and also most are defaults)
     //    g_Supervisor.d3dDevice->SetTextureStageState(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);

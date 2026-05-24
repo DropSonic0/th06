@@ -1,100 +1,153 @@
 #include "pbg3/Pbg3Parser.hpp"
-#ifdef __PS3__
-#include "utils.hpp"
-#endif
 
-Pbg3Parser::Pbg3Parser()
+Pbg3Parser::Pbg3Parser() : IPbg3Parser(), FileAbstraction()
 {
 }
 
 i32 Pbg3Parser::OpenArchive(const char *path)
 {
-    if (!this->Open(path, "rb"))
-    {
-#ifdef __PS3__
-        //utils::Log("Pbg3Parser: Failed to open archive %s", path);
-#endif
-        return 0;
-    }
+    this->Close();
     this->Reset();
-    this->fileSize = this->GetSize();
-#ifdef __PS3__
-    //utils::Log("Pbg3Parser: Opened archive %s, size = %d", path, this->fileSize);
-#endif
-    return 1;
+    if (!FileAbstraction::Open(path, "r"))
+    {
+        return false;
+    }
+    this->fileSize = GetSize();
+    return true;
+}
+
+void Pbg3Parser::Close()
+{
+    FileAbstraction::Close();
+    this->Reset();
 }
 
 i32 Pbg3Parser::ReadBit()
 {
-    if (this->bitIdxInCurByte == 0)
+    if (!this->HasNonNullHandle())
     {
-        i32 res = this->FileAbstraction::ReadByte();
-        if (res == -1)
-        {
-            return -1;
-        }
-        this->curByte = (u32)res;
-        this->bitIdxInCurByte = 0x80;
+        return false;
     }
 
-    i32 res = (this->curByte & this->bitIdxInCurByte) != 0;
+    if (this->bitIdxInCurByte == 0x80)
+    {
+        this->curByte = FileAbstraction::ReadByte();
+        if (this->curByte == -1)
+        {
+            return false;
+        }
+        this->offsetInFile += 1;
+        this->crc += this->curByte;
+    }
+
+    i32 res = this->curByte & this->bitIdxInCurByte;
     this->bitIdxInCurByte >>= 1;
-    return res;
+    if (this->bitIdxInCurByte == 0)
+    {
+        this->bitIdxInCurByte = 0x80;
+    }
+    return res != 0;
 }
 
 u32 Pbg3Parser::ReadInt(u32 numBitsAsPowersOf2)
 {
-    u32 res = 0;
-    for (u32 i = 0; i < numBitsAsPowersOf2; i++)
+    u32 remainingBits = 1 << (numBitsAsPowersOf2 - 1);
+    u32 result = 0;
+
+    if (!this->HasNonNullHandle())
     {
-        i32 bit = this->ReadBit();
-        if (bit == -1)
+        return 0;
+    }
+
+    while (remainingBits != 0)
+    {
+        if (this->bitIdxInCurByte == 0x80)
         {
-            return -1;
+            this->curByte = FileAbstraction::ReadByte();
+            if (this->curByte == -1)
+            {
+                return false;
+            }
+            this->offsetInFile += 1;
+            this->crc += this->curByte;
         }
-        if (bit)
+        u32 bitIdx = this->bitIdxInCurByte;
+        if ((bitIdx & this->curByte) != 0)
         {
-            res |= (1 << (numBitsAsPowersOf2 - 1 - i));
+            result |= remainingBits;
+        }
+        remainingBits >>= 1;
+        this->bitIdxInCurByte >>= 1;
+        if (this->bitIdxInCurByte == 0)
+        {
+            this->bitIdxInCurByte = 0x80;
         }
     }
-    return res;
+
+    return result;
 }
 
 i32 Pbg3Parser::ReadByteAssumeAligned()
 {
-    this->bitIdxInCurByte = 0;
-    return this->FileAbstraction::ReadByte();
+    if (this->offsetInFile < this->fileSize)
+    {
+        this->offsetInFile += 1;
+    }
+
+    return FileAbstraction::ReadByte();
 }
 
 i32 Pbg3Parser::SeekToOffset(u32 fileOffset)
 {
-    this->bitIdxInCurByte = 0;
-    return this->Seek(fileOffset, SEEK_SET);
+    if (fileOffset >= this->fileSize)
+    {
+        return false;
+    }
+
+    if (!this->SeekToNextByte())
+    {
+        return false;
+    }
+
+    if (!FileAbstraction::Seek(fileOffset, SEEK_SET))
+    {
+        return false;
+    }
+
+    this->offsetInFile = fileOffset;
+    this->crc = 0;
+    return true;
 }
 
 i32 Pbg3Parser::SeekToNextByte()
 {
-    this->bitIdxInCurByte = 0;
-    return 1;
+    if (!this->HasNonNullHandle())
+    {
+        return false;
+    }
+
+    while (this->bitIdxInCurByte != 0x80)
+    {
+        this->ReadBit();
+    }
+    return true;
 }
 
 i32 Pbg3Parser::ReadByteAlignedData(u8 *data, u32 bytesToRead)
 {
     u32 numBytesRead;
-    this->bitIdxInCurByte = 0;
-    return this->Read(data, bytesToRead, &numBytesRead);
-}
 
-void Pbg3Parser::Close()
-{
-    this->FileAbstraction::Close();
+    this->SeekToNextByte();
+    return FileAbstraction::Read(data, bytesToRead, &numBytesRead);
 }
 
 i32 Pbg3Parser::ReadByte()
 {
-    return this->FileAbstraction::ReadByte();
+    // MSVC generates an add -0x18 instruction to get the caller base here, while the original binary uses a sub 0x18?
+    return Pbg3Parser::ReadByteAssumeAligned();
 }
 
 Pbg3Parser::~Pbg3Parser()
 {
+    this->Close();
 }
