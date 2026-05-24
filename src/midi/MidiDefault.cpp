@@ -2,6 +2,7 @@
 #include "GameErrorContext.hpp"
 #include "i18n.hpp"
 
+#if !defined(_WIN32) && !defined(LIBASOUND_MIDI_SUPPORT)
 MidiDevice::MidiDevice()
 {
     printedWarning = false;
@@ -38,3 +39,4 @@ bool MidiDevice::SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte)
 {
     return true;
 }
+#endif

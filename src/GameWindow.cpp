@@ -34,9 +34,12 @@ static const struct
 {
     const char *name;
     GfxInterface *(*TryInit)();
-} s_RenderBackends[] = {{"GL(ES) 2.0 / WebGL", WebGL::Create},
-                        {"Fixed function GL(ES)", FixedFunctionGL::Init},
-                        {"Software fallback (VERY SLOW)", Software::Init}};
+} s_RenderBackends[] = {
+#ifndef __PS3__
+    {"GL(ES) 2.0 / WebGL", WebGL::Create},
+#endif
+    {"Fixed function GL(ES)", FixedFunctionGL::Init},
+    {"Software fallback (VERY SLOW)", Software::Init}};
 
 RenderResult GameWindow::Render()
 {
