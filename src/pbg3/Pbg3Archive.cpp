@@ -288,11 +288,11 @@ u8 *Pbg3Archive::ReadDecompressEntry(u32 entryIdx, const char *filename)
         dict[i] = 0;
     }
 
-    u32 currByte;
-    u32 inBits;
-    u32 outBitMask;
-    u32 matchOffset;
-    u32 opcode;
+    u32 currByte = 0;
+    u32 inBits = 0;
+    u32 outBitMask = 0;
+    u32 matchOffset = 0;
+    u32 opcode = 0;
 
     for (;;)
     {

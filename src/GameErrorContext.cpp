@@ -34,6 +34,13 @@ const char *GameErrorContext::Log(const char *fmt, ...)
 
     va_end(args);
 
+#ifdef __PS3__
+    if (this->m_BufferEnd != this->m_Buffer)
+    {
+        FileSystem::WriteDataToFile("log.txt", this->m_Buffer, (size_t)(this->m_BufferEnd - this->m_Buffer));
+    }
+#endif
+
     return fmt;
 }
 
@@ -59,6 +66,13 @@ const char *GameErrorContext::Fatal(const char *fmt, ...)
     va_end(args);
 
     this->m_ShowMessageBox = true;
+
+#ifdef __PS3__
+    if (this->m_BufferEnd != this->m_Buffer)
+    {
+        FileSystem::WriteDataToFile("log.txt", this->m_Buffer, (size_t)(this->m_BufferEnd - this->m_Buffer));
+    }
+#endif
 
     return fmt;
 }

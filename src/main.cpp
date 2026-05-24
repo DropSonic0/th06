@@ -13,6 +13,7 @@
 #include "Chain.hpp"
 #include "FileSystem.hpp"
 #include "GameErrorContext.hpp"
+#include "GamePaths.hpp"
 #include "GameWindow.hpp"
 #include "SoundPlayer.hpp"
 #include "Stage.hpp"
@@ -37,6 +38,8 @@ int main(int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
+
+    GamePaths::Init();
 
     i32 renderResult = 0;
     //    MSG msg;

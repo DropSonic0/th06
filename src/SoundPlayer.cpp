@@ -370,7 +370,6 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     char idBuf[4];
     u32 riffSize;
     u32 wavDataSize;
-    int res = 0;
 
 #ifndef __PS3__
     if (this->audioDev == 0)
@@ -440,8 +439,9 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 
     riffSize = SDL_ReadLE32(fileStream);
 #else
+    long fileSize;
     fseek(fileStream, 0, SEEK_END);
-    long fileSize = ftell(fileStream);
+    fileSize = ftell(fileStream);
     fseek(fileStream, 0, SEEK_SET);
     if (fileSize < 44)
     {
@@ -768,8 +768,6 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     // Native WAV loading for PS3
     // EoSD SFX are typically 22050Hz, Mono. 
     // We need to resample to 44100Hz and handle Endianness.
-    uint32_t rawSampleCount;
-    i16* rawSamples;
 #endif
 
     //soundplayerdlog("load sound 2");
@@ -832,7 +830,8 @@ ZunResult SoundPlayer::LoadSound(i32 idx, const char *path, f32 volumeMultiplier
     SDL_FreeWAV(wavRawSamples);
 #else
     // Find "fmt " and "data" chunks for SFX
-    u16 sfxBitsPerSample = 16;
+    u16 sfxBitsPerSample;
+    sfxBitsPerSample = 16;
     if (std::strncmp((char*)wavRawData, "RIFF", 4) == 0 && std::strncmp((char*)wavRawData + 8, "WAVE", 4) == 0) {
         u32 offset = 12;
         while (offset + 8 <= g_LastFileSize) {
@@ -1063,9 +1062,9 @@ int SoundPlayer::MixAudio(u32 samples)
     sys_mutex_lock(this->soundBufMutex, 0);
 
     // Save state for rollback - must be done INSIDE the lock
-    for(i=0; i<ARRAY_SIZE_SIGNED(this->soundBuffers); i++) {
-        savedSoundPos[i] = this->soundBuffers[i].pos;
-        savedSoundPlaying[i] = this->soundBuffers[i].isPlaying;
+    for(int j=0; j<ARRAY_SIZE_SIGNED(this->soundBuffers); j++) {
+        savedSoundPos[j] = this->soundBuffers[j].pos;
+        savedSoundPlaying[j] = this->soundBuffers[j].isPlaying;
     }
     savedBgmPos = this->backgroundMusic.pos;
     savedBgmFraction = this->backgroundMusic.fraction;
@@ -1231,18 +1230,18 @@ bgm_done:
 #else
     {
         static float floatBuffer[2048] __attribute__((aligned(16)));
-        for (u32 i = 0; i < samples; i++) {
-            floatBuffer[i] = (float)mixBuffer[i] / 32768.0f;
-            if (floatBuffer[i] > 1.0f) floatBuffer[i] = 1.0f;
-            if (floatBuffer[i] < -1.0f) floatBuffer[i] = -1.0f;
+        for (u32 k = 0; k < samples; k++) {
+            floatBuffer[k] = (float)mixBuffer[k] / 32768.0f;
+            if (floatBuffer[k] > 1.0f) floatBuffer[k] = 1.0f;
+            if (floatBuffer[k] < -1.0f) floatBuffer[k] = -1.0f;
         }
         res_add = cellAudioAdd2chData(this->audioPortNum, floatBuffer, samples / 2, 1.0f);
         if (res_add < 0) {
         // soundBufMutex is already locked by caller!
         sys_mutex_lock(this->bgmStateMutex, 0);
-            for(i=0; i<ARRAY_SIZE_SIGNED(this->soundBuffers); i++) {
-                this->soundBuffers[i].pos = savedSoundPos[i];
-                this->soundBuffers[i].isPlaying = savedSoundPlaying[i];
+            for(int j=0; j<ARRAY_SIZE_SIGNED(this->soundBuffers); j++) {
+                this->soundBuffers[j].pos = savedSoundPos[j];
+                this->soundBuffers[j].isPlaying = savedSoundPlaying[j];
             }
             this->backgroundMusic.pos = savedBgmPos;
             this->backgroundMusic.fraction = savedBgmFraction;

@@ -159,6 +159,8 @@ bool IsAssetPath(const char *path)
     if (strncmp(path, "data/", 5) == 0 || strncmp(path, "data\\", 5) == 0)
 #endif
         return true;
+    if (strcmp(path, "log.txt") == 0)
+        return true;
     if (strncmp(path, "bgm/", 4) == 0 || strncmp(path, "bgm\\", 4) == 0)
         return true;
     if (strncmp(path, "font/", 5) == 0 || strncmp(path, "font\\", 5) == 0)

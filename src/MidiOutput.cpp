@@ -339,7 +339,7 @@ void MidiOutput::OnTimerElapsed()
             {
                 this->FadeOutSetVolume(0);
             }
-            this->fadeOutLastSetVolume = this->fadeOutVolumeMultiplier * 128.0f;
+            this->fadeOutLastSetVolume = (u32)(this->fadeOutVolumeMultiplier * 128.0f);
             this->fadeOutElapsedMS = this->fadeOutElapsedMS + 1;
         }
         else
@@ -380,7 +380,7 @@ void MidiOutput::OnTimerElapsed()
 void MidiOutput::ProcessMsg(MidiTrack *track)
 {
     i32 curTrackLength;
-    u8 arg1, arg2;
+    u8 arg1 = 0, arg2 = 0;
     u8 opcode, opcodeHigh, opcodeLow;
     u8 metaEventID;
     i32 idx;

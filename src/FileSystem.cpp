@@ -13,6 +13,7 @@
 #endif
 
 #include "FileSystem.hpp"
+#include "GamePaths.hpp"
 #include "pbg3/Pbg3Archive.hpp"
 #include "utils.hpp"
 
@@ -20,10 +21,13 @@ u32 g_LastFileSize;
 
 FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
 {
+    char resolvedPath[512];
+    GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
+
 #ifndef _WIN32
-    return std::fopen(filepath, mode);
+    return std::fopen(resolvedPath, mode);
 #else
-    u32 filepathWLen = MultiByteToWideChar(CP_UTF8, 0, filepath, -1, NULL, 0) * 2;
+    u32 filepathWLen = MultiByteToWideChar(CP_UTF8, 0, resolvedPath, -1, NULL, 0) * 2;
     u32 modeWLen = MultiByteToWideChar(CP_UTF8, 0, mode, -1, NULL, 0) * 2;
 
     if (filepathWLen == 0 || modeWLen == 0)
@@ -34,7 +38,7 @@ FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
     wchar_t *filepathW = new wchar_t[filepathWLen];
     wchar_t *modeW = new wchar_t[modeWLen];
 
-    MultiByteToWideChar(CP_UTF8, 0, filepath, -1, filepathW, filepathWLen / 2);
+    MultiByteToWideChar(CP_UTF8, 0, resolvedPath, -1, filepathW, filepathWLen / 2);
     MultiByteToWideChar(CP_UTF8, 0, mode, -1, modeW, modeWLen / 2);
 
     FILE *f = _wfopen(filepathW, modeW);
@@ -64,8 +68,8 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
     FILE *file;
     size_t fsize;
     i32 entryIdx;
-    const char *entryname;
-    i32 pbg3Idx;
+    const char *entryname = NULL;
+    i32 pbg3Idx = 0;
 
     entryIdx = -1;
     if (isExternalResource == 0)

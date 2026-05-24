@@ -86,7 +86,7 @@ void ItemManager::OnUpdate()
 {
     i32 iVar9;
     i32 iVar8;
-    i32 itemScore;
+    i32 itemScore = 0;
     i32 idx3;
     i32 idx2;
     i32 idx;
