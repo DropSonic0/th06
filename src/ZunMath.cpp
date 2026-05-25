@@ -7,10 +7,12 @@
 // (unfortunately this also means that inverseViewportMatrix is no longer inlined)
 
 #include "ZunMath.hpp"
+#include "GameErrorContext.hpp"
 #include "GameWindow.hpp"
 
 void ZunViewport::Set() const
 {
+    g_GameErrorContext.Log("ZVP::Set(%d, %d, %d, %d)\n", (int)this->x, (int)this->y, (int)this->width, (int)this->height);
     g_GfxBackend->SetViewport(this->x * WIDTH_RESOLUTION_SCALE + VIEWPORT_OFF_X,
                               (GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * HEIGHT_RESOLUTION_SCALE)) -
                                   VIEWPORT_OFF_Y,
@@ -20,16 +22,17 @@ void ZunViewport::Set() const
 
 void ZunViewport::Get()
 {
-    u32 viewPortGet[4];
-    f32 depthRangeGet[2];
+    u32 viewPortGet[4] = {0};
+    f32 depthRangeGet[2] = {0.0f, 0.0f};
 
     g_GfxBackend->GetViewport(viewPortGet);
     g_GfxBackend->GetDepthRange(depthRangeGet);
+    g_GameErrorContext.Log("RawVP: %u %u %u %u\n", (unsigned int)viewPortGet[0], (unsigned int)viewPortGet[1], (unsigned int)viewPortGet[2], (unsigned int)viewPortGet[3]);
 
-    this->x = (viewPortGet[0] - VIEWPORT_OFF_X) / WIDTH_RESOLUTION_SCALE;
-    this->y = (viewPortGet[1] - VIEWPORT_OFF_Y) / HEIGHT_RESOLUTION_SCALE;
-    this->width = viewPortGet[2] / WIDTH_RESOLUTION_SCALE;
-    this->height = viewPortGet[3] / HEIGHT_RESOLUTION_SCALE;
+    this->x = (i32)((viewPortGet[0] - VIEWPORT_OFF_X) / WIDTH_RESOLUTION_SCALE);
+    this->y = (i32)((viewPortGet[1] - VIEWPORT_OFF_Y) / HEIGHT_RESOLUTION_SCALE);
+    this->width = (i32)(viewPortGet[2] / WIDTH_RESOLUTION_SCALE);
+    this->height = (i32)(viewPortGet[3] / HEIGHT_RESOLUTION_SCALE);
     this->minZ = depthRangeGet[0];
     this->maxZ = depthRangeGet[1];
 
@@ -43,12 +46,17 @@ void ZunViewport::Get()
 
 ZunMatrix inverseViewportMatrix()
 {
+    g_GameErrorContext.Log("IVP start\n");
     ZunMatrix inverseMatrix;
     ZunViewport viewport;
 
     viewport.Get();
+    g_GameErrorContext.Log("VP: %d %d %d %d\n", (int)viewport.x, (int)viewport.y, (int)viewport.width, (int)viewport.height);
 
     inverseMatrix.Identity();
+
+    if (viewport.width <= 0) viewport.width = 640;
+    if (viewport.height <= 0) viewport.height = 480;
 
     // Mappings:
     //   X: [viewport x .. viewport width] -> [-1 .. 1]
@@ -67,8 +75,11 @@ ZunMatrix inverseViewportMatrix()
     //   ends up a half pixel off.
 
     inverseMatrix.Translate(-1.0f, 1.0f, -1.0f);
-    inverseMatrix.Scale(1.0f / (viewport.width / 2.0f), -1.0f / (viewport.height / 2.0f), 2.0f);
-    inverseMatrix.Translate(-viewport.x, -viewport.y, 0.0f);
+    if (viewport.width > 0 && viewport.height > 0)
+    {
+        inverseMatrix.Scale(1.0f / (viewport.width / 2.0f), -1.0f / (viewport.height / 2.0f), 2.0f);
+    }
+    inverseMatrix.Translate(-(f32)viewport.x, -(f32)viewport.y, 0.0f);
 
     g_GfxBackend->SetDepthRange(0.0f, 1.0f);
 

@@ -11,6 +11,7 @@
 
 #include "AnmIdx.hpp"
 #include "AnmVm.hpp"
+#include "GameErrorContext.hpp"
 #include "GameManager.hpp"
 #include "GameWindow.hpp"
 #include "ZunResult.hpp"
@@ -211,12 +212,17 @@ struct AnmManager
 
     void BackendDrawCall()
     {
+        g_GameErrorContext.Log("AnmManager::BackendDrawCall started. dirtyFlags: 0x%x\n", this->dirtyFlags);
         if (this->dirtyFlags != 0)
         {
+            g_GameErrorContext.Log("Calling UpdateDirtyStates()...\n");
             this->UpdateDirtyStates();
+            g_GameErrorContext.Log("UpdateDirtyStates finished.\n");
         }
 
+        g_GameErrorContext.Log("Calling g_GfxBackend->Draw(PRIM_TRIANGLE_STRIP, 0, 4)...\n");
         g_GfxBackend->Draw(PRIM_TRIANGLE_STRIP, 0, 4);
+        g_GameErrorContext.Log("g_GfxBackend->Draw finished.\n");
     }
 
     // We need to do checks in these because they're called nearly every ANM draw call and otherwise
@@ -345,14 +351,18 @@ struct AnmManager
 
     void SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr)
     {
+        // g_GameErrorContext.Log("AnmManager::SetAttributePointer(attr=%d, stride=%u, ptr=%p) starting...\n", (int)attr, (unsigned int)stride, ptr);
         this->dirtyAttribArrays[attr].ptr = ptr;
         this->dirtyAttribArrays[attr].stride = stride;
 
+        // g_GameErrorContext.Log("Comparing dirtyAttribArrays[%d] with current...\n", (int)attr);
         if (!memcmp(&this->dirtyAttribArrays[attr], &this->attribArrays[attr], sizeof(*this->dirtyAttribArrays)))
         {
+            // g_GameErrorContext.Log("Attribute pointers are identical. Returning.\n");
             return;
         }
 
+        // g_GameErrorContext.Log("Setting dirty flag for attribute array.\n");
         this->dirtyFlags |= (1 << DIRTY_VERTEX_ATTRIBUTE_ARRAY);
     }
 

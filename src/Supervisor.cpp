@@ -295,6 +295,7 @@ ChainCallbackResult Supervisor::OnDraw(Supervisor *s)
 
 ZunResult Supervisor::RegisterChain()
 {
+    g_GameErrorContext.Log("Supervisor::RegisterChain started.\n");
     ChainElem *chain;
     Supervisor *supervisor = &g_Supervisor;
 
@@ -306,10 +307,13 @@ ZunResult Supervisor::RegisterChain()
     chain->arg = supervisor;
     chain->addedCallback = (ChainAddedCallback)Supervisor::AddedCallback;
     chain->deletedCallback = (ChainDeletedCallback)Supervisor::DeletedCallback;
+    g_GameErrorContext.Log("Adding Supervisor::OnUpdate to CalcChain...\n");
     if (g_Chain.AddToCalcChain(chain, TH_CHAIN_PRIO_CALC_SUPERVISOR) != 0)
     {
+        g_GameErrorContext.Log("Failed to add Supervisor::OnUpdate to CalcChain.\n");
         return ZUN_ERROR;
     }
+    g_GameErrorContext.Log("Supervisor::OnUpdate added to CalcChain.\n");
 
     chain = g_Chain.CreateElem((ChainCallback)Supervisor::OnDraw);
     chain->arg = supervisor;
@@ -320,6 +324,7 @@ ZunResult Supervisor::RegisterChain()
 
 ZunResult Supervisor::AddedCallback(Supervisor *s)
 {
+    g_GameErrorContext.Log("Supervisor::AddedCallback started.\n");
     i32 i;
 
     for (i = 0; i < (i32)(sizeof(s->pbg3Archives) / sizeof(s->pbg3Archives[0])); i++)
@@ -328,28 +333,39 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     }
 
     g_Pbg3Archives = s->pbg3Archives;
+    g_GameErrorContext.Log("Loading IN PBG3 archive (%s)...\n", TH_IN_DAT_FILE);
     if (s->LoadPbg3(IN_PBG3_INDEX, TH_IN_DAT_FILE))
     {
+        g_GameErrorContext.Log("Failed to load IN PBG3 archive.\n");
         return ZUN_ERROR;
     }
+    g_GameErrorContext.Log("IN PBG3 archive loaded.\n");
 
     // D3DX code swaps twice to copy to both buffers
 
+    g_GameErrorContext.Log("Loading title logo surface...\n");
     g_AnmManager->LoadSurface(0, "data/title/th06logo.jpg");
+    g_GameErrorContext.Log("Copying title logo to back buffer (1/2)...\n");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
 
+    g_GameErrorContext.Log("Swapping buffers (1/2)...\n");
     g_GfxBackend->SwapBuffers();
+    g_GameErrorContext.Log("Swap (1/2) finished.\n");
 
     //
+    g_GameErrorContext.Log("Copying title logo to back buffer (2/2)...\n");
     g_AnmManager->CopySurfaceToBackBuffer(0, 0, 0, 0, 0);
     //    if (g_Supervisor.d3dDevice->Present(0, 0, 0, 0) < 0)
     //        g_Supervisor.d3dDevice->Reset(&g_Supervisor.presentParameters);
     //
 
+    g_GameErrorContext.Log("Swapping buffers (2/2)...\n");
     g_GfxBackend->SwapBuffers();
+    g_GameErrorContext.Log("Swap (2/2) finished.\n");
 
+    g_GameErrorContext.Log("Releasing title logo surface...\n");
     g_AnmManager->ReleaseSurface(0);
 
     s->startupTimeBeforeMenuMusic = SDL_GetTicks();
@@ -664,11 +680,13 @@ void Supervisor::ReleasePbg3(i32 pbg3FileIdx)
 
 i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, const char *filename)
 {
+    g_GameErrorContext.Log("Supervisor::LoadPbg3(%d, %s) started.\n", pbg3FileIdx, filename);
     if (this->pbg3Archives[pbg3FileIdx] == NULL || strcmp(filename, this->pbg3ArchiveNames[pbg3FileIdx]) != 0)
     {
         this->ReleasePbg3(pbg3FileIdx);
         this->pbg3Archives[pbg3FileIdx] = new Pbg3Archive();
         utils::DebugPrint("%s open ...\n", filename);
+        g_GameErrorContext.Log("Calling Pbg3Archive::Load(%s)...\n", filename);
         if (this->pbg3Archives[pbg3FileIdx]->Load(filename) != 0)
         {
             std::strcpy(this->pbg3ArchiveNames[pbg3FileIdx], filename);
@@ -679,11 +697,14 @@ i32 Supervisor::LoadPbg3(i32 pbg3FileIdx, const char *filename)
             if (res < 0)
             {
                 g_GameErrorContext.Fatal("error : データのバージョンが違います\n");
+                g_GameErrorContext.Log("Pbg3Archive::Load(%s) finished.\n", filename);
                 return 1;
             }
+            g_GameErrorContext.Log("Pbg3Archive::Load(%s) finished.\n", filename);
         }
         else
         {
+            g_GameErrorContext.Log("Pbg3Archive::Load(%s) failed.\n", filename);
             delete this->pbg3Archives[pbg3FileIdx];
             // Let's really make sure this is null by nulling twice. I assume
             // there's some kind of inline function here, like it's actually

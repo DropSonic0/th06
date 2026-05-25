@@ -192,7 +192,9 @@ void GameWindow::Present()
         g_Supervisor.unk198--;
     }
 
+    g_GameErrorContext.Log("GameWindow::Present calling SwapBuffers...\n");
     g_GfxBackend->SwapBuffers();
+    g_GameErrorContext.Log("GameWindow::Present SwapBuffers finished.\n");
 
     return;
 }

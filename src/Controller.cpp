@@ -35,6 +35,7 @@ extern "C"
 
 u16 Controller::GetJoystickCaps(void)
 {
+    g_GameErrorContext.Log("Controller::GetJoystickCaps started.\n");
 #ifndef __PS3__
     //    JOYINFOEX pji;
 
@@ -49,9 +50,12 @@ u16 Controller::GetJoystickCaps(void)
     //
     //    joyGetDevCapsA(0, &g_JoystickCaps, sizeof(g_JoystickCaps));
 #else
+    g_GameErrorContext.Log("Controller::GetJoystickCaps (PS3 path) calling cellPadInit(7)...\n");
     cellPadInit(7);
+    g_GameErrorContext.Log("cellPadInit(7) finished.\n");
     memset(&g_LastPS3PadData, 0, sizeof(g_LastPS3PadData));
 #endif
+    g_GameErrorContext.Log("Controller::GetJoystickCaps finished.\n");
     return 0;
 }
 
@@ -622,8 +626,11 @@ u16 Controller::GetInput(void)
 
 void Controller::ResetKeyboard(void)
 {
+    g_GameErrorContext.Log("Controller::ResetKeyboard started.\n");
 #ifdef __PS3__
+    g_GameErrorContext.Log("Controller::ResetKeyboard (PS3 path) calling cellKbInit...\n");
     cellKbInit(TH_PS3_KB_MAX);
+    g_GameErrorContext.Log("cellKbInit finished.\n");
     memset(g_LastPS3KbState, 0, sizeof(g_LastPS3KbState));
     memset(g_PS3KbConnected, 0, sizeof(g_PS3KbConnected));
 #endif

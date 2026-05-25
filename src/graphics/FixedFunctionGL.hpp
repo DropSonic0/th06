@@ -64,4 +64,7 @@ struct FixedFunctionGL : GfxInterface
     PSGLdevice *device;
     PSGLcontext *glContext;
 #endif
+
+    u32 m_viewport[4];
+    f32 m_depthRange[2];
 };

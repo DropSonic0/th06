@@ -94,9 +94,12 @@ restart:
 
     g_SoundPlayer.InitializeDSound();
     
+    g_GameErrorContext.Log("Calling Controller::GetJoystickCaps()...\n");
     Controller::GetJoystickCaps();
+    g_GameErrorContext.Log("Calling Controller::ResetKeyboard()...\n");
     Controller::ResetKeyboard();
 
+    g_GameErrorContext.Log("Calling Supervisor::RegisterChain()...\n");
     if (Supervisor::RegisterChain() != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log("Failed to register supervisor chain.\n");

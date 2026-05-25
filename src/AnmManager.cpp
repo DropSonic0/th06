@@ -22,6 +22,7 @@
 #else
 #include <PSGL/psgl.h>
 #endif
+#include "graphics/GLFunc.hpp"
 
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4];
@@ -809,16 +810,24 @@ void AnmManager::SetRenderStateForVm(const AnmVm *vm)
 
 void AnmManager::UpdateDirtyStates()
 {
+#ifdef __PS3__
+    g_GameErrorContext.Log("UDS: 0x%x\n", this->dirtyFlags);
+#else
+    g_GameErrorContext.Log("UDS start: 0x%x\n", this->dirtyFlags);
+#endif
     while (this->dirtyFlags != 0)
     {
         u32 currFlagIndex = CountrZero(this->dirtyFlags);
         this->dirtyFlags &= ~(1 << currFlagIndex);
+
+        g_GameErrorContext.Log("UDS flag %d\n", currFlagIndex);
 
         // This would all be nicer if the enum was flag values rather than indices,
         //   but compilers just aren't able to deal with that in the switch statement :/
         switch (currFlagIndex)
         {
         case DIRTY_FOG:
+#ifndef __PS3__
             if (this->dirtyFogNear != this->fogNear || this->dirtyFogFar != this->fogFar)
             {
                 this->fogNear = this->dirtyFogNear;
@@ -831,7 +840,7 @@ void AnmManager::UpdateDirtyStates()
                 this->fogColor = this->dirtyFogColor;
                 g_GfxBackend->SetFogColor(this->fogColor);
             }
-
+#endif
             break;
         case DIRTY_DEPTH_CONFIG:
             if (this->dirtyDepthMask != this->depthMask)
@@ -905,6 +914,7 @@ void AnmManager::UpdateDirtyStates()
             g_GfxBackend->SetTransformMatrix((TransformMatrix)(currFlagIndex - DIRTY_MODEL_MATRIX),
                                              this->transformMatrices[currFlagIndex - DIRTY_MODEL_MATRIX]);
         }
+        g_GameErrorContext.Log("UDS flag %d done, err: 0x%x\n", currFlagIndex, (int)g_glFuncTable.glGetError());
     }
 }
 
@@ -1940,6 +1950,7 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
 
 ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 {
+    g_GameErrorContext.Log("AnmManager::LoadSurface(%d, %s) started.\n", surfaceIdx, path);
 #ifndef __PS3__
     if (this->surfaces[surfaceIdx] != NULL)
     {
@@ -1968,11 +1979,12 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
     }
 
     int x, y, n;
-    u8 *pixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 3);
+    u8 *pixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
     std::free(data);
 
     if (pixels == NULL)
     {
+        g_GameErrorContext.Log("stbi_load_from_memory failed for %s.\n", path);
         return ZUN_ERROR;
     }
 
@@ -1982,8 +1994,10 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
     this->surfaces[surfaceIdx]->h = y;
     this->surfaces[surfaceIdx]->textureHandle = 0;
 
+    g_GameErrorContext.Log("AnmManager::LoadSurface(%d, %s) finished. Dimensions: %dx%d\n", surfaceIdx, path, x, y);
     return ZUN_SUCCESS;
 #endif
+    return ZUN_SUCCESS;
 
     //    u8 *data = FileSystem::OpenPath(path, 0);
     //    if (data == NULL)
@@ -2132,6 +2146,7 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
 void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY, i32 rectLeft, i32 rectTop,
                                              i32 rectWidth, i32 rectHeight)
 {
+    g_GameErrorContext.Log("AnmManager::CopySurfaceRectToBackBuffer(%d, dstX=%d, dstY=%d, w=%d, h=%d) started.\n", surfaceIdx, dstX, dstY, rectWidth, rectHeight);
 #ifndef __PS3__
     SDL_Surface *srcSurface = this->surfaces[surfaceIdx];
 
@@ -2171,21 +2186,26 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     this->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
 
     if (srcSurface->textureHandle == 0) {
+        g_GameErrorContext.Log("Creating texture for surface %d...\n", surfaceIdx);
         srcSurface->textureHandle = g_GfxBackend->CreateTexture();
         g_GfxBackend->BindTexture(srcSurface->textureHandle);
         g_GfxBackend->SetTextureFilter();
         u32 textureWidth = BitCeil((u32)srcSurface->w);
         u32 textureHeight = BitCeil((u32)srcSurface->h);
-        g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGB, PIXEL_UNSIGNED_BYTE, NULL);
+        g_GameErrorContext.Log("Surface size: %dx%d, Texture size: %dx%d\n", srcSurface->w, srcSurface->h, textureWidth, textureHeight);
+        g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE, NULL);
         g_GfxBackend->SetTextureSubImage(0, 0, srcSurface->w, srcSurface->h, srcSurface->pixels);
+        g_GameErrorContext.Log("Texture created and data uploaded.\n");
     } else {
+        g_GameErrorContext.Log("Binding existing texture for surface %d...\n", surfaceIdx);
         g_GfxBackend->BindTexture(srcSurface->textureHandle);
     }
 
+    g_GameErrorContext.Log("Calculating UVs and vertex positions...\n");
     u32 textureWidth = BitCeil((u32)srcSurface->w);
     u32 textureHeight = BitCeil((u32)srcSurface->h);
 
-    VertexTex1DiffuseXyz verts[4];
+    static VertexTex1DiffuseXyz verts[4];
 
     verts[0].position = ZunVec3((f32)dstX, (f32)dstY, 0.0f);
     verts[1].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY, 0.0f);
@@ -2197,18 +2217,25 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[2].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
     verts[3].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
 
+    g_GameErrorContext.Log("Setting GL states for surface %d...\n", surfaceIdx);
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+    g_GameErrorContext.Log("VAttr set\n");
 
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*verts), &verts[0].position);
     this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*verts), &verts[0].textureUV);
+    g_GameErrorContext.Log("AttrPtr set\n");
 
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_REPLACE);
+    g_GameErrorContext.Log("ColorOp set\n");
 
     this->SetDepthMask(false);
     this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+    g_GameErrorContext.Log("Depth set\n");
 
+    g_GameErrorContext.Log("Calling BDC for %d\n", surfaceIdx);
     this->BackendDrawCall();
+    g_GameErrorContext.Log("BDC for %d finished.\n", surfaceIdx);
 
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
