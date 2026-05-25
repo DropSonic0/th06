@@ -1,4 +1,5 @@
 #include "FixedFunctionGL.hpp"
+#include "GameErrorContext.hpp"
 #include "GameWindow.hpp"
 #include "Supervisor.hpp"
 #include "i18n.hpp"
@@ -17,7 +18,10 @@ void FixedFunctionGL::SetContextFlags()
 
 GfxInterface *FixedFunctionGL::Init()
 {
+    g_GameErrorContext.Log("FixedFunctionGL::Init started.\n");
     SetContextFlags();
+
+    FixedFunctionGL *self = nullptr;
 
 #ifndef __PS3__
     SDL_Init(SDL_INIT_VIDEO);
@@ -32,7 +36,7 @@ GfxInterface *FixedFunctionGL::Init()
     {
         flags |= SDL_WINDOW_FULLSCREEN;
     }
-    FixedFunctionGL *self = new FixedFunctionGL();
+    self = new FixedFunctionGL();
 
     SDL_Window *window = SDL_CreateWindow(TH_WINDOW_TITLE, x, y, width, height, flags);
     self->window = window;
@@ -58,10 +62,68 @@ GfxInterface *FixedFunctionGL::Init()
 
     SDL_GL_SetSwapInterval(1);
 #else
-    FixedFunctionGL *self = new FixedFunctionGL();
+    g_GameErrorContext.Log("FixedFunctionGL::Init (PS3 path) initializing PSGL...\n");
+    PSGLinitOptions options;
+    options.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
+    options.maxSPUs = 1;
+    options.initializeSPUs = false;
+    options.persistentMemorySize = 0;
+    options.transientMemorySize = 0;
+    options.errorConsole = 0;
+    options.fifoSize = 0;
+    options.hostMemorySize = 8 * 1024 * 1024;
+    
+    psglInit(&options);
+    g_GameErrorContext.Log("PSGL initialized.\n");
+
+    g_GameErrorContext.Log("Creating PSGL device...\n");
+    PSGLdeviceParameters params;
+    params.enable = PSGL_DEVICE_PARAMETERS_COLOR_FORMAT | PSGL_DEVICE_PARAMETERS_DEPTH_FORMAT | PSGL_DEVICE_PARAMETERS_MULTISAMPLING_MODE | PSGL_DEVICE_PARAMETERS_BUFFERING_MODE | PSGL_DEVICE_PARAMETERS_RESC_ADJUST_ASPECT_RATIO;
+    params.bufferingMode = PSGL_BUFFERING_MODE_TRIPLE;
+    params.colorFormat = GL_ARGB_SCE;
+    params.depthFormat = GL_NONE;
+    params.multisamplingMode = GL_MULTISAMPLING_NONE_SCE;
+    params.enable |= PSGL_DEVICE_PARAMETERS_RESC_RATIO_MODE;
+    params.rescRatioMode = RESC_RATIO_MODE_FULLSCREEN;
+
+    PSGLdevice* device = psglCreateDeviceExtended(&params);
+    if (!device) {
+        g_GameErrorContext.Log("CRITICAL: psglCreateDeviceExtended failed!\n");
+        return NULL;
+    }
+    g_GameErrorContext.Log("PSGL device created.\n");
+
+    g_GameErrorContext.Log("Creating PSGL context...\n");
+    PSGLcontext* glContext = psglCreateContext();
+    if (!glContext) {
+        g_GameErrorContext.Log("CRITICAL: psglCreateContext failed!\n");
+        return NULL;
+    }
+    g_GameErrorContext.Log("PSGL context created.\n");
+
+    g_GameErrorContext.Log("Making PSGL context current...\n");
+    psglMakeCurrent(glContext, device);
+    psglResetCurrentContext();
+    g_GameErrorContext.Log("PSGL context made current and reset. Actual current context: %p\n", (void *)psglGetCurrentContext());
+
+    g_GameErrorContext.Log("FixedFunctionGL::Init (PS3 path) creating instance...\n");
+    self = new FixedFunctionGL();
+    self->device = device;
+    self->glContext = glContext;
+    g_GameErrorContext.Log("FixedFunctionGL instance created at %p\n", (void *)self);
 #endif
 
+    g_GameErrorContext.Log("Resolving GL functions...\n");
     g_glFuncTable.ResolveFunctions(false);
+    g_GameErrorContext.Log("GL functions resolved.\n");
+
+#ifdef __PS3__
+    g_GameErrorContext.Log("glEnable function pointer: %p\n", (void *)g_glFuncTable.glEnable);
+    g_GameErrorContext.Log("Current PSGL context: %p\n", (void *)psglGetCurrentContext());
+    if (g_glFuncTable.glEnable == NULL) {
+        g_GameErrorContext.Log("CRITICAL: glEnable is NULL!\n");
+    }
+#endif
 
     g_glFuncTable.glEnable(GL_TEXTURE_2D);
     g_glFuncTable.glEnableClientState(GL_VERTEX_ARRAY);
@@ -128,6 +190,7 @@ GfxInterface *FixedFunctionGL::Init()
 
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
 
+    g_GameErrorContext.Log("FixedFunctionGL::Init finished successfully.\n");
     return self;
 }
 
@@ -144,6 +207,18 @@ void FixedFunctionGL::Exit()
         SDL_DestroyWindow(this->window);
         this->window = NULL;
     }
+#else
+    if (this->glContext)
+    {
+        psglDestroyContext(this->glContext);
+        this->glContext = NULL;
+    }
+    if (this->device)
+    {
+        psglDestroyDevice(this->device);
+        this->device = NULL;
+    }
+    psglExit();
 #endif
 }
 

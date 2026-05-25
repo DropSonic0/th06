@@ -60,5 +60,8 @@ struct FixedFunctionGL : GfxInterface
 #ifndef __PS3__
     SDL_Window *window;
     SDL_GLContext glContext;
+#else
+    PSGLdevice *device;
+    PSGLcontext *glContext;
 #endif
 };

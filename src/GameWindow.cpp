@@ -43,6 +43,11 @@ static const struct
 
 RenderResult GameWindow::Render()
 {
+    static bool firstRender = true;
+    if (firstRender) {
+        g_GameErrorContext.Log("GameWindow::Render - first call.\n");
+        firstRender = false;
+    }
     i32 res;
     f64 slowdown;
     ZunViewport viewport;
@@ -196,6 +201,8 @@ void GameWindow::CreateGameWindow()
 {
 #ifndef __PS3__
     SDL_Init(SDL_INIT_GAMECONTROLLER);
+#else
+    g_GameErrorContext.Log("GameWindow::CreateGameWindow (PS3 path) starting...\n");
 #endif
 
     for (u32 i = 0; i < ARRAY_SIZE(s_RenderBackends); i++)
@@ -203,6 +210,7 @@ void GameWindow::CreateGameWindow()
         g_GfxBackend = s_RenderBackends[i].TryInit();
         if (g_GfxBackend)
         {
+            g_GameErrorContext.Log("Using renderer backend %s\n", s_RenderBackends[i].name);
             utils::DebugPrint2("Using renderer backend %s", s_RenderBackends[i].name);
             break;
         }
@@ -265,6 +273,7 @@ ZunResult GameWindow::InitD3dRendering()
 {
     if (!g_GfxBackend)
     {
+        g_GameErrorContext.Log("Error: No GfxBackend found.\n");
         g_GameErrorContext.Fatal(TH_ERR_D3D_INIT_FAILED);
         return ZUN_ERROR;
     }

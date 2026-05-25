@@ -1,4 +1,5 @@
 #include "GLFunc.hpp"
+#include "GameErrorContext.hpp"
 
 #ifndef __PS3__
 #include <SDL2/SDL_video.h>

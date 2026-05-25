@@ -353,37 +353,60 @@ ZunResult Supervisor::AddedCallback(Supervisor *s)
     g_AnmManager->ReleaseSurface(0);
 
     s->startupTimeBeforeMenuMusic = SDL_GetTicks();
+    g_GameErrorContext.Log("Setting up DirectInput...\n");
     Supervisor::SetupDInput(s);
+    g_GameErrorContext.Log("DirectInput set up.\n");
 
+    g_GameErrorContext.Log("Creating MidiOutput...\n");
     s->midiOutput = new MidiOutput();
+    g_GameErrorContext.Log("MidiOutput created.\n");
 
     // Replacing a seeding method that used win32 timeGetTime
     g_Rng.Initialize((u16)std::time(NULL));
 
+    g_GameErrorContext.Log("Initializing sound buffers...\n");
     g_SoundPlayer.InitSoundBuffers();
+    g_GameErrorContext.Log("Sound buffers initialized.\n");
+    
+    g_GameErrorContext.Log("Loading text.anm...\n");
     if (g_AnmManager->LoadAnm(ANM_FILE_TEXT, "data/text.anm", ANM_OFFSET_TEXT) != 0)
     {
         return ZUN_ERROR;
     }
 
+    g_GameErrorContext.Log("text.anm loaded.\n");
+
+    g_GameErrorContext.Log("Registering AsciiManager chain...\n");
     if (AsciiManager::RegisterChain() != 0)
     {
         g_GameErrorContext.Log(TH_ERR_ASCIIMANAGER_INIT_FAILED);
         return ZUN_ERROR;
     }
+    g_GameErrorContext.Log("AsciiManager chain registered.\n");
 
     s->unk198 = 0;
+    g_GameErrorContext.Log("Setting up vertex buffer...\n");
     g_AnmManager->SetupVertexBuffer();
+    g_GameErrorContext.Log("Vertex buffer set up.\n");
 
+    g_GameErrorContext.Log("Creating text buffer...\n");
     if (TextHelper::CreateTextBuffer() != ZUN_SUCCESS)
     {
+        g_GameErrorContext.Log("Failed to create text buffer.\n");
         return ZUN_ERROR;
     }
+    g_GameErrorContext.Log("Text buffer created.\n");
 
     s->ReleasePbg3(IN_PBG3_INDEX);
+    g_GameErrorContext.Log("Loading MD PBG3 archive...\n");
     if (g_Supervisor.LoadPbg3(MD_PBG3_INDEX, TH_MD_DAT_FILE) != 0)
+    {
+        g_GameErrorContext.Log("Failed to load MD PBG3 archive.\n");
         return ZUN_ERROR;
+    }
+    g_GameErrorContext.Log("MD PBG3 archive loaded.\n");
 
+    g_GameErrorContext.Log("Supervisor::AddedCallback finished successfully.\n");
     return ZUN_SUCCESS;
 }
 

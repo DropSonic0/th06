@@ -41,6 +41,12 @@ int main(int argc, char *argv[])
 
     GamePaths::Init();
 
+#ifdef __PS3__
+    g_GameErrorContext.Log("Registering cellSysutil callback...\n");
+    cellSysutilRegisterCallback(0, sysutil_callback, NULL);
+    g_GameErrorContext.Log("cellSysutil callback registered.\n");
+#endif
+
     i32 renderResult = 0;
     //    MSG msg;
     //    i32 waste1, waste2, waste3, waste4, waste5, waste6;
@@ -56,6 +62,7 @@ int main(int argc, char *argv[])
 
     if (g_Supervisor.LoadConfig(TH_CONFIG_FILE) != ZUN_SUCCESS)
     {
+        g_GameErrorContext.Log("Failed to load config.\n");
         g_GameErrorContext.Flush();
         return -1;
     }
@@ -80,16 +87,19 @@ restart:
 
     if (GameWindow::InitD3dRendering() != ZUN_SUCCESS)
     {
+        g_GameErrorContext.Log("Failed to initialize D3D rendering.\n");
         g_GameErrorContext.Flush();
         return 1;
     }
 
     g_SoundPlayer.InitializeDSound();
+    
     Controller::GetJoystickCaps();
     Controller::ResetKeyboard();
 
     if (Supervisor::RegisterChain() != ZUN_SUCCESS)
     {
+        g_GameErrorContext.Log("Failed to register supervisor chain.\n");
         goto stop;
     }
 #ifndef __PS3__

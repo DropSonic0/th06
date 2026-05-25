@@ -1955,7 +1955,34 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
     return ZUN_SUCCESS;
 #else
-    return ZUN_ERROR;
+    if (this->surfaces[surfaceIdx] != NULL)
+    {
+        this->ReleaseSurface(surfaceIdx);
+    }
+
+    u8 *data = FileSystem::OpenPath(path, 0);
+    if (data == NULL)
+    {
+        g_GameErrorContext.Fatal(TH_ERR_CANNOT_BE_LOADED, path);
+        return ZUN_ERROR;
+    }
+
+    int x, y, n;
+    u8 *pixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 3);
+    std::free(data);
+
+    if (pixels == NULL)
+    {
+        return ZUN_ERROR;
+    }
+
+    this->surfaces[surfaceIdx] = new PS3Surface;
+    this->surfaces[surfaceIdx]->pixels = pixels;
+    this->surfaces[surfaceIdx]->w = x;
+    this->surfaces[surfaceIdx]->h = y;
+    this->surfaces[surfaceIdx]->textureHandle = 0;
+
+    return ZUN_SUCCESS;
 #endif
 
     //    u8 *data = FileSystem::OpenPath(path, 0);
@@ -2052,6 +2079,13 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
     }
 
     CopySurfaceRectToBackBuffer(surfaceIdx, dstX, dstY, srcX, srcY, srcSurface->w - srcX, srcSurface->h - srcY);
+#else
+    PS3Surface *srcSurface = this->surfaces[surfaceIdx];
+    if (srcSurface == NULL)
+    {
+        return;
+    }
+    CopySurfaceRectToBackBuffer(surfaceIdx, dstX, dstY, srcX, srcY, srcSurface->w - srcX, srcSurface->h - srcY);
 #endif
     //
     //    IDirect3DSurface8 *destSurface;
@@ -2108,6 +2142,82 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
 
     ApplySurfaceToColorBuffer(srcSurface, (SDL_Rect){.x = rectLeft, .y = rectTop, .w = rectWidth, .h = rectHeight},
                               (SDL_Rect){.x = dstX, .y = dstY, .w = rectWidth, .h = rectHeight});
+#else
+    PS3Surface *srcSurface = this->surfaces[surfaceIdx];
+    if (srcSurface == NULL)
+    {
+        return;
+    }
+
+    ZunViewport originalViewport;
+    ZunViewport fullscreenViewport;
+
+    if (rectWidth <= 0 || rectHeight <= 0)
+    {
+        return;
+    }
+
+    originalViewport.Get();
+
+    fullscreenViewport.x = 0;
+    fullscreenViewport.y = 0;
+    fullscreenViewport.height = GAME_WINDOW_HEIGHT;
+    fullscreenViewport.width = GAME_WINDOW_WIDTH;
+    fullscreenViewport.minZ = 0.0f;
+    fullscreenViewport.maxZ = 1.0f;
+
+    fullscreenViewport.Set();
+
+    this->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
+
+    if (srcSurface->textureHandle == 0) {
+        srcSurface->textureHandle = g_GfxBackend->CreateTexture();
+        g_GfxBackend->BindTexture(srcSurface->textureHandle);
+        g_GfxBackend->SetTextureFilter();
+        u32 textureWidth = BitCeil((u32)srcSurface->w);
+        u32 textureHeight = BitCeil((u32)srcSurface->h);
+        g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGB, PIXEL_UNSIGNED_BYTE, NULL);
+        g_GfxBackend->SetTextureSubImage(0, 0, srcSurface->w, srcSurface->h, srcSurface->pixels);
+    } else {
+        g_GfxBackend->BindTexture(srcSurface->textureHandle);
+    }
+
+    u32 textureWidth = BitCeil((u32)srcSurface->w);
+    u32 textureHeight = BitCeil((u32)srcSurface->h);
+
+    VertexTex1DiffuseXyz verts[4];
+
+    verts[0].position = ZunVec3((f32)dstX, (f32)dstY, 0.0f);
+    verts[1].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY, 0.0f);
+    verts[2].position = ZunVec3((f32)dstX, (f32)dstY + rectHeight, 0.0f);
+    verts[3].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY + rectHeight, 0.0f);
+
+    verts[0].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop) / textureHeight);
+    verts[1].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop) / textureHeight);
+    verts[2].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
+    verts[3].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
+
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+
+    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*verts), &verts[0].position);
+    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*verts), &verts[0].textureUV);
+
+    this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
+    this->SetColorOp(COMPONENT_RGB, COLOR_OP_REPLACE);
+
+    this->SetDepthMask(false);
+    this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
+
+    this->BackendDrawCall();
+
+    this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
+    this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);
+
+    this->SetCurrentSprite(NULL);
+    this->SetCurrentTexture(0);
+    this->SetCurrentBlendMode(0xff);
+
+    originalViewport.Set();
 #endif
     //
     //    IDirect3DSurface8 *D3D_Surface;
