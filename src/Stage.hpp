@@ -2,6 +2,7 @@
 
 #include "AnmVm.hpp"
 #include "Chain.hpp"
+#include "ZunEndian.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
 // #include "zwave.hpp"
@@ -10,11 +11,11 @@
 
 struct RawStageHeader
 {
-    i16 nbObjects;
-    i16 nbFaces;
-    i32 facesOffset;
-    i32 scriptOffset;
-    i32 unk_c;
+    LE<i16> nbObjects;
+    LE<i16> nbFaces;
+    LE<i32> facesOffset;
+    LE<i32> scriptOffset;
+    LE<i32> unk_c;
     char stageName[128];
     char songNames[4][128];
     char songPaths[4][128];
@@ -22,37 +23,37 @@ struct RawStageHeader
 
 struct RawStageQuadBasic
 {
-    i16 type;
-    i16 byteSize;
-    i16 anmScript;
-    i16 vmIdx;
-    ZunVec3 position;
-    ZunVec2 size;
+    LE<i16> type;
+    LE<i16> byteSize;
+    LE<i16> anmScript;
+    LE<i16> vmIdx;
+    LEZunVec3 position;
+    LEZunVec2 size;
 };
 
 struct RawStageObject
 {
-    i16 id;
+    LE<i16> id;
     i8 zLevel;
     i8 flags;
-    ZunVec3 position;
-    ZunVec3 size;
+    LEZunVec3 position;
+    LEZunVec3 size;
     RawStageQuadBasic firstQuad;
 };
 
 struct RawStageObjectInstance
 {
-    i16 id;
-    i16 unk2;
-    ZunVec3 position;
+    LE<i16> id;
+    LE<i16> unk2;
+    LEZunVec3 position;
 };
 
 struct RawStageInstr
 {
-    i32 frame;
-    i16 opcode;
-    i16 size;
-    i32 args[3];
+    LE<i32> frame;
+    LE<i16> opcode;
+    LE<i16> size;
+    LE<i32> args[3];
 };
 
 struct StageCameraSky

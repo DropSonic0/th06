@@ -1,6 +1,7 @@
 #pragma once
 
 #include "inttypes.hpp"
+#include "ZunEndian.hpp"
 #include <cmath>
 #include <cstring>
 
@@ -260,6 +261,29 @@ struct ZunVec3
     }
 };
 static_assert(sizeof(ZunVec3) == 0x0C, "ZunVec3 has additional padding between struct members!");
+
+struct LEZunVec2
+{
+    LE<f32> x;
+    LE<f32> y;
+
+    inline operator ZunVec2() const
+    {
+        return ZunVec2(x, y);
+    }
+};
+
+struct LEZunVec3
+{
+    LE<f32> x;
+    LE<f32> y;
+    LE<f32> z;
+
+    inline operator ZunVec3() const
+    {
+        return ZunVec3(x, y, z);
+    }
+};
 
 struct ZunVec4
 {
