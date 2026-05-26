@@ -1523,10 +1523,10 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
     return ZUN_SUCCESS;
 }
 
-#define AnmF32Arg(index) ((float)(*(LE<float>*)&curInstr->args[index]))
-#define AnmI32Arg(index) ((i32)(*(LE<i32>*)&curInstr->args[index]))
-#define AnmU32Arg(index) ((u32)(*(LE<u32>*)&curInstr->args[index]))
-#define AnmI16Arg(index) ((i16)(*(LE<i16>*)&curInstr->args[index]))
+#define AnmF32Arg(index) ((float)bit_cast_to_size<float>((u32)curInstr->args[index]))
+#define AnmI32Arg(index) ((i32)bit_cast_to_size<i32>((u32)curInstr->args[index]))
+#define AnmU32Arg(index) ((u32)bit_cast_to_size<u32>((u32)curInstr->args[index]))
+#define AnmI16Arg(index) ((i16)(u32)curInstr->args[index])
 
 i32 AnmManager::ExecuteScript(AnmVm *vm)
 {
