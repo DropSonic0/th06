@@ -20,6 +20,8 @@
 #include <SDL2/SDL_rwops.h>
 #include <SDL2/SDL_surface.h>
 #else
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "thirdparty/stb_image_resize.h"
 #include <PSGL/psgl.h>
 #endif
 #include "graphics/GLFunc.hpp"
@@ -393,6 +395,34 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     height = y;
     // PS3/PSGL might need different texture format handling here
     textureFormat = TEX_FMT_A8R8G8B8;
+
+    // Resize if doesn't match ANM expected dimensions
+    const AnmRawEntry *entry = this->anmFiles[textureIdx];
+    if (width != entry->width || height != entry->height)
+    {
+        u8 *textureData2 = (u8 *)std::malloc(entry->width * entry->height * 4);
+        if (textureData2 != NULL)
+        {
+            stbir_resize_uint8(rawTextureData, width, height, 0, textureData2, entry->width, entry->height, 0, 4);
+            stbi_image_free(rawTextureData);
+            rawTextureData = textureData2;
+            width = entry->width;
+            height = entry->height;
+        }
+    }
+
+    // Byte swap from RGBA to ARGB
+    for (int i = 0; i < width * height; ++i)
+    {
+        u8 r = rawTextureData[i * 4 + 0];
+        u8 g = rawTextureData[i * 4 + 1];
+        u8 b = rawTextureData[i * 4 + 2];
+        u8 a = rawTextureData[i * 4 + 3];
+        rawTextureData[i * 4 + 0] = a;
+        rawTextureData[i * 4 + 1] = r;
+        rawTextureData[i * 4 + 2] = g;
+        rawTextureData[i * 4 + 3] = b;
+    }
 #endif
 
     CreateTextureObject();
@@ -533,6 +563,19 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
         return ZUN_ERROR;
     }
 
+    if (alphaW != textureDesc->width || alphaH != textureDesc->height)
+    {
+        u8 *alphaData2 = (u8 *)std::malloc(textureDesc->width * textureDesc->height * 4);
+        if (alphaData2 != NULL)
+        {
+            stbir_resize_uint8(alphaData, alphaW, alphaH, 0, alphaData2, textureDesc->width, textureDesc->height, 0, 4);
+            stbi_image_free(alphaData);
+            alphaData = alphaData2;
+            alphaW = textureDesc->width;
+            alphaH = textureDesc->height;
+        }
+    }
+
     dstData = (u8 *)textureDesc->textureData;
     // For simplicity, assuming TEX_FMT_A8R8G8B8 and 4 channels from stbi_load
     if (textureDesc->format == TEX_FMT_A8R8G8B8)
@@ -541,7 +584,8 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
         {
             for (x = 0; x < textureDesc->width; x++)
             {
-                dstData[(y * textureDesc->width + x) * 4 + 3] = alphaData[(y * textureDesc->width + x) * 4];
+                // Layout is ARGB, alpha is at index 0
+                dstData[(y * textureDesc->width + x) * 4 + 0] = alphaData[(y * textureDesc->width + x) * 4 + 0];
             }
         }
     }
@@ -549,8 +593,14 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 #endif
 
     this->SetCurrentTexture(this->textures[textureIdx].handle);
+#ifndef __PS3__
     g_GfxBackend->SetTextureImage(textureDesc->width, textureDesc->height, PIXEL_RGBA,
                                   g_TextureFormatTypeMapping[textureFormat], textureDesc->textureData);
+#else
+    // On PS3 we forced it to A8R8G8B8 in LoadTexture
+    g_GfxBackend->SetTextureImage(textureDesc->width, textureDesc->height, PIXEL_RGBA,
+                                  PIXEL_UNSIGNED_BYTE, textureDesc->textureData);
+#endif
 
     return ZUN_SUCCESS;
 }
@@ -820,16 +870,13 @@ void AnmManager::SetRenderStateForVm(const AnmVm *vm)
 void AnmManager::UpdateDirtyStates()
 {
 #ifdef __PS3__
-    g_GameErrorContext.Log("UDS: 0x%x\n", this->dirtyFlags);
 #else
-    g_GameErrorContext.Log("UDS start: 0x%x\n", this->dirtyFlags);
 #endif
     while (this->dirtyFlags != 0)
     {
         u32 currFlagIndex = CountrZero(this->dirtyFlags);
         this->dirtyFlags &= ~(1 << currFlagIndex);
 
-        g_GameErrorContext.Log("UDS flag %d\n", currFlagIndex);
 
         // This would all be nicer if the enum was flag values rather than indices,
         //   but compilers just aren't able to deal with that in the switch statement :/
@@ -923,7 +970,6 @@ void AnmManager::UpdateDirtyStates()
             g_GfxBackend->SetTransformMatrix((TransformMatrix)(currFlagIndex - DIRTY_MODEL_MATRIX),
                                              this->transformMatrices[currFlagIndex - DIRTY_MODEL_MATRIX]);
         }
-        g_GameErrorContext.Log("UDS flag %d done, err: 0x%x\n", currFlagIndex, (int)g_glFuncTable.glGetError());
     }
 }
 
@@ -1997,6 +2043,19 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
         return ZUN_ERROR;
     }
 
+    // Byte swap from RGBA to ARGB
+    for (int i = 0; i < x * y; ++i)
+    {
+        u8 r = pixels[i * 4 + 0];
+        u8 g = pixels[i * 4 + 1];
+        u8 b = pixels[i * 4 + 2];
+        u8 a = pixels[i * 4 + 3];
+        pixels[i * 4 + 0] = a;
+        pixels[i * 4 + 1] = r;
+        pixels[i * 4 + 2] = g;
+        pixels[i * 4 + 3] = b;
+    }
+
     this->surfaces[surfaceIdx] = new PS3Surface;
     this->surfaces[surfaceIdx]->pixels = pixels;
     this->surfaces[surfaceIdx]->w = x;
@@ -2210,7 +2269,6 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
         g_GfxBackend->BindTexture(srcSurface->textureHandle);
     }
 
-    g_GameErrorContext.Log("Calculating UVs and vertex positions...\n");
     u32 textureWidth = BitCeil((u32)srcSurface->w);
     u32 textureHeight = BitCeil((u32)srcSurface->h);
 
@@ -2230,25 +2288,18 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[2].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
     verts[3].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
 
-    g_GameErrorContext.Log("Setting GL states for surface %d...\n", surfaceIdx);
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
-    g_GameErrorContext.Log("VAttr set\n");
 
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*verts), &verts[0].position);
     this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*verts), &verts[0].textureUV);
-    g_GameErrorContext.Log("AttrPtr set\n");
 
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_REPLACE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_REPLACE);
-    g_GameErrorContext.Log("ColorOp set\n");
 
     this->SetDepthMask(false);
     this->SetDepthFunc(DEPTH_FUNC_ALWAYS);
-    g_GameErrorContext.Log("Depth set\n");
 
-    g_GameErrorContext.Log("Calling BDC for %d\n", surfaceIdx);
     this->BackendDrawCall();
-    g_GameErrorContext.Log("BDC for %d finished.\n", surfaceIdx);
 
     this->SetColorOp(COMPONENT_ALPHA, COLOR_OP_MODULATE);
     this->SetColorOp(COMPONENT_RGB, COLOR_OP_MODULATE);

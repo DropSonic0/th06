@@ -220,17 +220,12 @@ struct AnmManager
 
     void BackendDrawCall()
     {
-        g_GameErrorContext.Log("AnmManager::BackendDrawCall started. dirtyFlags: 0x%x\n", this->dirtyFlags);
         if (this->dirtyFlags != 0)
         {
-            g_GameErrorContext.Log("Calling UpdateDirtyStates()...\n");
             this->UpdateDirtyStates();
-            g_GameErrorContext.Log("UpdateDirtyStates finished.\n");
         }
 
-        g_GameErrorContext.Log("Calling g_GfxBackend->Draw(PRIM_TRIANGLE_STRIP, 0, 4)...\n");
         g_GfxBackend->Draw(PRIM_TRIANGLE_STRIP, 0, 4);
-        g_GameErrorContext.Log("g_GfxBackend->Draw finished.\n");
     }
 
     // We need to do checks in these because they're called nearly every ANM draw call and otherwise

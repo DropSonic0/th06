@@ -12,7 +12,6 @@
 
 void ZunViewport::Set() const
 {
-    g_GameErrorContext.Log("ZVP::Set(%d, %d, %d, %d)\n", (int)this->x, (int)this->y, (int)this->width, (int)this->height);
     g_GfxBackend->SetViewport(this->x * WIDTH_RESOLUTION_SCALE + VIEWPORT_OFF_X,
                               (GAME_WINDOW_HEIGHT_REAL - ((this->y + this->height) * HEIGHT_RESOLUTION_SCALE)) -
                                   VIEWPORT_OFF_Y,

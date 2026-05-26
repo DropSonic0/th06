@@ -28,6 +28,14 @@ GfxInterface *g_GfxBackend;
 i32 g_TickCountToEffectiveFramerate;
 f64 g_LastFrameTime;
 
+i32 g_GameWindowWidthReal = GAME_WINDOW_WIDTH;
+i32 g_GameWindowHeightReal = GAME_WINDOW_HEIGHT;
+
+u32 g_ViewportWidth = GAME_WINDOW_WIDTH;
+i32 g_ViewportOffX = 0;
+u32 g_ViewportHeight = GAME_WINDOW_HEIGHT;
+i32 g_ViewportOffY = 0;
+
 #define FRAME_TIME (1000. / 60.)
 
 static const struct
@@ -45,7 +53,6 @@ RenderResult GameWindow::Render()
 {
     static bool firstRender = true;
     if (firstRender) {
-        g_GameErrorContext.Log("GameWindow::Render - first call.\n");
         firstRender = false;
     }
     i32 res;
@@ -192,9 +199,7 @@ void GameWindow::Present()
         g_Supervisor.unk198--;
     }
 
-    g_GameErrorContext.Log("GameWindow::Present calling SwapBuffers...\n");
     g_GfxBackend->SwapBuffers();
-    g_GameErrorContext.Log("GameWindow::Present SwapBuffers finished.\n");
 
     return;
 }
