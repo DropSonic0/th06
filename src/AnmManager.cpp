@@ -24,9 +24,15 @@
 #endif
 #include "graphics/GLFunc.hpp"
 
+#ifdef __PS3__
+static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4] __attribute__((aligned(16)));
+static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4] __attribute__((aligned(16)));
+static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4] __attribute__((aligned(16)));
+#else
 static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4];
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4];
 static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4];
+#endif
 AnmManager *g_AnmManager;
 
 
@@ -567,6 +573,7 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
+    g_GameErrorContext.Log("AnmManager::LoadAnm(idx=%d, path=%s) started.\n", anmIdx, path);
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
 
@@ -577,6 +584,8 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         g_GameErrorContext.Fatal(TH_ERR_ANMMANAGER_SPRITE_CORRUPTED, path);
         return ZUN_ERROR;
     }
+
+    g_GameErrorContext.Log("Anm loaded. numSprites=%d, numScripts=%d, width=%d, height=%d, format=%d\n", (int)anm->numSprites, (int)anm->numScripts, (int)anm->width, (int)anm->height, (int)anm->format);
 
     anm->textureIdx = anmIdx;
 
@@ -611,21 +620,21 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 
     anm->spriteIdxOffset = spriteIdxOffset;
 
-    const u32 *curSpriteOffset = anm->spriteOffsets;
+    const LE<u32> *curSpriteOffset = anm->spriteOffsets;
 
     i32 index;
     const AnmRawSprite *rawSprite;
 
     for (index = 0; index < this->anmFiles[anmIdx]->numSprites; index++, curSpriteOffset++)
     {
-        rawSprite = (AnmRawSprite *)((u8 *)anm + *curSpriteOffset);
+        rawSprite = (AnmRawSprite *)((u8 *)anm + (u32)*curSpriteOffset);
 
         AnmLoadedSprite loadedSprite;
         loadedSprite.sourceFileIndex = this->anmFiles[anmIdx]->textureIdx;
-        loadedSprite.startPixelInclusive.x = rawSprite->offset.x;
-        loadedSprite.startPixelInclusive.y = rawSprite->offset.y;
-        loadedSprite.endPixelInclusive.x = rawSprite->offset.x + rawSprite->size.x;
-        loadedSprite.endPixelInclusive.y = rawSprite->offset.y + rawSprite->size.y;
+        loadedSprite.startPixelInclusive.x = rawSprite->offsetX;
+        loadedSprite.startPixelInclusive.y = rawSprite->offsetY;
+        loadedSprite.endPixelInclusive.x = (f32)rawSprite->offsetX + rawSprite->sizeX;
+        loadedSprite.endPixelInclusive.y = (f32)rawSprite->offsetY + rawSprite->sizeY;
         loadedSprite.textureWidth = (float)anm->width;
         loadedSprite.textureHeight = (float)anm->height;
         this->LoadSprite(rawSprite->id + spriteIdxOffset, &loadedSprite);
@@ -633,8 +642,8 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 
     for (index = 0; index < anm->numScripts; index++, curSpriteOffset += 2)
     {
-        this->scripts[curSpriteOffset[0] + spriteIdxOffset] = (AnmRawInstr *)((u8 *)anm + curSpriteOffset[1]);
-        this->spriteIndices[curSpriteOffset[0] + spriteIdxOffset] = spriteIdxOffset;
+        this->scripts[(u32)curSpriteOffset[0] + spriteIdxOffset] = (AnmRawInstr *)((u8 *)anm + (u32)curSpriteOffset[1]);
+        this->spriteIndices[(u32)curSpriteOffset[0] + spriteIdxOffset] = spriteIdxOffset;
     }
 
     this->anmFilesSpriteIndexOffsets[anmIdx] = spriteIdxOffset;
@@ -646,22 +655,22 @@ void AnmManager::ReleaseAnm(i32 anmIdx)
 {
     if (this->anmFiles[anmIdx] != NULL)
     {
-        const i32 *spriteIdx;
+        const LE<i32> *spriteIdx;
         i32 i;
         i32 spriteIdxOffset = this->anmFilesSpriteIndexOffsets[anmIdx];
-        const u32 *byteOffset = this->anmFiles[anmIdx]->spriteOffsets;
-        for (i = 0; i < this->anmFiles[anmIdx]->numSprites; i++, byteOffset++)
+        const LE<u32> *byteOffset = this->anmFiles[anmIdx]->spriteOffsets;
+        for (i = 0; i < (i32)this->anmFiles[anmIdx]->numSprites; i++, byteOffset++)
         {
-            spriteIdx = (i32 *)((u8 *)this->anmFiles[anmIdx] + *byteOffset);
-            memset(&this->sprites[*spriteIdx + spriteIdxOffset], 0,
-                   sizeof(this->sprites[*spriteIdx + spriteIdxOffset]));
-            this->sprites[*spriteIdx + spriteIdxOffset].sourceFileIndex = -1;
+            spriteIdx = (LE<i32> *)((u8 *)this->anmFiles[anmIdx] + (u32)*byteOffset);
+            memset(&this->sprites[(i32)*spriteIdx + spriteIdxOffset], 0,
+                   sizeof(this->sprites[(i32)*spriteIdx + spriteIdxOffset]));
+            this->sprites[(i32)*spriteIdx + spriteIdxOffset].sourceFileIndex = -1;
         }
 
-        for (i = 0; i < this->anmFiles[anmIdx]->numScripts; i++, byteOffset += 2)
+        for (i = 0; i < (i32)this->anmFiles[anmIdx]->numScripts; i++, byteOffset += 2)
         {
-            this->scripts[*byteOffset + spriteIdxOffset] = NULL;
-            this->spriteIndices[*byteOffset + spriteIdxOffset] = 0;
+            this->scripts[(u32)byteOffset[0] + spriteIdxOffset] = NULL;
+            this->spriteIndices[(u32)byteOffset[0] + spriteIdxOffset] = 0;
         }
         this->anmFilesSpriteIndexOffsets[anmIdx] = 0;
         const AnmRawEntry *entry = this->anmFiles[anmIdx];
@@ -1514,10 +1523,10 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
     return ZUN_SUCCESS;
 }
 
-#define AnmF32Arg(index) (*(f32 *)&curInstr->args[index])
-#define AnmI32Arg(index) (*(i32 *)&curInstr->args[index])
-#define AnmU32Arg(index) (*(u32 *)&curInstr->args[index])
-#define AnmI16Arg(index) (*(i16 *)&curInstr->args[index])
+#define AnmF32Arg(index) ((float)(*(LE<float>*)&curInstr->args[index]))
+#define AnmI32Arg(index) ((i32)(*(LE<i32>*)&curInstr->args[index]))
+#define AnmU32Arg(index) ((u32)(*(LE<u32>*)&curInstr->args[index]))
+#define AnmI16Arg(index) ((i16)(*(LE<i16>*)&curInstr->args[index]))
 
 i32 AnmManager::ExecuteScript(AnmVm *vm)
 {
@@ -2205,7 +2214,11 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     u32 textureWidth = BitCeil((u32)srcSurface->w);
     u32 textureHeight = BitCeil((u32)srcSurface->h);
 
+#ifdef __PS3__
+    static VertexTex1DiffuseXyz verts[4] __attribute__((aligned(16)));
+#else
     static VertexTex1DiffuseXyz verts[4];
+#endif
 
     verts[0].position = ZunVec3((f32)dstX, (f32)dstY, 0.0f);
     verts[1].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY, 0.0f);

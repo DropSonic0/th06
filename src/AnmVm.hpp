@@ -56,12 +56,14 @@ struct AnmLoadedSprite
 #define AnmOpcode_ScaleTime 30
 #define AnmOpcode_SetZWriteDisable 31
 
+#include "ZunEndian.hpp"
+
 struct AnmRawInstr
 {
-    i16 time;
+    LE<i16> time;
     u8 opcode;
     u8 argsCount;
-    u32 args[10];
+    u32 args[10]; // args are handled specially in ExecuteScript
 };
 
 enum AnmVmFlagsEnum

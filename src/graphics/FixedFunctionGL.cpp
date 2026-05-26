@@ -66,7 +66,7 @@ GfxInterface *FixedFunctionGL::Init()
     PSGLinitOptions options;
     options.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
     options.maxSPUs = 1;
-    options.initializeSPUs = false;
+    options.initializeSPUs = true;
     options.persistentMemorySize = 0;
     options.transientMemorySize = 0;
     options.errorConsole = 0;
@@ -154,13 +154,9 @@ GfxInterface *FixedFunctionGL::Init()
 #endif
     g_GameErrorContext.Log("Init err 5: 0x%x\n", (int)g_glFuncTable.glGetError());
 
-#ifndef __PS3__
     g_GameErrorContext.Log("Setting GL_TEXTURE_ENV_MODE to GL_MODULATE...\n");
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     g_GameErrorContext.Log("Init err 6 (MODULATE): 0x%x\n", (int)g_glFuncTable.glGetError());
-#else
-    g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-#endif
     g_GameErrorContext.Log("Init trace end\n");
 
     // Some basic state to ensure VP can be read
@@ -524,19 +520,11 @@ void FixedFunctionGL::Draw(PrimitiveType type, i32 start, i32 count)
     }
 
     g_GameErrorContext.Log("GL::Draw(%d, %d, %d) pre-err: 0x%x\n", (int)type, start, count, (int)g_glFuncTable.glGetError());
-#ifdef __PS3__
-    g_GameErrorContext.Log("GL::Draw PS3: flushing before draw\n");
-    g_glFuncTable.glFlush();
-    g_glFuncTable.glFinish();
-    g_GameErrorContext.Log("GL::Draw PS3: about to call glDrawArrays\n");
-#endif
     g_glFuncTable.glDrawArrays(glPrim, start, count);
 #ifdef __PS3__
-    g_GameErrorContext.Log("GL::Draw PS3: glDrawArrays finished. calling glFlush\n");
+    g_GameErrorContext.Log("GL::Draw PS3: glDrawArrays finished (returned). calling glFlush\n");
     g_glFuncTable.glFlush();
-    g_GameErrorContext.Log("GL::Draw PS3: glFlush finished. calling glFinish\n");
-    g_glFuncTable.glFinish();
-    g_GameErrorContext.Log("GL::Draw PS3: glFinish finished.\n");
+    g_GameErrorContext.Log("GL::Draw PS3: glFlush finished.\n");
 #else
     g_GameErrorContext.Log("GL::Draw glDrawArrays finished. flushing...\n");
     g_glFuncTable.glFlush();

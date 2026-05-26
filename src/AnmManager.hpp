@@ -127,11 +127,15 @@ enum DirtyRenderStateBitShifts
     DIRTY_TEXTURE_MATRIX = 9,
 };
 
+#include "ZunEndian.hpp"
+
 struct AnmRawSprite
 {
-    u32 id;
-    ZunVec2 offset;
-    ZunVec2 size;
+    LE<u32> id;
+    LE<f32> offsetX;
+    LE<f32> offsetY;
+    LE<f32> sizeX;
+    LE<f32> sizeY;
 };
 
 struct AnmRawScript
@@ -145,24 +149,24 @@ struct AnmRawScript
 
 struct AnmRawEntry
 {
-    i32 numSprites;
-    i32 numScripts;
-    u32 textureIdx;
-    i32 width;
-    i32 height;
-    u32 format;
-    u32 colorKey;
-    u32 nameOffset;
-    u32 spriteIdxOffset;
-    u32 alphaNameOffset;
-    u32 version;
-    u32 unk1;
-    u32 textureOffset;
-    u32 hasData;
-    u32 nextOffset;
-    u32 unk2;
-    u32 spriteOffsets[10];
-    AnmRawScript scripts[10];
+    LE<i32> numSprites;
+    LE<i32> numScripts;
+    LE<u32> textureIdx;
+    LE<i32> width;
+    LE<i32> height;
+    LE<u32> format;
+    LE<u32> colorKey;
+    LE<u32> nameOffset;
+    LE<u32> spriteIdxOffset;
+    LE<u32> alphaNameOffset;
+    LE<u32> version;
+    LE<u32> unk1;
+    LE<u32> textureOffset;
+    LE<u32> hasData;
+    LE<u32> nextOffset;
+    LE<u32> unk2;
+    LE<u32> spriteOffsets[10];
+    AnmRawScript scripts[10]; // scripts contains a pointer, but it's only used at runtime
 };
 
 struct RenderVertexInfo
@@ -184,7 +188,11 @@ struct AnmManager
     u32 spritesToDraw;
     VertexTex1Xyzrhw *vertexBufferStartPtr;
     VertexTex1Xyzrhw *vertexBufferEndPtr;
+#ifdef __PS3__
+    VertexTex1Xyzrhw vertexBuffer[0x18000] __attribute__((aligned(16)));
+#else
     VertexTex1Xyzrhw vertexBuffer[0x18000];
+#endif
 
     u32 renderStateChangesThisFrame;
     u32 flushesThisFrame;
@@ -488,7 +496,11 @@ struct AnmManager
     ProjectionMode projectionMode;
     const AnmLoadedSprite *currentSprite;
     //    IDirect3DVertexBuffer8 *vertexBuffer;
+#ifdef __PS3__
+    RenderVertexInfo vertexBufferContents[4] __attribute__((aligned(16)));
+#else
     RenderVertexInfo vertexBufferContents[4];
+#endif
     i32 screenshotTextureId;
     i32 screenshotLeft;
     i32 screenshotTop;

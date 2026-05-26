@@ -95,7 +95,7 @@ inline u16 RotateLeft16(u16 n, u8 s)
 #define ZUN_FMODF(x, y) (std::fmod((f32)(x), (f32)(y)))
 #define ZUN_ATAN2F(x, y) (std::atan2((f32)(x), (f32)(y)))
 #define ZUN_POWF(x, y) (std::pow((f32)(x), (f32)(y)))
-#define ZUN_RINTF(n) (std::rintf((f32)(x)))
+#define ZUN_RINTF(n) (std::rintf((f32)(n)))
 
 // sizeof checks kept in because technically, the standard does allow compilers to add more padding than is required
 

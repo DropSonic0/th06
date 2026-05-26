@@ -47,6 +47,7 @@ TextHelper::~TextHelper()
 // Extended to initialize all globals for text helper
 ZunResult TextHelper::CreateTextBuffer()
 {
+    g_GameErrorContext.Log("TextHelper::CreateTextBuffer started.\n");
 #ifndef __PS3__
     TTF_Init();
 
@@ -66,11 +67,14 @@ ZunResult TextHelper::CreateTextBuffer()
 
     SDL_SetSurfaceBlendMode(g_TextBufferSurface, SDL_BLENDMODE_NONE);
 #else
-    if (stbtt_InitFont(&g_Font, msgothic_ttc, 0) == 0)
+    int offset = stbtt_GetFontOffsetForIndex(msgothic_ttc, 0);
+    g_GameErrorContext.Log("stbtt_GetFontOffsetForIndex returned %d\n", offset);
+    if (offset < 0 || stbtt_InitFont(&g_Font, msgothic_ttc, offset) == 0)
     {
         g_GameErrorContext.Fatal(TH_ERR_FONTS_NOT_FOUND);
         return ZUN_ERROR;
     }
+    g_GameErrorContext.Log("stbtt_InitFont finished.\n");
 
     g_TextBufferSurface = std::malloc(GAME_WINDOW_WIDTH * TEXT_BUFFER_HEIGHT * 4);
 #endif
