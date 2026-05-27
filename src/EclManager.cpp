@@ -59,7 +59,7 @@ ZunResult EclManager::Load(const char *eclPath)
 
 void EclManager::Unload()
 {
-    free((void *)this->eclFile);
+	free((void *)this->eclFile);
     this->eclFile = NULL;
 
     free(this->subTable);
@@ -94,6 +94,10 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
     ZunVec3 local_98;
     EclRawInstrEnemyCreateArgs local_b0;
     Enemy *local_b4;
+	EclVarId tmpVarId1;
+    EclVarId tmpVarId2;
+    i32 tmpi32;
+    ZunVec3 tmpVec3;
 
     for (;;)
     {
@@ -117,10 +121,9 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
             case ECL_OPCODE_UNIMP:
                 return ZUN_ERROR;
             case ECL_OPCODE_JUMPDEC:
-                local_14 = (i32)args->jump.var;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->jump.var, NULL);
                 local_14--;
-                EnemyEclInstr::SetVar(enemy, (EclVarId)args->jump.var, &local_14);
+                EnemyEclInstr::SetVar(enemy, args->jump.var, &local_14);
                 if (local_14 <= 0)
                     break;
             case ECL_OPCODE_JUMP:
@@ -130,122 +133,100 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 goto YOLO;
             case ECL_OPCODE_SETINT:
             case ECL_OPCODE_SETFLOAT:
-                local_14 = (i32)args->alu.arg1.i32Param;
-                EnemyEclInstr::SetVar(enemy, (EclVarId)instruction->args.alu.res, (const void *)&local_14);
+                tmpi32 = args->alu.arg1.i32Param;
+                EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &tmpi32);
                 break;
             case ECL_OPCODE_MATHNORMANGLE:
-                local_b8 = (i32)instruction->args.alu.res;
-                local_18 = *(f32 *)EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
+                tmpVarId1 = instruction->args.alu.res;
+                local_18 = *(f32 *)EnemyEclInstr::GetVar(enemy, &tmpVarId1, NULL);
                 local_18 = utils::AddNormalizeAngle(local_18, 0.0f);
                 EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &local_18);
                 break;
             case ECL_OPCODE_SETINTRAND:
-                local_14 = (i32)args->alu.arg1.id;
-                local_24 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                local_24 = EnemyEclInstr::GetVarValue(enemy, args->alu.arg1.id, NULL);
                 local_14 = g_Rng.GetRandomU32InRange(local_24);
                 EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &local_14);
                 break;
             case ECL_OPCODE_SETINTRANDMIN:
-                local_14 = (i32)args->alu.arg1.id;
-                local_28 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
-                local_14 = (i32)args->alu.arg2.id;
-                local_2c = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                local_28 = EnemyEclInstr::GetVarValue(enemy, args->alu.arg1.id, NULL);
+                local_2c = EnemyEclInstr::GetVarValue(enemy, args->alu.arg2.id, NULL);
                 local_14 = g_Rng.GetRandomU32InRange(local_28);
                 local_14 += local_2c;
                 EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &local_14);
                 break;
             case ECL_OPCODE_SETFLOATRAND:
-                local_18 = (f32)args->alu.arg1.f32Param;
-                local_30 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                local_30 = EnemyEclInstr::GetVarFloatValue(enemy, args->alu.arg1.f32Param, NULL);
                 local_18 = g_Rng.GetRandomF32InRange(local_30);
                 EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &local_18);
                 break;
             case ECL_OPCODE_SETFLOATRANDMIN:
-                local_18 = (f32)args->alu.arg1.f32Param;
-                local_34 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
-                local_18 = (f32)args->alu.arg2.f32Param;
-                local_38 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                local_34 = EnemyEclInstr::GetVarFloatValue(enemy, args->alu.arg1.f32Param, NULL);
+                local_38 = EnemyEclInstr::GetVarFloatValue(enemy, args->alu.arg2.f32Param, NULL);
                 local_18 = g_Rng.GetRandomF32InRange(local_34);
                 local_18 += local_38;
                 EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &local_18);
                 break;
             case ECL_OPCODE_SETVARSELFX:
-                local_18 = enemy->position.x;
-                EnemyEclInstr::SetVar(enemy, (EclVarId)instruction->args.alu.res, (const void *)&local_18);
+                EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &enemy->position.x);
                 break;
             case ECL_OPCODE_SETVARSELFY:
-                local_18 = enemy->position.y;
-                EnemyEclInstr::SetVar(enemy, (EclVarId)instruction->args.alu.res, (const void *)&local_18);
+                EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &enemy->position.y);
                 break;
             case ECL_OPCODE_SETVARSELFZ:
-                local_18 = enemy->position.z;
-                EnemyEclInstr::SetVar(enemy, (EclVarId)instruction->args.alu.res, (const void *)&local_18);
+                EnemyEclInstr::SetVar(enemy, instruction->args.alu.res, &enemy->position.z);
                 break;
             case ECL_OPCODE_MATHINTADD:
             case ECL_OPCODE_MATHFLOATADD:
-                local_b8 = (i32)args->alu.arg1.id;
-                local_c0 = (i32)args->alu.arg2.id;
-                EnemyEclInstr::MathAdd(enemy, (EclVarId)instruction->args.alu.res, (EclVarId *)&local_b8,
-                                       (EclVarId *)&local_c0);
+                tmpVarId1 = args->alu.arg1.id;
+                tmpVarId2 = args->alu.arg2.id;
+                EnemyEclInstr::MathAdd(enemy, instruction->args.alu.res, &tmpVarId1, &tmpVarId2);
                 break;
             case ECL_OPCODE_MATHINC:
-                local_b8 = (i32)instruction->args.alu.res;
-                local_3c = EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
+                tmpVarId1 = instruction->args.alu.res;
+                local_3c = EnemyEclInstr::GetVar(enemy, &tmpVarId1, NULL);
                 *local_3c += 1;
                 break;
             case ECL_OPCODE_MATHDEC:
-                local_b8 = (i32)instruction->args.alu.res;
-                local_40 = EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
+                tmpVarId1 = instruction->args.alu.res;
+                local_40 = EnemyEclInstr::GetVar(enemy, &tmpVarId1, NULL);
                 *local_40 -= 1;
                 break;
             case ECL_OPCODE_MATHINTSUB:
             case ECL_OPCODE_MATHFLOATSUB:
-                local_b8 = (i32)args->alu.arg1.id;
-                local_c0 = (i32)args->alu.arg2.id;
-                EnemyEclInstr::MathSub(enemy, (EclVarId)instruction->args.alu.res, (EclVarId *)&local_b8,
-                                       (EclVarId *)&local_c0);
+                tmpVarId1 = args->alu.arg1.id;
+                tmpVarId2 = args->alu.arg2.id;
+                EnemyEclInstr::MathSub(enemy, instruction->args.alu.res, &tmpVarId1, &tmpVarId2);
                 break;
             case ECL_OPCODE_MATHINTMUL:
             case ECL_OPCODE_MATHFLOATMUL:
-                local_b8 = (i32)args->alu.arg1.id;
-                local_c0 = (i32)args->alu.arg2.id;
-                EnemyEclInstr::MathMul(enemy, (EclVarId)instruction->args.alu.res, (EclVarId *)&local_b8,
-                                       (EclVarId *)&local_c0);
+                tmpVarId1 = args->alu.arg1.id;
+                tmpVarId2 = args->alu.arg2.id;
+                EnemyEclInstr::MathMul(enemy, instruction->args.alu.res, &tmpVarId1, &tmpVarId2);
                 break;
             case ECL_OPCODE_MATHINTDIV:
             case ECL_OPCODE_MATHFLOATDIV:
-                local_b8 = (i32)args->alu.arg1.id;
-                local_c0 = (i32)args->alu.arg2.id;
-                EnemyEclInstr::MathDiv(enemy, (EclVarId)instruction->args.alu.res, (EclVarId *)&local_b8,
-                                       (EclVarId *)&local_c0);
+                tmpVarId1 = args->alu.arg1.id;
+                tmpVarId2 = args->alu.arg2.id;
+                EnemyEclInstr::MathDiv(enemy, instruction->args.alu.res, &tmpVarId1, &tmpVarId2);
                 break;
             case ECL_OPCODE_MATHINTMOD:
             case ECL_OPCODE_MATHFLOATMOD:
-                local_b8 = (i32)args->alu.arg1.id;
-                local_c0 = (i32)args->alu.arg2.id;
-                EnemyEclInstr::MathMod(enemy, (EclVarId)instruction->args.alu.res, (EclVarId *)&local_b8,
-                                       (EclVarId *)&local_c0);
+                tmpVarId1 = args->alu.arg1.id;
+                tmpVarId2 = args->alu.arg2.id;
+                EnemyEclInstr::MathMod(enemy, instruction->args.alu.res, &tmpVarId1, &tmpVarId2);
                 break;
             case ECL_OPCODE_MATHATAN2:
-                local_18 = (f32)args->alu.arg1.f32Param;
-                local_30 = (f32)args->alu.arg2.f32Param;
-                local_34 = (f32)args->alu.arg3.f32Param;
-                local_38 = (f32)args->alu.arg4.f32Param;
-                EnemyEclInstr::MathAtan2(enemy, (EclVarId)instruction->args.alu.res, &local_18, &local_30, &local_34,
-                                         &local_38);
+                EnemyEclInstr::MathAtan2(enemy, instruction->args.alu.res, args->alu.arg1.f32Param,
+                                         args->alu.arg2.f32Param, args->alu.arg3.f32Param, args->alu.arg4.f32Param);
                 break;
             case ECL_OPCODE_CMPINT:
-                local_b8 = (i32)instruction->args.cmp.lhs.id;
-                local_48 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                local_b8 = (i32)instruction->args.cmp.rhs.id;
-                local_44 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
+                local_48 = EnemyEclInstr::GetVarValue(enemy, instruction->args.cmp.lhs.id, NULL);
+                local_44 = EnemyEclInstr::GetVarValue(enemy, instruction->args.cmp.rhs.id, NULL);
                 enemy->currentContext.compareRegister = local_48 == local_44 ? 0 : local_48 < local_44 ? -1 : 1;
                 break;
             case ECL_OPCODE_CMPFLOAT:
-                local_bc = (f32)instruction->args.cmp.lhs.f32Param;
-                local_4c = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)instruction->args.cmp.rhs.f32Param;
-                local_50 = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
+                local_4c = EnemyEclInstr::GetVarFloatValue(enemy, instruction->args.cmp.lhs.f32Param, NULL);
+                local_50 = EnemyEclInstr::GetVarFloatValue(enemy, instruction->args.cmp.rhs.f32Param, NULL);
                 enemy->currentContext.compareRegister = local_4c == local_50 ? 0 : (local_4c < local_50 ? -1 : 1);
                 break;
             case ECL_OPCODE_JUMPLSS:
@@ -274,20 +255,20 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 break;
             case ECL_OPCODE_CALL:
             HANDLE_CALL:
-                local_14 = (i32)instruction->args.call.eclSub;
+                local_14 = instruction->args.call.eclSub;
                 enemy->currentContext.currentInstr = (EclRawInstr *)((u8 *)instruction + instruction->offsetToNext);
                 if (enemy->flags.unk14 == 0)
                 {
                     memcpy(&enemy->savedContextStack[enemy->stackDepth], &enemy->currentContext,
                            sizeof(EnemyEclContext));
                 }
-                g_EclManager.CallEclSub(&enemy->currentContext, (i16)local_14);
+                g_EclManager.CallEclSub(&enemy->currentContext, (u16)local_14);
                 if (enemy->flags.unk14 == 0 && enemy->stackDepth < 7)
                 {
                     enemy->stackDepth++;
                 }
-                enemy->currentContext.var0 = (i32)instruction->args.call.var0;
-                enemy->currentContext.float0 = (f32)instruction->args.call.float0;
+                enemy->currentContext.var0 = instruction->args.call.var0;
+                enemy->currentContext.float0 = instruction->args.call.float0;
                 continue;
             case ECL_OPCODE_RET:
                 if (enemy->flags.unk14)
@@ -298,107 +279,86 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 memcpy(&enemy->currentContext, &enemy->savedContextStack[enemy->stackDepth], sizeof(EnemyEclContext));
                 continue;
             case ECL_OPCODE_CALLLSS:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 < (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 < args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_CALLLEQ:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 <= (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 <= args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_CALLEQU:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 == (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 == args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_CALLGRE:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 > (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 > args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_CALLGEQ:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 >= (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 >= args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_CALLNEQ:
-                local_b8 = (i32)args->call.cmpLhs;
-                local_14 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_b8, NULL);
-                if (local_14 != (i32)args->call.cmpRhs)
+                local_14 = EnemyEclInstr::GetVarValue(enemy, args->call.cmpLhs, NULL);
+                if (local_14 != args->call.cmpRhs)
                     goto HANDLE_CALL;
                 break;
             case ECL_OPCODE_ANMSETMAIN:
                 g_AnmManager->SetAndExecuteScriptIdx(&enemy->primaryVm,
-                                                     (i32)instruction->args.anmSetMain.scriptIdx +
-                                                         ANM_SCRIPT_ENEMY_START);
+                                                     instruction->args.anmSetMain.scriptIdx + ANM_SCRIPT_ENEMY_START);
                 break;
             case ECL_OPCODE_ANMSETSLOT:
-                if (ARRAY_SIZE_SIGNED(enemy->vms) <= (i32)instruction->args.anmSetSlot.vmIdx)
+                if (ARRAY_SIZE_SIGNED(enemy->vms) <= instruction->args.anmSetSlot.vmIdx)
                 {
                     utils::DebugPrint2("error : sub anim overflow\n");
                 }
-                g_AnmManager->SetAndExecuteScriptIdx(&enemy->vms[(i32)instruction->args.anmSetSlot.vmIdx],
-                                                     (i32)args->anmSetSlot.scriptIdx + ANM_SCRIPT_ENEMY_START);
+                g_AnmManager->SetAndExecuteScriptIdx(&enemy->vms[instruction->args.anmSetSlot.vmIdx],
+                                                     args->anmSetSlot.scriptIdx + ANM_SCRIPT_ENEMY_START);
                 break;
             case ECL_OPCODE_MOVEPOSITION:
-                enemy->position.x = instruction->args.move.pos.x;
-                enemy->position.y = instruction->args.move.pos.y;
-                enemy->position.z = instruction->args.move.pos.z;
-                enemy->position.x = *EnemyEclInstr::GetVarFloat(enemy, &enemy->position.x, NULL);
-                enemy->position.y = *EnemyEclInstr::GetVarFloat(enemy, &enemy->position.y, NULL);
-                enemy->position.z = *EnemyEclInstr::GetVarFloat(enemy, &enemy->position.z, NULL);
+                enemy->position = instruction->args.move.pos;
+                enemy->position.x = EnemyEclInstr::GetVarFloatValue(enemy, enemy->position.x, NULL);
+                enemy->position.y = EnemyEclInstr::GetVarFloatValue(enemy, enemy->position.y, NULL);
+                enemy->position.z = EnemyEclInstr::GetVarFloatValue(enemy, enemy->position.z, NULL);
                 enemy->ClampPos();
                 break;
             case ECL_OPCODE_MOVEAXISVELOCITY:
-                enemy->axisSpeed.x = instruction->args.move.pos.x;
-                enemy->axisSpeed.y = instruction->args.move.pos.y;
-                enemy->axisSpeed.z = instruction->args.move.pos.z;
-                enemy->axisSpeed.x = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.x, NULL);
-                enemy->axisSpeed.y = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.y, NULL);
-                enemy->axisSpeed.z = *EnemyEclInstr::GetVarFloat(enemy, &enemy->axisSpeed.z, NULL);
+                enemy->axisSpeed = instruction->args.move.pos;
+                enemy->axisSpeed.x = EnemyEclInstr::GetVarFloatValue(enemy, enemy->axisSpeed.x, NULL);
+                enemy->axisSpeed.y = EnemyEclInstr::GetVarFloatValue(enemy, enemy->axisSpeed.y, NULL);
+                enemy->axisSpeed.z = EnemyEclInstr::GetVarFloatValue(enemy, enemy->axisSpeed.z, NULL);
                 enemy->flags.unk1 = 0;
                 break;
             case ECL_OPCODE_MOVEVELOCITY:
-                local_8.x = instruction->args.move.pos.x;
-                local_8.y = instruction->args.move.pos.y;
-                local_8.z = instruction->args.move.pos.z;
-                enemy->angle = *EnemyEclInstr::GetVarFloat(enemy, &local_8.x, NULL);
-                enemy->speed = *EnemyEclInstr::GetVarFloat(enemy, &local_8.y, NULL);
+                local_8 = instruction->args.move.pos;
+                enemy->angle = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
+                enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.y, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEANGULARVELOCITY:
-                local_8.x = instruction->args.move.pos.x;
-                local_8.y = instruction->args.move.pos.y;
-                local_8.z = instruction->args.move.pos.z;
-                enemy->angularVelocity = *EnemyEclInstr::GetVarFloat(enemy, &local_8.x, NULL);
+                local_8 = instruction->args.move.pos;
+                enemy->angularVelocity = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEATPLAYER:
-                local_8.x = instruction->args.move.pos.x;
-                local_8.y = instruction->args.move.pos.y;
-                local_8.z = instruction->args.move.pos.z;
+                local_8 = instruction->args.move.pos;
                 enemy->angle = g_Player.AngleToPlayer(&enemy->position) + local_8.x;
-                enemy->speed = *EnemyEclInstr::GetVarFloat(enemy, &local_8.y, NULL);
+                enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.y, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVESPEED:
-                local_8.x = instruction->args.move.pos.x;
-                local_8.y = instruction->args.move.pos.y;
-                local_8.z = instruction->args.move.pos.z;
-                enemy->speed = *EnemyEclInstr::GetVarFloat(enemy, &local_8.x, NULL);
+                local_8 = instruction->args.move.pos;
+                enemy->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_MOVEACCELERATION:
-                local_8.x = instruction->args.move.pos.x;
-                local_8.y = instruction->args.move.pos.y;
-                local_8.z = instruction->args.move.pos.z;
-                enemy->acceleration = *EnemyEclInstr::GetVarFloat(enemy, &local_8.x, NULL);
+                local_8 = instruction->args.move.pos;
+                enemy->acceleration = EnemyEclInstr::GetVarFloatValue(enemy, local_8.x, NULL);
                 enemy->flags.unk1 = 1;
                 break;
             case ECL_OPCODE_BULLETFANAIMED:
@@ -412,32 +372,25 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
             case ECL_OPCODE_BULLETRANDOM:
                 local_54 = &instruction->args.bullet;
                 local_58 = &enemy->bulletProps;
-                local_58->sprite = (i16)local_54->sprite;
+                local_58->sprite = local_54->sprite;
                 local_58->aimMode = instruction->opCode - ECL_OPCODE_BULLETFANAIMED;
-
-                local_14 = (i32)local_54->count1;
-                local_58->count1 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                local_58->count1 = EnemyEclInstr::GetVarValue(enemy, local_54->count1, NULL);
                 local_58->count1 += enemy->BulletRankAmount1(g_GameManager.rank);
                 if (local_58->count1 <= 0)
                 {
                     local_58->count1 = 1;
                 }
 
-                local_14 = (i32)local_54->count2;
-                local_58->count2 = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                local_58->count2 = EnemyEclInstr::GetVarValue(enemy, local_54->count2, NULL);
                 local_58->count2 += enemy->BulletRankAmount2(g_GameManager.rank);
                 if (local_58->count2 <= 0)
                 {
                     local_58->count2 = 1;
                 }
                 local_58->position = enemy->position + enemy->shootOffset;
-
-                local_18 = (f32)local_54->angle1;
-                local_58->angle1 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                local_58->angle1 = EnemyEclInstr::GetVarFloatValue(enemy, local_54->angle1, NULL);
                 local_58->angle1 = utils::AddNormalizeAngle(local_58->angle1, 0.0f);
-
-                local_18 = (f32)local_54->speed1;
-                local_58->speed1 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                local_58->speed1 = EnemyEclInstr::GetVarFloatValue(enemy, local_54->speed1, NULL);
                 if (local_58->speed1 != 0.0f)
                 {
                     local_58->speed1 += enemy->BulletRankSpeed(g_GameManager.rank);
@@ -446,12 +399,8 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                         local_58->speed1 = 0.3;
                     }
                 }
-
-                local_18 = (f32)local_54->angle2;
-                local_58->angle2 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
-
-                local_18 = (f32)local_54->speed2;
-                local_58->speed2 = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                local_58->angle2 = EnemyEclInstr::GetVarFloatValue(enemy, local_54->angle2, NULL);
+                local_58->speed2 = EnemyEclInstr::GetVarFloatValue(enemy, local_54->speed2, NULL);
                 local_58->speed2 += enemy->BulletRankSpeed(g_GameManager.rank) / 2.0f;
                 if (local_58->speed2 < 0.3f)
                 {
@@ -468,23 +417,18 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_BULLETEFFECTS:
-                local_14 = (i32)args->bulletEffects.ivar1;
-                enemy->bulletProps.exInts[0] = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
-                local_14 = (i32)args->bulletEffects.ivar2;
-                enemy->bulletProps.exInts[1] = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
-                local_14 = (i32)args->bulletEffects.ivar3;
-                enemy->bulletProps.exInts[2] = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
-                local_14 = (i32)args->bulletEffects.ivar4;
-                enemy->bulletProps.exInts[3] = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
-
-                local_18 = (f32)args->bulletEffects.fvar1;
-                enemy->bulletProps.exFloats[0] = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
-                local_18 = (f32)args->bulletEffects.fvar2;
-                enemy->bulletProps.exFloats[1] = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
-                local_18 = (f32)args->bulletEffects.fvar3;
-                enemy->bulletProps.exFloats[2] = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
-                local_18 = (f32)args->bulletEffects.fvar4;
-                enemy->bulletProps.exFloats[3] = *EnemyEclInstr::GetVarFloat(enemy, &local_18, NULL);
+                enemy->bulletProps.exInts[0] = EnemyEclInstr::GetVarValue(enemy, args->bulletEffects.ivar1, NULL);
+                enemy->bulletProps.exInts[1] = EnemyEclInstr::GetVarValue(enemy, args->bulletEffects.ivar2, NULL);
+                enemy->bulletProps.exInts[2] = EnemyEclInstr::GetVarValue(enemy, args->bulletEffects.ivar3, NULL);
+                enemy->bulletProps.exInts[3] = EnemyEclInstr::GetVarValue(enemy, args->bulletEffects.ivar4, NULL);
+                enemy->bulletProps.exFloats[0] =
+                    EnemyEclInstr::GetVarFloatValue(enemy, args->bulletEffects.fvar1, NULL);
+                enemy->bulletProps.exFloats[1] =
+                    EnemyEclInstr::GetVarFloatValue(enemy, args->bulletEffects.fvar2, NULL);
+                enemy->bulletProps.exFloats[2] =
+                    EnemyEclInstr::GetVarFloatValue(enemy, args->bulletEffects.fvar3, NULL);
+                enemy->bulletProps.exFloats[3] =
+                    EnemyEclInstr::GetVarFloatValue(enemy, args->bulletEffects.fvar4, NULL);
                 break;
             case ECL_OPCODE_ANMSETDEATH:
                 local_5c = &instruction->args.anmSetDeath;
@@ -516,37 +460,29 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 g_BulletManager.SpawnBulletPattern(&enemy->bulletProps);
                 break;
             case ECL_OPCODE_SHOOTOFFSET:
-                local_bc = (f32)args->move.pos.x;
-                enemy->shootOffset.x = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)args->move.pos.y;
-                enemy->shootOffset.y = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)args->move.pos.z;
-                enemy->shootOffset.z = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
+                enemy->shootOffset.x = EnemyEclInstr::GetVarFloatValue(enemy, args->move.pos.x, NULL);
+                enemy->shootOffset.y = EnemyEclInstr::GetVarFloatValue(enemy, args->move.pos.y, NULL);
+                enemy->shootOffset.z = EnemyEclInstr::GetVarFloatValue(enemy, args->move.pos.z, NULL);
                 break;
             case ECL_OPCODE_LASERCREATE:
             case ECL_OPCODE_LASERCREATEAIMED:
                 local_64 = &instruction->args.laser;
                 local_60 = &enemy->laserProps;
                 local_60->position = enemy->position + enemy->shootOffset;
-                local_60->sprite = (i16)local_64->sprite;
-                local_60->spriteOffset = (i16)local_64->color;
-                local_bc = (f32)local_64->angle;
-                local_60->angle = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)local_64->speed;
-                local_60->speed = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)local_64->startOffset;
-                local_60->startOffset = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)local_64->endOffset;
-                local_60->endOffset = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)local_64->startLength;
-                local_60->startLength = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_60->width = (f32)local_64->width;
-                local_60->startTime = (i32)local_64->startTime;
-                local_60->duration = (i32)local_64->duration;
-                local_60->stopTime = (i32)local_64->stopTime;
-                local_60->grazeDelay = (i32)local_64->grazeDelay;
-                local_60->grazeDistance = (i32)local_64->grazeDistance;
-                local_60->flags = (u32)local_64->flags;
+                local_60->sprite = local_64->sprite;
+                local_60->spriteOffset = local_64->color;
+                local_60->angle = EnemyEclInstr::GetVarFloatValue(enemy, local_64->angle, NULL);
+                local_60->speed = EnemyEclInstr::GetVarFloatValue(enemy, local_64->speed, NULL);
+                local_60->startOffset = EnemyEclInstr::GetVarFloatValue(enemy, local_64->startOffset, NULL);
+                local_60->endOffset = EnemyEclInstr::GetVarFloatValue(enemy, local_64->endOffset, NULL);
+                local_60->startLength = EnemyEclInstr::GetVarFloatValue(enemy, local_64->startLength, NULL);
+                local_60->width = local_64->width;
+                local_60->startTime = local_64->startTime;
+                local_60->duration = local_64->duration;
+                local_60->stopTime = local_64->stopTime;
+                local_60->grazeDelay = local_64->grazeDelay;
+                local_60->grazeDistance = local_64->grazeDistance;
+                local_60->flags = local_64->flags;
                 if (instruction->opCode == ECL_OPCODE_LASERCREATEAIMED)
                 {
                     local_60->type = 0;
@@ -558,35 +494,28 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->lasers[enemy->laserStore] = g_BulletManager.SpawnLaserPattern(local_60);
                 break;
             case ECL_OPCODE_LASERINDEX:
-                local_14 = (i32)instruction->args.alu.res;
-                enemy->laserStore = *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL);
+                enemy->laserStore = EnemyEclInstr::GetVarValue(enemy, instruction->args.alu.res, NULL);
                 break;
             case ECL_OPCODE_LASERROTATE:
-                if (enemy->lasers[(i32)instruction->args.laserOp.laserIdx] != NULL)
+                if (enemy->lasers[instruction->args.laserOp.laserIdx] != NULL)
                 {
-                    local_bc = (f32)instruction->args.laserOp.arg1.x;
-                    enemy->lasers[(i32)instruction->args.laserOp.laserIdx]->angle +=
-                        *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
+                    enemy->lasers[instruction->args.laserOp.laserIdx]->angle +=
+                        EnemyEclInstr::GetVarFloatValue(enemy, instruction->args.laserOp.arg1.x, NULL);
                 }
                 break;
             case ECL_OPCODE_LASERROTATEFROMPLAYER:
-                if (enemy->lasers[(i32)instruction->args.laserOp.laserIdx] != NULL)
+                if (enemy->lasers[instruction->args.laserOp.laserIdx] != NULL)
                 {
-                    local_bc = (f32)instruction->args.laserOp.arg1.x;
-                    enemy->lasers[(i32)instruction->args.laserOp.laserIdx]->angle =
-                        g_Player.AngleToPlayer(&enemy->lasers[(i32)instruction->args.laserOp.laserIdx]->pos) +
-                        *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
+                    enemy->lasers[instruction->args.laserOp.laserIdx]->angle =
+                        g_Player.AngleToPlayer(&enemy->lasers[instruction->args.laserOp.laserIdx]->pos) +
+                        EnemyEclInstr::GetVarFloatValue(enemy, instruction->args.laserOp.arg1.x, NULL);
                 }
                 break;
             case ECL_OPCODE_LASEROFFSET:
                 if (enemy->lasers[instruction->args.laserOp.laserIdx] != NULL)
                 {
-                    enemy->lasers[instruction->args.laserOp.laserIdx]->pos.x =
-                        enemy->position.x + (f32)instruction->args.laserOp.arg1.x;
-                    enemy->lasers[instruction->args.laserOp.laserIdx]->pos.y =
-                        enemy->position.y + (f32)instruction->args.laserOp.arg1.y;
-                    enemy->lasers[instruction->args.laserOp.laserIdx]->pos.z =
-                        enemy->position.z + (f32)instruction->args.laserOp.arg1.z;
+                    tmpVec3 = instruction->args.laserOp.arg1;
+                    enemy->lasers[instruction->args.laserOp.laserIdx]->pos = enemy->position + tmpVec3;
                 }
                 break;
             case ECL_OPCODE_LASERTEST:
@@ -635,9 +564,7 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 local_6c = &instruction->args.spellcardEffect;
                 enemy->effectArray[enemy->effectIdx] = g_EffectManager.SpawnParticles(
                     0xd, &enemy->position, 1, (ZunColor)g_EffectsColor[local_6c->effectColorId]);
-                enemy->effectArray[enemy->effectIdx]->pos2.x = local_6c->pos.x;
-                enemy->effectArray[enemy->effectIdx]->pos2.y = local_6c->pos.y;
-                enemy->effectArray[enemy->effectIdx]->pos2.z = local_6c->pos.z;
+                enemy->effectArray[enemy->effectIdx]->pos2 = local_6c->pos;
                 enemy->effectDistance = local_6c->effectDistance;
                 enemy->effectIdx++;
                 break;
@@ -742,11 +669,11 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_ANMSETPOSES:
-                enemy->anmExDefaults = (i16)instruction->args.anmSetPoses.anmExDefault;
-                enemy->anmExFarLeft = (i16)instruction->args.anmSetPoses.anmExFarLeft;
-                enemy->anmExFarRight = (i16)instruction->args.anmSetPoses.anmExFarRight;
-                enemy->anmExLeft = (i16)instruction->args.anmSetPoses.anmExLeft;
-                enemy->anmExRight = (i16)instruction->args.anmSetPoses.anmExRight;
+                enemy->anmExDefaults = instruction->args.anmSetPoses.anmExDefault;
+                enemy->anmExFarLeft = instruction->args.anmSetPoses.anmExFarLeft;
+                enemy->anmExFarRight = instruction->args.anmSetPoses.anmExFarRight;
+                enemy->anmExLeft = instruction->args.anmSetPoses.anmExLeft;
+                enemy->anmExRight = instruction->args.anmSetPoses.anmExRight;
                 enemy->anmExFlags = 0xff;
                 break;
             case ECL_OPCODE_ENEMYSETHITBOX:
@@ -755,25 +682,25 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->hitboxDimensions.z = instruction->args.move.pos.z;
                 break;
             case ECL_OPCODE_ENEMYFLAGCOLLISION:
-                enemy->flags.unk7 = (i32)instruction->args.setInt;
+                enemy->flags.unk7 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_ENEMYFLAGCANTAKEDAMAGE:
-                enemy->flags.unk10 = (i32)instruction->args.setInt;
+                enemy->flags.unk10 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_EFFECTSOUND:
                 g_SoundPlayer.PlaySoundByIdx((SoundIdx)(i32)instruction->args.setInt);
                 break;
             case ECL_OPCODE_ENEMYFLAGDEATH:
-                enemy->flags.unk11 = (i32)instruction->args.setInt;
+                enemy->flags.unk11 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_DEATHCALLBACKSUB:
-                enemy->deathCallbackSub = (i32)instruction->args.setInt;
+                enemy->deathCallbackSub = instruction->args.setInt;
                 break;
             case ECL_OPCODE_ENEMYINTERRUPTSET:
                 enemy->interrupts[args->setInterrupt.interruptId] = args->setInterrupt.interruptSub;
                 break;
             case ECL_OPCODE_ENEMYINTERRUPT:
-                enemy->runInterrupt = (i32)instruction->args.setInt;
+                enemy->runInterrupt = instruction->args.setInt;
             HANDLE_INTERRUPT:
                 enemy->currentContext.currentInstr = (EclRawInstr *)((u8 *)instruction + instruction->offsetToNext);
                 if (enemy->flags.unk14 == 0)
@@ -789,7 +716,7 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 enemy->runInterrupt = -1;
                 continue;
             case ECL_OPCODE_ENEMYLIFESET:
-                enemy->life = enemy->maxLife = (i32)instruction->args.setInt;
+                enemy->life = enemy->maxLife = instruction->args.setInt;
                 break;
             case ECL_OPCODE_SPELLCARDSTART:
                 g_Gui.ShowSpellcard(instruction->args.spellcardStart.spellcardSprite,
@@ -867,31 +794,31 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 g_Stage.spellcardState = NOT_RUNNING;
                 break;
             case ECL_OPCODE_BOSSTIMERSET:
-                enemy->bossTimer.SetCurrent((i32)instruction->args.setInt);
+                enemy->bossTimer.SetCurrent(instruction->args.setInt);
                 break;
             case ECL_OPCODE_LIFECALLBACKTHRESHOLD:
-                enemy->lifeCallbackThreshold = (i32)instruction->args.setInt;
+                enemy->lifeCallbackThreshold = instruction->args.setInt;
                 break;
             case ECL_OPCODE_LIFECALLBACKSUB:
-                enemy->lifeCallbackSub = (i32)instruction->args.setInt;
+                enemy->lifeCallbackSub = instruction->args.setInt;
                 break;
             case ECL_OPCODE_TIMERCALLBACKTHRESHOLD:
-                enemy->timerCallbackThreshold = (i32)instruction->args.setInt;
+                enemy->timerCallbackThreshold = instruction->args.setInt;
                 enemy->bossTimer.SetCurrent(0);
                 break;
             case ECL_OPCODE_TIMERCALLBACKSUB:
-                enemy->timerCallbackSub = (i32)instruction->args.setInt;
+                enemy->timerCallbackSub = instruction->args.setInt;
                 break;
             case ECL_OPCODE_ENEMYFLAGINTERACTABLE:
-                enemy->flags.unk6 = (i32)instruction->args.setInt;
+                enemy->flags.unk6 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_EFFECTPARTICLE:
-                g_EffectManager.SpawnParticles((i32)instruction->args.effectParticle.effectId, &enemy->position,
-                                               (i32)instruction->args.effectParticle.numParticles,
-                                               (ZunColor)instruction->args.effectParticle.particleColor);
+                g_EffectManager.SpawnParticles(instruction->args.effectParticle.effectId, &enemy->position,
+                                               instruction->args.effectParticle.numParticles,
+                                               instruction->args.effectParticle.particleColor);
                 break;
             case ECL_OPCODE_DROPITEMS:
-                for (local_8c = 0; local_8c < (i32)instruction->args.setInt; local_8c++)
+                for (local_8c = 0; local_8c < instruction->args.setInt; local_8c++)
                 {
                     local_98 = enemy->position;
 
@@ -908,7 +835,7 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_ANMFLAGROTATION:
-                enemy->flags.unk13 = (i32)instruction->args.setInt;
+                enemy->flags.unk13 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_EXINSCALL:
                 g_EclExInsn[instruction->args.setInt](enemy, instruction);
@@ -924,12 +851,11 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_TIMESET:
-                local_14 = (i32)instruction->args.timeSet.timeToSet;
                 enemy->currentContext.time.IncrementInline(
-                    *EnemyEclInstr::GetVar(enemy, (EclVarId *)&local_14, NULL));
+                    EnemyEclInstr::GetVarValue(enemy, instruction->args.timeSet.timeToSet, NULL));
                 break;
             case ECL_OPCODE_DROPITEMID:
-                g_ItemManager.SpawnItem(&enemy->position, (ItemType)instruction->args.dropItem.itemId, 0);
+                g_ItemManager.SpawnItem(&enemy->position, instruction->args.dropItem.itemId, 0);
                 break;
             case ECL_OPCODE_STDUNPAUSE:
                 g_Stage.unpauseFlag = 1;
@@ -939,18 +865,12 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 g_GameManager.counat += 1800;
                 break;
             case ECL_OPCODE_ENEMYCREATE:
-                local_b0.subId = (i32)instruction->args.enemyCreate.subId;
-                local_bc = (f32)instruction->args.enemyCreate.pos.x;
-                local_98.x = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)instruction->args.enemyCreate.pos.y;
-                local_98.y = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_bc = (f32)instruction->args.enemyCreate.pos.z;
-                local_98.z = *EnemyEclInstr::GetVarFloat(enemy, &local_bc, NULL);
-                local_b0.life = (i16)instruction->args.enemyCreate.life;
-                local_b0.itemDrop = (i16)instruction->args.enemyCreate.itemDrop;
-                local_b0.score = (i32)instruction->args.enemyCreate.score;
-
-                g_EnemyManager.SpawnEnemy(local_b0.subId, &local_98, local_b0.life, local_b0.itemDrop, local_b0.score);
+                local_b0 = instruction->args.enemyCreate;
+                tmpVec3 = local_b0.pos;
+                tmpVec3.x = EnemyEclInstr::GetVarFloatValue(enemy, tmpVec3.x, NULL);
+                tmpVec3.y = EnemyEclInstr::GetVarFloatValue(enemy, tmpVec3.y, NULL);
+                tmpVec3.z = EnemyEclInstr::GetVarFloatValue(enemy, tmpVec3.z, NULL);
+                g_EnemyManager.SpawnEnemy(local_b0.subId, &tmpVec3, local_b0.life, local_b0.itemDrop, local_b0.score);
                 break;
             case ECL_OPCODE_ENEMYKILLALL:
                 for (local_b4 = &g_EnemyManager.enemies[0], local_b8 = 0;
@@ -974,19 +894,18 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_ANMINTERRUPTMAIN:
-                enemy->primaryVm.pendingInterrupt = (i32)instruction->args.setInt;
+                enemy->primaryVm.pendingInterrupt = instruction->args.setInt;
                 break;
             case ECL_OPCODE_ANMINTERRUPTSLOT:
-                enemy->vms[(i32)args->anmInterruptSlot.vmId].pendingInterrupt = (i32)args->anmInterruptSlot.interruptId;
+                enemy->vms[args->anmInterruptSlot.vmId].pendingInterrupt = args->anmInterruptSlot.interruptId;
                 break;
             case ECL_OPCODE_BULLETCANCEL:
                 g_BulletManager.TurnAllBulletsIntoPoints();
                 break;
             case ECL_OPCODE_BULLETSOUND:
-                local_14 = (i32)instruction->args.bulletSound.bulletSfx;
-                if (local_14 >= 0)
+                if (instruction->args.bulletSound.bulletSfx >= 0)
                 {
-                    enemy->bulletProps.sfx = (SoundIdx)local_14;
+                    enemy->bulletProps.sfx = instruction->args.bulletSound.bulletSfx;
                     enemy->bulletProps.flags |= 0x200;
                 }
                 else
@@ -995,29 +914,29 @@ ZunResult EclManager::RunEcl(Enemy *enemy)
                 }
                 break;
             case ECL_OPCODE_ENEMYFLAGDISABLECALLSTACK:
-                enemy->flags.unk14 = (i32)instruction->args.setInt;
+                enemy->flags.unk14 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_BULLETRANKINFLUENCE:
-                enemy->bulletRankSpeedLow = (f32)args->bulletRankInfluence.bulletRankSpeedLow;
-                enemy->bulletRankSpeedHigh = (f32)args->bulletRankInfluence.bulletRankSpeedHigh;
-                enemy->bulletRankAmount1Low = (i32)args->bulletRankInfluence.bulletRankAmount1Low;
-                enemy->bulletRankAmount1High = (i32)args->bulletRankInfluence.bulletRankAmount1High;
-                enemy->bulletRankAmount2Low = (i32)args->bulletRankInfluence.bulletRankAmount2Low;
-                enemy->bulletRankAmount2High = (i32)args->bulletRankInfluence.bulletRankAmount2High;
+                enemy->bulletRankSpeedLow = args->bulletRankInfluence.bulletRankSpeedLow;
+                enemy->bulletRankSpeedHigh = args->bulletRankInfluence.bulletRankSpeedHigh;
+                enemy->bulletRankAmount1Low = args->bulletRankInfluence.bulletRankAmount1Low;
+                enemy->bulletRankAmount1High = args->bulletRankInfluence.bulletRankAmount1High;
+                enemy->bulletRankAmount2Low = args->bulletRankInfluence.bulletRankAmount2Low;
+                enemy->bulletRankAmount2High = args->bulletRankInfluence.bulletRankAmount2High;
                 break;
             case ECL_OPCODE_ENEMYFLAGINVISIBLE:
-                enemy->flags.unk15 = (i32)instruction->args.setInt;
+                enemy->flags.unk15 = instruction->args.setInt;
                 break;
             case ECL_OPCODE_BOSSTIMERCLEAR:
                 enemy->timerCallbackSub = enemy->deathCallbackSub;
                 enemy->bossTimer.SetCurrent(0);
                 break;
             case ECL_OPCODE_SPELLCARDFLAGTIMEOUT:
-                enemy->flags.unk16 = (i32)instruction->args.setInt;
+                enemy->flags.unk16 = instruction->args.setInt;
                 break;
             }
         NEXT_INSN:
-            instruction = (EclRawInstr *)((u8 *)instruction + (i16)instruction->offsetToNext);
+            instruction = (EclRawInstr *)((u8 *)instruction + instruction->offsetToNext);
             goto YOLO;
         }
         else

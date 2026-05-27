@@ -64,7 +64,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
     FAILED_TO_READ:
         scoreDatSize = sizeof(ScoreRaw);
         scoreRaw = (ScoreRaw *)std::malloc(scoreDatSize);
-        scoreRaw->dataOffset = sizeof(ScoreRaw);
+        scoreRaw->dataOffset = (u32)sizeof(ScoreRaw);
         scoreRaw->fileLen = sizeof(ScoreRaw);
     }
     else
@@ -102,16 +102,16 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
             free(scoreRaw);
             goto FAILED_TO_READ;
         }
-        fileLen = scoreRaw->fileLen;
-        decryptedFilePointer = scoreRaw->ShiftBytes(scoreRaw->dataOffset);
-        fileLen -= scoreRaw->dataOffset;
+        fileLen = (u32)scoreRaw->fileLen;
+        decryptedFilePointer = scoreRaw->ShiftBytes((u32)scoreRaw->dataOffset);
+        fileLen -= (u32)scoreRaw->dataOffset;
         while (fileLen > 0)
         {
-            if (decryptedFilePointer->magic == TH6K_MAGIC)
+            if (decryptedFilePointer->magic == (u32)TH6K_MAGIC)
                 break;
 
-            decryptedFilePointer = decryptedFilePointer->ShiftBytes(decryptedFilePointer->th6kLen);
-            fileLen = fileLen - decryptedFilePointer->th6kLen;
+            decryptedFilePointer = decryptedFilePointer->ShiftBytes((u16)decryptedFilePointer->th6kLen);
+            fileLen = fileLen - (u16)decryptedFilePointer->th6kLen;
         }
         if (fileLen <= 0)
         {
@@ -119,6 +119,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
             goto FAILED_TO_READ;
         };
     }
+
 
     scoreDat->rawScoreFile = scoreRaw;
 
@@ -148,13 +149,13 @@ u32 ResultScreen::GetHighScore(ScoreDat *scoreDat, ScoreListNode *node, u32 char
         scoreDat->scores->prev = NULL;
     }
 
-    remainingSize = scoreHeader->fileLen;
-    highScore = (Hscr *)scoreHeader->ShiftBytes(scoreHeader->dataOffset);
-    remainingSize -= scoreHeader->dataOffset;
+    remainingSize = (u32)scoreHeader->fileLen;
+    highScore = (Hscr *)scoreHeader->ShiftBytes((u32)scoreHeader->dataOffset);
+    remainingSize -= (u32)scoreHeader->dataOffset;
 
     while (remainingSize > 0)
     {
-        if (highScore->base.magic == HSCR_MAGIC && highScore->base.version == TH6K_VERSION &&
+        if (highScore->base.magic == (u32)HSCR_MAGIC && highScore->base.version == TH6K_VERSION &&
             highScore->character == character && highScore->difficulty == difficulty)
         {
             if (node != NULL)
@@ -167,8 +168,8 @@ u32 ResultScreen::GetHighScore(ScoreDat *scoreDat, ScoreListNode *node, u32 char
             }
         }
 
-        remainingSize -= highScore->base.th6kLen;
-        highScore = highScore->ShiftBytes(highScore->base.th6kLen);
+        remainingSize -= (u16)highScore->base.th6kLen;
+        highScore = highScore->ShiftBytes((u16)highScore->base.th6kLen);
     }
     if (scoreDat->scores->next != NULL)
     {
@@ -242,18 +243,18 @@ ZunResult ResultScreen::ParseCatk(ScoreDat *scoreDat, Catk *outCatk)
     }
 
     parsedCatk = (Catk *)header->ShiftBytes(header->dataOffset);
-    cursor = header->fileLen - header->dataOffset;
+    cursor = (u32)header->fileLen - (u32)header->dataOffset;
     while (cursor > 0)
     {
-        if (parsedCatk->base.magic == CATK_MAGIC && parsedCatk->base.version == TH6K_VERSION)
+        if (parsedCatk->base.magic == (u32)CATK_MAGIC && parsedCatk->base.version == TH6K_VERSION)
         {
-            if (parsedCatk->idx >= CATK_NUM_CAPTURES)
+            if ((u16)parsedCatk->idx >= CATK_NUM_CAPTURES)
                 break;
 
             outCatk[parsedCatk->idx] = *parsedCatk;
         }
-        cursor -= parsedCatk->base.th6kLen;
-        parsedCatk = (Catk *)&parsedCatk->name[parsedCatk->base.th6kLen - 0x18];
+        cursor -= (u16)parsedCatk->base.th6kLen;
+        parsedCatk = (Catk *)&parsedCatk->name[(u16)parsedCatk->base.th6kLen - 0x18];
     }
     return ZUN_SUCCESS;
 }
@@ -276,7 +277,7 @@ ZunResult ResultScreen::ParseClrd(ScoreDat *scoreDat, Clrd *outClrd)
     {
         memset(&outClrd[characterShotType], 0, sizeof(Clrd));
 
-        outClrd[characterShotType].base.magic = CLRD_MAGIC;
+        outClrd[characterShotType].base.magic = (u32)CLRD_MAGIC;
         outClrd[characterShotType].base.unkLen = sizeof(Clrd);
         outClrd[characterShotType].base.th6kLen = sizeof(Clrd);
         outClrd[characterShotType].base.version = TH6K_VERSION;
@@ -289,19 +290,19 @@ ZunResult ResultScreen::ParseClrd(ScoreDat *scoreDat, Clrd *outClrd)
         }
     }
 
-    parsedClrd = (Clrd *)header->ShiftBytes(header->dataOffset);
-    cursor = header->fileLen - header->dataOffset;
+	parsedClrd = (Clrd *)header->ShiftBytes((u32)header->dataOffset);
+    cursor = (u32)header->fileLen - (u32)header->dataOffset;
     while (cursor > 0)
     {
-        if (parsedClrd->base.magic == CLRD_MAGIC && parsedClrd->base.version == TH6K_VERSION)
+        if (parsedClrd->base.magic == (u32)CLRD_MAGIC && parsedClrd->base.version == TH6K_VERSION)
         {
             if (parsedClrd->characterShotType >= CLRD_NUM_CHARACTERS)
                 break;
 
             outClrd[parsedClrd->characterShotType] = *parsedClrd;
         }
-        cursor -= parsedClrd->base.th6kLen;
-        parsedClrd = (Clrd *)(((u8 *)&parsedClrd->base) + parsedClrd->base.th6kLen);
+		cursor -= (u16)parsedClrd->base.th6kLen;
+        parsedClrd = (Clrd *)(((u8 *)&parsedClrd->base) + (u16)parsedClrd->base.th6kLen);
     }
     return ZUN_SUCCESS;
 }
@@ -331,7 +332,7 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
 
                 std::memset(pscr, 0, sizeof(Pscr));
 
-                pscr->base.magic = PSCR_MAGIC;
+                pscr->base.magic = (u32)PSCR_MAGIC;
                 pscr->base.unkLen = sizeof(Pscr);
                 pscr->base.th6kLen = sizeof(Pscr);
                 pscr->base.version = 16;
@@ -342,12 +343,12 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
         }
     }
 
-    parsedPscr = (Pscr *)header->ShiftBytes(header->dataOffset);
-    cursor = header->fileLen - header->dataOffset;
+	parsedPscr = (Pscr *)header->ShiftBytes((u32)header->dataOffset);
+    cursor = (u32)header->fileLen - (u32)header->dataOffset;
 
     while (cursor > 0)
     {
-        if (parsedPscr->base.magic == PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
+        if (parsedPscr->base.magic == (u32)PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
         {
             pscr = parsedPscr;
             if (pscr->character >= PSCR_NUM_CHARS_SHOTTYPES || pscr->difficulty >= PSCR_NUM_DIFFICULTIES + 1 ||
@@ -356,8 +357,8 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
 
             outClrd[pscr->character * 6 * 4 + pscr->stage * 4 + pscr->difficulty] = *pscr;
         }
-        cursor -= parsedPscr->base.th6kLen;
-        parsedPscr = parsedPscr->ShiftBytes(parsedPscr->base.th6kLen);
+        cursor -= (u16)parsedPscr->base.th6kLen;
+        parsedPscr = parsedPscr->ShiftBytes((u16)parsedPscr->base.th6kLen);
     }
     return ZUN_SUCCESS;
 }
@@ -401,7 +402,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
     std::memcpy(fileBuffer + sizeOfFile, resultScreen->scoreDat->rawScoreFile, sizeof(ScoreRaw));
 
     sizeOfFile += sizeof(ScoreRaw);
-    resultScreen->fileHeader.magic = TH6K_MAGIC;
+    resultScreen->fileHeader.magic = (u32)TH6K_MAGIC;
     resultScreen->fileHeader.unkLen = sizeof(Th6k);
     resultScreen->fileHeader.th6kLen = sizeof(Th6k);
     resultScreen->fileHeader.version = TH6K_VERSION;
@@ -421,7 +422,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
                 if (currentCharacter != NULL)
                 {
 
-                    if (currentCharacter->data->base.magic == HSCR_MAGIC)
+					if (currentCharacter->data->base.magic == (u32)HSCR_MAGIC)
                     {
                         currentCharacter->data->character = character;
                         currentCharacter->data->difficulty = difficulty;
@@ -452,7 +453,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
     clrd = g_GameManager.clrd;
     for (difficulty = 0; difficulty < CLRD_NUM_CHARACTERS; difficulty++, clrd++)
     {
-        clrd->base.magic = CLRD_MAGIC;
+        clrd->base.magic = (u32)CLRD_MAGIC;
         clrd->base.unkLen = sizeof(Clrd);
         clrd->base.th6kLen = sizeof(Clrd);
         clrd->base.version = TH6K_VERSION;
@@ -463,12 +464,13 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
     catk = &g_GameManager.catk[0];
     for (difficulty = 0; difficulty < CATK_NUM_CAPTURES; difficulty++, catk++)
     {
-        if (catk->base.magic == CATK_MAGIC)
+        if (catk->base.magic == (u32)CATK_MAGIC)
         {
             catk->idx = difficulty;
             catk->base.unkLen = sizeof(Catk);
             catk->base.th6kLen = sizeof(Catk);
             catk->base.version = TH6K_VERSION;
+			catk->base.magic = (u32)CATK_MAGIC;
             std::memcpy(fileBuffer + sizeOfFile, catk, sizeof(Catk));
             sizeOfFile += sizeof(Catk);
         }
@@ -489,7 +491,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         }
     }
     scoreRaw = (ScoreRaw *)fileBuffer;
-    scoreRaw->dataOffset = sizeof(Pscr);
+	scoreRaw->dataOffset = (u32)sizeof(Pscr);
     scoreRaw->fileLen = sizeOfFile;
     scoreRaw->csum = 0;
 
@@ -569,7 +571,7 @@ i32 ResultScreen::HandleResultKeyboard()
         this->hscr.difficulty = this->diffSelected;
         this->hscr.score = g_GameManager.score;
         this->hscr.base.version = 16;
-        this->hscr.base.magic = *(i32 *)"HSCR";
+        this->hscr.base.magic = HSCR_MAGIC;
 
         if (g_GameManager.isGameCompleted == 0)
         {
@@ -891,7 +893,7 @@ i32 ResultScreen::HandleReplaySaveKeyboard()
             this->frameTimer = 0;
             sprintf(this->defaultReplay.date, "%02i/%02i/%02i", tm->tm_mon, tm->tm_mday, tm->tm_year % 100);
             (this->defaultReplay).score = g_GameManager.score;
-            if (*(i32 *)&this->replays[this->cursor].magic != *(i32 *)&"T6RP" ||
+            if (std::memcmp(this->replays[this->cursor].magic, "T6RP", 4) != 0 ||
                 this->replays[this->cursor].version != GAME_VERSION)
             {
                 sprite = &this->unk_40[0];
@@ -1805,17 +1807,17 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 if (ShootScoreListNodeA->data->stage <= 6)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(%d)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score, ShootScoreListNodeA->data->stage);
+                                                 (u32)ShootScoreListNodeA->data->score, ShootScoreListNodeA->data->stage);
                 }
                 else if (ShootScoreListNodeA->data->stage == 7)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(1)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score);
+                                                 (u32)ShootScoreListNodeA->data->score);
                 }
                 else
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(C)", ShootScoreListNodeA->data->name,
-                                                 ShootScoreListNodeA->data->score);
+                                                 (u32)ShootScoreListNodeA->data->score);
                 }
                 spritePos.x += 300.0f;
                 if (resultScreen->resultScreenState == RESULT_SCREEN_STATE_WRITING_HIGHSCORE_NAME)
@@ -1846,20 +1848,20 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 {
                     g_AsciiManager.color = 0xffc0c0ff;
                 }
-                if (ShootScoreListNodeB->data->stage <= 6)
+               if (ShootScoreListNodeB->data->stage <= 6)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(%d)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score, ShootScoreListNodeB->data->stage);
+                                                 (u32)ShootScoreListNodeB->data->score, ShootScoreListNodeB->data->stage);
                 }
                 else if (ShootScoreListNodeB->data->stage == 7)
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(1)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score);
+                                                 (u32)ShootScoreListNodeB->data->score);
                 }
                 else
                 {
                     g_AsciiManager.AddFormatText(&spritePos, "%8s %9d(C)", ShootScoreListNodeB->data->name,
-                                                 ShootScoreListNodeB->data->score);
+                                                 (u32)ShootScoreListNodeB->data->score);
                 }
 
                 spritePos.x -= 336.0f;
@@ -1903,8 +1905,8 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
 
                 spritePos.x += 368.0f;
 
-                g_AsciiManager.AddFormatText(&spritePos, "%3d/%3d", g_GameManager.catk[spellcardIdx].numSuccess,
-                                             g_GameManager.catk[spellcardIdx].numAttempts);
+                g_AsciiManager.AddFormatText(&spritePos, "%3d/%3d", (u16)g_GameManager.catk[spellcardIdx].numSuccess,
+                                             (u16)g_GameManager.catk[spellcardIdx].numAttempts);
                 spritePos.x -= 368.0f;
                 spritePos.y += 30.0f;
             }
@@ -2000,7 +2002,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d %8s %8s %7s %9d", row + 1, &resultScreen->replayName,
                                              resultScreen->defaultReplay.date,
                                              g_ShortCharacterList2[g_GameManager.CharacterShotType()],
-                                             resultScreen->defaultReplay.score);
+                                             (u32)resultScreen->defaultReplay.score);
                 g_AsciiManager.color = 0xfff0f0ff;
 
                 std::strcpy(name, "        ");
@@ -2010,7 +2012,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 name[resultScreen->cursor >= 8 ? 7 : resultScreen->cursor] = '_';
                 g_AsciiManager.AddFormatText(&spritePos, "      %8s", &name);
             }
-            else if (*(i32 *)&resultScreen->replays[row].magic != *(i32 *)"T6RP" ||
+            else if (std::memcmp(resultScreen->replays[row].magic, "T6RP", 4) != 0 ||
                      resultScreen->replays[row].version != GAME_VERSION)
             {
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d -------- --/--/-- -------         0", row + 1);
@@ -2020,7 +2022,7 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
                 g_AsciiManager.AddFormatText(&spritePos, "No.%.2d %8s %8s %7s %9d", row + 1,
                                              resultScreen->replays[row].name, resultScreen->replays[row].date,
                                              g_ShortCharacterList2[resultScreen->replays[row].shottypeChara],
-                                             resultScreen->replays[row].score);
+                                             (u32)resultScreen->replays[row].score);
             }
         }
     }
@@ -2097,12 +2099,12 @@ ZunResult ResultScreen::AddedCallback(ResultScreen *resultScreen)
         {
             for (slot = 0; slot < HSCR_NUM_SCORES_SLOTS; slot++)
             {
-                resultScreen->defaultScore[i][characterShot][slot].score = 1000000 - slot * 100000;
-                resultScreen->defaultScore[i][characterShot][slot].base.magic = g_DefaultMagic;
+                resultScreen->defaultScore[i][characterShot][slot].score = (u32)(1000000 - slot * 100000);
+                resultScreen->defaultScore[i][characterShot][slot].base.magic = (u32)g_DefaultMagic;
                 resultScreen->defaultScore[i][characterShot][slot].difficulty = i;
                 resultScreen->defaultScore[i][characterShot][slot].base.version = TH6K_VERSION;
-                resultScreen->defaultScore[i][characterShot][slot].base.unkLen = sizeof(Hscr);
-                resultScreen->defaultScore[i][characterShot][slot].base.th6kLen = sizeof(Hscr);
+                resultScreen->defaultScore[i][characterShot][slot].base.unkLen = (u16)sizeof(Hscr);
+                resultScreen->defaultScore[i][characterShot][slot].base.th6kLen = (u16)sizeof(Hscr);
                 resultScreen->defaultScore[i][characterShot][slot].stage = 1;
                 resultScreen->defaultScore[i][characterShot][slot].base.unk_9 = 0;
 

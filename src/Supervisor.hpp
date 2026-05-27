@@ -8,6 +8,7 @@
 #include "Chain.hpp"
 #include "Controller.hpp"
 #include "MidiOutput.hpp"
+#include "ZunEndian.hpp"
 #include "ZunMath.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
@@ -33,15 +34,15 @@ enum GameConfigOptsShifts
 
 struct ControllerMapping
 {
-    i16 shootButton;
-    i16 bombButton;
-    i16 focusButton;
-    i16 menuButton;
-    i16 upButton;
-    i16 downButton;
-    i16 leftButton;
-    i16 rightButton;
-    i16 skipButton;
+    LE<i16> shootButton;
+    LE<i16> bombButton;
+    LE<i16> focusButton;
+    LE<i16> menuButton;
+    LE<i16> upButton;
+    LE<i16> downButton;
+    LE<i16> leftButton;
+    LE<i16> rightButton;
+    LE<i16> skipButton;
 };
 
 enum MusicMode
@@ -55,7 +56,7 @@ struct GameConfiguration
 {
     ControllerMapping controllerMapping;
     // Always 0x102 for 1.02
-    i32 version;
+    LE<i32> version;
     u8 lifeCount;
     u8 bombCount;
     u8 colorMode16bit;
@@ -65,11 +66,11 @@ struct GameConfiguration
     u8 windowed;
     // 0 = fullspeed, 1 = 1/2 speed, 2 = 1/4 speed.
     u8 frameskipConfig;
-    i16 padXAxis;
-    i16 padYAxis;
+    LE<i16> padXAxis;
+    LE<i16> padYAxis;
     i8 unk[16];
     // GameConfigOpts bitfield.
-    u32 opts;
+    LE<u32> opts;
 
     u32 IsSoftwareTexturing()
     {

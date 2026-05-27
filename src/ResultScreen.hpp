@@ -2,6 +2,7 @@
 
 #include "AnmVm.hpp"
 #include "ReplayData.hpp"
+#include "ZunEndian.hpp"
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 #include <cstdlib>
@@ -71,9 +72,9 @@ struct Th6k
         return (Th6k *)(((u8 *)this) + value);
     };
 
-    u32 magic;
-    u16 th6kLen;
-    u16 unkLen;
+    LE<u32> magic;
+    LE<u16> th6kLen;
+    LE<u16> unkLen;
     u8 version;
     u8 unk_9;
 };
@@ -81,15 +82,15 @@ struct Th6k
 struct Catk
 {
     Th6k base;
-    i32 captureScore;
-    u16 idx;
+    LE<i32> captureScore;
+    LE<u16> idx;
     u8 nameCsum;
     u8 characterShotType;
-    u32 unk_14;
+    LE<u32> unk_14;
     char name[32];
-    u32 unk_38;
-    u16 numAttempts;
-    u16 numSuccess;
+    LE<u32> unk_38;
+    LE<u16> numAttempts;
+    LE<u16> numSuccess;
 };
 
 struct Clrd
@@ -113,7 +114,7 @@ struct Pscr
     };
 
     Th6k base;
-    i32 score;
+    LE<i32> score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -127,7 +128,7 @@ struct Hscr
     };
 
     Th6k base;
-    u32 score;
+    LE<u32> score;
     u8 character;
     u8 difficulty;
     u8 stage;
@@ -161,12 +162,12 @@ struct ScoreRaw
     };
 
     u8 xorseed[2];
-    u16 csum;
-    u16 unk_8;
+    LE<u16> csum;
+    LE<u16> unk_8;
     u8 unk[2];
-    u32 dataOffset;
-    u32 padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
-    u32 fileLen;
+    LE<u32> dataOffset;
+    LE<u32> padding; // Originally used as space for a ScoreListNode pointer, but that caused obvious ABI issues
+    LE<u32> fileLen;
 };
 
 struct ScoreDat

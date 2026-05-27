@@ -64,18 +64,18 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
         case STDOP_CAMERA_POSITION_KEY:
             if ((i32)curInsn->frame == -1)
             {
-                stage->positionInterpInitial.x = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[0]));
-                stage->positionInterpInitial.y = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[1]));
-                stage->positionInterpInitial.z = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[2]));
+                stage->positionInterpInitial.x = bit_cast_to_size<f32>((u32)curInsn->args[0]);
+                stage->positionInterpInitial.y = bit_cast_to_size<f32>((u32)curInsn->args[1]);
+                stage->positionInterpInitial.z = bit_cast_to_size<f32>((u32)curInsn->args[2]);
                 stage->position.x = stage->positionInterpInitial.x;
                 stage->position.y = stage->positionInterpInitial.y;
                 stage->position.z = stage->positionInterpInitial.z;
             }
             else if (stage->scriptTime.current >= (i32)curInsn->frame)
             {
-                pos.x = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[0]));
-                pos.y = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[1]));
-                pos.z = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[2]));
+                pos.x = bit_cast_to_size<f32>((u32)curInsn->args[0]);
+                pos.y = bit_cast_to_size<f32>((u32)curInsn->args[1]);
+                pos.z = bit_cast_to_size<f32>((u32)curInsn->args[2]);
                 stage->position.x = pos.x;
                 stage->position.y = pos.y;
                 stage->position.z = pos.z;
@@ -88,20 +88,17 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
                     curInsn++;
                 }
                 stage->positionInterpEndTime = (i32)curInsn->frame;
-                stage->positionInterpFinal.x =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[0]));
-                stage->positionInterpFinal.y =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[1]));
-                stage->positionInterpFinal.z =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[2]));
+                stage->positionInterpFinal.x = bit_cast_to_size<f32>((u32)curInsn->args[0]);
+                stage->positionInterpFinal.y = bit_cast_to_size<f32>((u32)curInsn->args[1]);
+                stage->positionInterpFinal.z = bit_cast_to_size<f32>((u32)curInsn->args[2]);
             }
             break;
         case STDOP_FOG:
             if (stage->scriptTime.current >= (i32)curInsn->frame)
             {
                 stage->skyFog.color = (u32)curInsn->args[0];
-                stage->skyFog.nearPlane = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[1]));
-                stage->skyFog.farPlane = bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[2]));
+                stage->skyFog.nearPlane = bit_cast_to_size<f32>((u32)curInsn->args[1]);
+                stage->skyFog.farPlane = bit_cast_to_size<f32>((u32)curInsn->args[2]);
                 if (stage->skyFogInterpDuration == 0)
                 {
                     //                    g_Supervisor.d3dDevice->SetRenderState(D3DRS_FOGCOLOR, stage->skyFog.color);
@@ -132,12 +129,9 @@ ChainCallbackResult Stage::OnUpdate(Stage *stage)
             if (stage->scriptTime.current >= (i32)curInsn->frame)
             {
                 stage->facingDirInterpInitial = stage->facingDirInterpFinal;
-                stage->facingDirInterpFinal.x =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[0]));
-                stage->facingDirInterpFinal.y =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[1]));
-                stage->facingDirInterpFinal.z =
-                    bit_cast_to_size<f32>(bit_cast_from_size<f32>((void *)&curInsn->args[2]));
+                stage->facingDirInterpFinal.x = bit_cast_to_size<f32>((u32)curInsn->args[0]);
+                stage->facingDirInterpFinal.y = bit_cast_to_size<f32>((u32)curInsn->args[1]);
+                stage->facingDirInterpFinal.z = bit_cast_to_size<f32>((u32)curInsn->args[2]);
                 stage->instructionIndex++;
                 continue;
             }

@@ -29,7 +29,7 @@ ZunResult ReplayManager::ValidateReplayData(const ReplayHeader *data, i32 fileSi
     }
 
     /* "T6RP" magic bytes */
-    if (*(i32 *)data->magic != *(i32 *)"T6RP")
+    if (std::memcmp(data->magic, "T6RP", 4) != 0)
     {
         return ZUN_ERROR;
     }

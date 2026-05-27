@@ -76,13 +76,15 @@ template <typename T> struct UNALIGNED_ATTR Unaligned
 
 template <typename T>
 static inline typename UIForSize_t<sizeof(T)>::type bit_cast_from_size(void *value) {
-    return ((Unaligned<typename UIForSize_t<sizeof(T)>::type> *)value)->data;
+    typename UIForSize_t<sizeof(T)>::type ret;
+    std::memcpy(&ret, value, sizeof(T));
+    return ret;
 }
 
 template <typename T>
 static inline T bit_cast_to_size(typename UIForSize_t<sizeof(T)>::type value) {
     T ret;
-    std::memcpy(&ret, &value, sizeof(value));
+    std::memcpy(&ret, &value, sizeof(T));
     return ret;
 }
 
@@ -94,6 +96,12 @@ static inline u64 ZunByteswap(u64 in) { return SDL_Swap64(in); }
 template <typename T>
 struct LE {
     T raw;
+
+    LE() = default;
+    LE(const T &a)
+    {
+       *this = a;
+    }
 
     inline operator T() const {
         typename UIForSize_t<sizeof(T)>::type ui = bit_cast_from_size<T>((void *)&raw);
@@ -192,6 +200,12 @@ struct LE {
 template <>
 struct LE<float> {
     float raw;
+
+    LE() = default;
+    LE(const float &a)
+    {
+        *this = a;
+    }
 
     inline operator float() const {
         typename UIForSize_t<sizeof(float)>::type ui = bit_cast_from_size<float>((void*) &raw);

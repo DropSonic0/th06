@@ -315,7 +315,7 @@ union EclRawInstrArgs {
 
     i32 GetBossLifeCount() const
     {
-        return (i32)this->setInt;
+        return this->setInt;
     }
 };
 
