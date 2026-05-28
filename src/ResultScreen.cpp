@@ -351,11 +351,12 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
         if (parsedPscr->base.magic == (u32)PSCR_MAGIC && parsedPscr->base.version == TH6K_VERSION)
         {
             pscr = parsedPscr;
-            if (pscr->character >= PSCR_NUM_CHARS_SHOTTYPES || pscr->difficulty >= PSCR_NUM_DIFFICULTIES + 1 ||
-                pscr->stage >= PSCR_NUM_STAGES + 1)
+            if (pscr->character >= PSCR_NUM_CHARS_SHOTTYPES || pscr->difficulty >= PSCR_NUM_DIFFICULTIES ||
+                pscr->stage >= PSCR_NUM_STAGES)
                 break;
 
-            outClrd[pscr->character * 6 * 4 + pscr->stage * 4 + pscr->difficulty] = *pscr;
+            outClrd[pscr->character * PSCR_NUM_STAGES * PSCR_NUM_DIFFICULTIES + pscr->stage * PSCR_NUM_DIFFICULTIES +
+                    pscr->difficulty] = *pscr;
         }
         cursor -= (u16)parsedPscr->base.th6kLen;
         parsedPscr = parsedPscr->ShiftBytes((u16)parsedPscr->base.th6kLen);
@@ -491,7 +492,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         }
     }
     scoreRaw = (ScoreRaw *)fileBuffer;
-	scoreRaw->dataOffset = (u32)sizeof(Pscr);
+    scoreRaw->dataOffset = (u32)sizeof(ScoreRaw);
     scoreRaw->fileLen = sizeOfFile;
     scoreRaw->csum = 0;
 
@@ -1769,6 +1770,9 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
             spritePos.x -= 320.0f;
             spritePos.y += 36.0f;
 
+            if (resultScreen->charUsed < 0)
+                return CHAIN_CALLBACK_RESULT_CONTINUE;
+
             ShootScoreListNodeA = resultScreen->scores[resultScreen->diffSelected][resultScreen->charUsed * 2].next;
             ShootScoreListNodeB = resultScreen->scores[resultScreen->diffSelected][resultScreen->charUsed * 2 + 1].next;
             for (row = 0; row < 10; row++)
@@ -1875,6 +1879,9 @@ ChainCallbackResult ResultScreen::OnDraw(ResultScreen *resultScreen)
 
             spritePos = sprite->pos;
             spritePos.y += 16.0f;
+
+            if (resultScreen->lastSpellcardSelected < 0)
+                return CHAIN_CALLBACK_RESULT_CONTINUE;
 
             for (row = 0; row < 10; row++)
             {
