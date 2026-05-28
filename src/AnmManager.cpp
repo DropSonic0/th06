@@ -27,7 +27,7 @@
 #include "graphics/GLFunc.hpp"
 
 #ifdef __PS3__
-static VertexTex1Xyzrhw g_PrimitivesToDrawVertexBuf[4] __attribute__((aligned(16)));
+static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawVertexBuf[4] __attribute__((aligned(16)));
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4] __attribute__((aligned(16)));
 static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4] __attribute__((aligned(16)));
 #else
@@ -232,6 +232,12 @@ AnmManager::AnmManager()
     g_PrimitivesToDrawVertexBuf[2].position.w = g_PrimitivesToDrawVertexBuf[3].position.w;
     g_PrimitivesToDrawVertexBuf[1].position.w = g_PrimitivesToDrawVertexBuf[2].position.w;
     g_PrimitivesToDrawVertexBuf[0].position.w = g_PrimitivesToDrawVertexBuf[1].position.w;
+#ifdef __PS3__
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(0xffffffff);
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(0xffffffff);
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(0xffffffff);
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(0xffffffff);
+#endif
     g_PrimitivesToDrawVertexBuf[0].textureUV.x = 0.0f;
     g_PrimitivesToDrawVertexBuf[0].textureUV.y = 0.0f;
     g_PrimitivesToDrawVertexBuf[1].textureUV.x = 1.0f;
@@ -883,20 +889,22 @@ void AnmManager::UpdateDirtyStates()
         switch (currFlagIndex)
         {
         case DIRTY_FOG:
-#ifndef __PS3__
             if (this->dirtyFogNear != this->fogNear || this->dirtyFogFar != this->fogFar)
             {
                 this->fogNear = this->dirtyFogNear;
                 this->fogFar = this->dirtyFogFar;
+#ifndef __PS3__
                 g_GfxBackend->SetFogRange(this->fogNear, this->fogFar);
+#endif
             }
 
             if (this->dirtyFogColor != this->fogColor)
             {
                 this->fogColor = this->dirtyFogColor;
+#ifndef __PS3__
                 g_GfxBackend->SetFogColor(this->fogColor);
-            }
 #endif
+            }
             break;
         case DIRTY_DEPTH_CONFIG:
             if (this->dirtyDepthMask != this->depthMask)
@@ -1032,9 +1040,20 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
         this->SetCurrentTexture(this->textures[vm->sprite->sourceFileIndex].handle);
     }
 
+#ifdef __PS3__
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+#endif
+
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifdef __PS3__
+        this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
         this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
     }
     else
     {
@@ -1053,7 +1072,13 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifdef __PS3__
+        ZunMatrix identity;
+        identity.Identity();
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, identity);
+#else
         this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+#endif
         /*this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawVertexBuf),
                                   &g_PrimitivesToDrawVertexBuf[0].position);
         this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*g_PrimitivesToDrawVertexBuf),
@@ -1084,6 +1109,15 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
         g_PrimitivesToDrawNoVertexBuf[2].textureUV.y = g_PrimitivesToDrawNoVertexBuf[3].textureUV.y =
             vm->sprite->uvEnd.y + vm->uvScrollPos.y;
 
+#ifdef __PS3__
+        g_PrimitivesToDrawNoVertexBuf[0].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawNoVertexBuf[1].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawNoVertexBuf[2].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawNoVertexBuf[3].diffuse = ColorData(vm->color);
+        ZunMatrix identity;
+        identity.Identity();
+        this->ApplySoftwareFog(g_PrimitivesToDrawNoVertexBuf, 4, identity);
+#endif
         this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawNoVertexBuf),
                                   &g_PrimitivesToDrawNoVertexBuf[0].position);
         this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*g_PrimitivesToDrawNoVertexBuf),
@@ -1114,10 +1148,18 @@ void AnmManager::FlushVertexBuffer()
     if (spritesToDraw == 0)
         return;
 
+#ifndef __PS3__
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
 
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1Xyzrhw), &vertexBufferStartPtr->position);
     this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1Xyzrhw), &vertexBufferStartPtr->textureUV);
+#else
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+
+    this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(VertexTex1DiffuseXyzrhw), &vertexBufferStartPtr->position);
+    this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(VertexTex1DiffuseXyzrhw), &vertexBufferStartPtr->textureUV);
+    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(VertexTex1DiffuseXyzrhw), &vertexBufferStartPtr->diffuse);
+#endif
     this->UpdateDirtyStates();
 
     g_GfxBackend->Draw(PRIM_TRIANGLES, 0, spritesToDraw * 6);
@@ -1130,6 +1172,78 @@ void AnmManager::FlushVertexBuffer()
  * (2 triangles) for rendering.
  */
 
+#ifdef __PS3__
+void AnmManager::ApplySoftwareFog(VertexTex1DiffuseXyzrhw *verts, i32 count, const ZunMatrix &viewMatrix)
+{
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) != 0)
+        return;
+
+    f32 fogDif = this->fogFar - this->fogNear;
+    if (ZUN_FABSF(fogDif) < 0.0001f)
+        return;
+
+    for (int i = 0; i < count; i++)
+    {
+        ZunVec4 viewPos = viewMatrix * ZunVec4(verts[i].position.x, verts[i].position.y, verts[i].position.z, 1.0f);
+        f32 fogCoefficient = (this->fogFar - ZUN_FABSF(viewPos.z)) / fogDif;
+        fogCoefficient = ZUN_MIN(ZUN_MAX(fogCoefficient, 0.0f), 1.0f);
+
+        u8 r = (u8)(((this->fogColor >> 16) & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.r * fogCoefficient);
+        u8 g = (u8)(((this->fogColor >> 8) & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.g * fogCoefficient);
+        u8 b = (u8)((this->fogColor & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.b * fogCoefficient);
+        u8 a = verts[i].diffuse.a;
+
+        verts[i].diffuse.r = r;
+        verts[i].diffuse.g = g;
+        verts[i].diffuse.b = b;
+        verts[i].diffuse.a = a;
+    }
+}
+
+void AnmManager::ApplySoftwareFog(VertexTex1DiffuseXyz *verts, i32 count, const ZunMatrix &viewMatrix)
+{
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) != 0)
+        return;
+
+    f32 fogDif = this->fogFar - this->fogNear;
+    if (ZUN_FABSF(fogDif) < 0.0001f)
+        return;
+
+    for (int i = 0; i < count; i++)
+    {
+        ZunVec4 viewPos = viewMatrix * ZunVec4(verts[i].position, 1.0f);
+        f32 fogCoefficient = (this->fogFar - ZUN_FABSF(viewPos.z)) / fogDif;
+        fogCoefficient = ZUN_MIN(ZUN_MAX(fogCoefficient, 0.0f), 1.0f);
+
+        u8 r = (u8)(((this->fogColor >> 16) & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.r * fogCoefficient);
+        u8 g = (u8)(((this->fogColor >> 8) & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.g * fogCoefficient);
+        u8 b = (u8)((this->fogColor & 0xFF) * (1.0f - fogCoefficient) + verts[i].diffuse.b * fogCoefficient);
+        u8 a = verts[i].diffuse.a;
+
+        verts[i].diffuse.r = r;
+        verts[i].diffuse.g = g;
+        verts[i].diffuse.b = b;
+        verts[i].diffuse.a = a;
+    }
+}
+
+ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1DiffuseXyzrhw *vertices, const ZunMatrix &viewMatrix)
+{
+    ApplySoftwareFog(vertices, 4, viewMatrix);
+
+    this->vertexBufferEndPtr[0] = vertices[0];
+    this->vertexBufferEndPtr[1] = vertices[1];
+    this->vertexBufferEndPtr[2] = vertices[2];
+    this->vertexBufferEndPtr[3] = vertices[2];
+    this->vertexBufferEndPtr[4] = vertices[1];
+    this->vertexBufferEndPtr[5] = vertices[3];
+
+    this->vertexBufferEndPtr += 6;
+    this->spritesToDraw++;
+
+    return ZUN_SUCCESS;
+}
+#else
 ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices)
 {
     this->vertexBufferEndPtr[0] = vertices[0];
@@ -1144,6 +1258,7 @@ ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices)
 
     return ZUN_SUCCESS;
 }
+#endif
 
 ZunResult AnmManager::DrawNoRotation(const AnmVm *vm)
 {
@@ -1186,11 +1301,24 @@ ZunResult AnmManager::DrawNoRotation(const AnmVm *vm)
         g_PrimitivesToDrawVertexBuf[2].position.y = g_PrimitivesToDrawVertexBuf[3].position.y =
             fVar3 + vm->pos.y + fVar3;
     }
+
+#ifdef __PS3__
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+#endif
+
     return this->DrawOrthographic(vm, true);
 }
 
+#ifdef __PS3__
+void AnmManager::TranslateRotation(VertexTex1DiffuseXyzrhw *param_1, f32 x, f32 y, f32 sine, f32 cosine, f32 xOffset,
+                                   f32 yOffset)
+#else
 void AnmManager::TranslateRotation(VertexTex1Xyzrhw *param_1, f32 x, f32 y, f32 sine, f32 cosine, f32 xOffset,
                                    f32 yOffset)
+#endif
 {
     param_1->position.x = x * cosine + y * sine + xOffset;
     param_1->position.y = -x * sine + y * cosine + yOffset;
@@ -1253,6 +1381,14 @@ ZunResult AnmManager::Draw(const AnmVm *vm)
         g_PrimitivesToDrawVertexBuf[2].position.y += spriteYCenter;
         g_PrimitivesToDrawVertexBuf[3].position.y += spriteYCenter;
     }
+
+#ifdef __PS3__
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+#endif
+
     return this->DrawOrthographic(vm, false);
 }
 
@@ -1298,6 +1434,14 @@ ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
         g_PrimitivesToDrawVertexBuf[2].position.y = g_PrimitivesToDrawVertexBuf[3].position.y =
             vm->pos.y + centerY + centerY;
     }
+
+#ifdef __PS3__
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+#endif
+
     return this->DrawOrthographic(vm, false);
 }
 
@@ -1386,8 +1530,13 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
     else
     {
         for (int i = 0; i < 4; i++)
+        {
             g_PrimitivesToDrawVertexBuf[i].position =
                 ZunVec4(worldTransformMatrix * this->vertexBufferContents[i].position, 1.0f);
+#ifdef __PS3__
+            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(vm->color);
+#endif
+        }
 
         g_PrimitivesToDrawVertexBuf[0].textureUV.x = g_PrimitivesToDrawVertexBuf[2].textureUV.x =
             vm->sprite->uvStart.x + vm->uvScrollPos.x;
@@ -1417,7 +1566,11 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
     {
+#ifdef __PS3__
+        this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
         this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
     }
     else
     {
@@ -1430,11 +1583,21 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
     // Draw the VM.
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) == 0)
     {
-
+#ifdef __PS3__
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, originalView);
+#else
         this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+#endif
     }
     else
     {
+#ifdef __PS3__
+        g_PrimitivesToDrawUnknown[0].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[1].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[2].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[3].diffuse = ColorData(vm->color);
+        this->ApplySoftwareFog(g_PrimitivesToDrawUnknown, 4, originalView);
+#endif
         this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawUnknown),
                                   &g_PrimitivesToDrawUnknown[0].position);
         this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*g_PrimitivesToDrawUnknown),
@@ -1502,8 +1665,13 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
     else
     {
         for (int i = 0; i < 4; i++)
+        {
             g_PrimitivesToDrawVertexBuf[i].position =
                 ZunVec4(worldTransformMatrix * this->vertexBufferContents[i].position, 1.0f);
+#ifdef __PS3__
+            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(vm->color);
+#endif
+        }
 
         g_PrimitivesToDrawVertexBuf[0].textureUV.x = g_PrimitivesToDrawVertexBuf[2].textureUV.x =
             vm->sprite->uvStart.x + vm->uvScrollPos.x;
@@ -1536,7 +1704,11 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 
         if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
         {
+#ifdef __PS3__
+            this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
             this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
         }
         else
         {
@@ -1548,10 +1720,21 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
 
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) == 0)
     {
+#ifdef __PS3__
+        this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf, originalView);
+#else
         this->AddSpriteToDrawBuffer(g_PrimitivesToDrawVertexBuf);
+#endif
     }
     else
     {
+#ifdef __PS3__
+        g_PrimitivesToDrawUnknown[0].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[1].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[2].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawUnknown[3].diffuse = ColorData(vm->color);
+        this->ApplySoftwareFog(g_PrimitivesToDrawUnknown, 4, originalView);
+#endif
         this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawUnknown),
                                   &g_PrimitivesToDrawUnknown[0].position);
         this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*g_PrimitivesToDrawUnknown),
@@ -2283,13 +2466,30 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[2].position = ZunVec3((f32)dstX, (f32)dstY + rectHeight, 0.0f);
     verts[3].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY + rectHeight, 0.0f);
 
+#ifdef __PS3__
+    verts[0].diffuse = ColorData(0xffffffff);
+    verts[1].diffuse = ColorData(0xffffffff);
+    verts[2].diffuse = ColorData(0xffffffff);
+    verts[3].diffuse = ColorData(0xffffffff);
+#endif
+
     verts[0].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop) / textureHeight);
     verts[1].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop) / textureHeight);
     verts[2].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
     verts[3].textureUV = ZunVec2(((f32)rectLeft + rectWidth) / textureWidth, ((f32)rectTop + rectHeight) / textureHeight);
 
+#ifdef __PS3__
+    this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD | VERTEX_ATTR_DIFFUSE);
+#else
     this->SetVertexAttributes(VERTEX_ATTR_TEX_COORD);
+#endif
 
+#ifdef __PS3__
+    ZunMatrix identity;
+    identity.Identity();
+    this->ApplySoftwareFog(verts, 4, identity);
+    this->SetAttributePointer(VERTEX_ARRAY_DIFFUSE, sizeof(*verts), &verts[0].diffuse);
+#endif
     this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*verts), &verts[0].position);
     this->SetAttributePointer(VERTEX_ARRAY_TEX_COORD, sizeof(*verts), &verts[0].textureUV);
 

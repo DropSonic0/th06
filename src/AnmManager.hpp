@@ -186,17 +186,23 @@ struct AnmManager
     void ClearVertexBuffer();
 
     u32 spritesToDraw;
+#ifdef __PS3__
+    VertexTex1DiffuseXyzrhw *vertexBufferStartPtr;
+    VertexTex1DiffuseXyzrhw *vertexBufferEndPtr;
+    VertexTex1DiffuseXyzrhw vertexBuffer[0x18000] __attribute__((aligned(16)));
+#else
     VertexTex1Xyzrhw *vertexBufferStartPtr;
     VertexTex1Xyzrhw *vertexBufferEndPtr;
-#ifdef __PS3__
-    VertexTex1Xyzrhw vertexBuffer[0x18000] __attribute__((aligned(16)));
-#else
     VertexTex1Xyzrhw vertexBuffer[0x18000];
 #endif
 
     u32 renderStateChangesThisFrame;
     u32 flushesThisFrame;
+#ifdef __PS3__
+    ZunResult AddSpriteToDrawBuffer(VertexTex1DiffuseXyzrhw *vertices, const ZunMatrix &viewMatrix);
+#else
     ZunResult AddSpriteToDrawBuffer(VertexTex1Xyzrhw *vertices);
+#endif
 
     ZunResult CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat);
     ZunResult LoadTexture(i32 textureIdx, const char *textureName, i32 textureFormat, ZunColor colorKey);
@@ -343,12 +349,19 @@ struct AnmManager
         this->FlushVertexBuffer();
         this->dirtyFogNear = nearPlane;
         this->dirtyFogFar = farPlane;
+#ifdef __PS3__
+        this->fogNear = nearPlane;
+        this->fogFar = farPlane;
+#endif
         this->dirtyFlags |= (1 << DIRTY_FOG);
     }
 
     void SetFogColor(ZunColor color)
     {
         this->dirtyFogColor = color;
+#ifdef __PS3__
+        this->fogColor = color;
+#endif
         this->dirtyFlags |= (1 << DIRTY_FOG);
     }
 
@@ -419,8 +432,13 @@ struct AnmManager
     void CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 rectX, i32 rectY, i32 rectLeft, i32 rectTop, i32 width,
                                      i32 height);
 
+#ifdef __PS3__
+    void TranslateRotation(VertexTex1DiffuseXyzrhw *param_1, float x, float y, float sine, float cosine, float xOffset,
+                           float yOffset);
+#else
     void TranslateRotation(VertexTex1Xyzrhw *param_1, float x, float y, float sine, float cosine, float xOffset,
                            float yOffset);
+#endif
 
     void ReleaseAnm(i32 anmIdx);
     ZunResult LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset);
@@ -458,6 +476,10 @@ struct AnmManager
     // Creates, binds, and set parameters for a new texture
     void CreateTextureObject();
     void UpdateDirtyStates();
+#ifdef __PS3__
+    void ApplySoftwareFog(VertexTex1DiffuseXyzrhw *verts, i32 count, const ZunMatrix &viewMatrix);
+    void ApplySoftwareFog(VertexTex1DiffuseXyz *verts, i32 count, const ZunMatrix &viewMatrix);
+#endif
 
     AnmLoadedSprite sprites[2048];
     AnmVm virtualMachine;
