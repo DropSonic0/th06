@@ -125,13 +125,9 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
             if (pixel[0]) // A (ARGB)
             {
                 // Purely vertical gradient to match original game look.
-                // We only apply it to pixels that are part of the text, not the shadow/outline,
-                // by checking if they are not near-black.
-                if (pixel[1] > 20 || pixel[2] > 20 || pixel[3] > 20) {
-                    pixel[1] = pixel[1] - pixel[1] * row / fontHeight / 4; // B
-                    pixel[2] = pixel[2] - pixel[2] * row / fontHeight / 2; // G
-                    pixel[3] = pixel[3] - pixel[3] * row / fontHeight / 2; // R
-                }
+                pixel[1] = pixel[1] - pixel[1] * row / fontHeight / 2; // R
+                pixel[2] = pixel[2] - pixel[2] * row / fontHeight / 2; // G
+                pixel[3] = pixel[3] - pixel[3] * row / fontHeight / 4; // B
             }
 #endif
         }
@@ -547,12 +543,13 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 
     // Original game uses a +3, +2 shadow at 1x scale, so we use +3, +2 at 2x scale 
     // to match the non-PS3 path's look (which is also 2x).
-    u32 realShadowColor = (shadowColor == COLOR_WHITE) ? COLOR_BLACK : shadowColor;
-    PS3_RenderText(convertedText, fontHeight * 2, realShadowColor, xPos * 2 + 3, drawY + 2);
+    if (shadowColor != COLOR_WHITE)
+    {
+        PS3_RenderText(convertedText, fontHeight * 2, shadowColor, xPos * 2 + 3, drawY + 2);
+    }
 
-    // PC version mostly uses a 1px outline (rendered as a single 1px pass in GDI, but 
-    // for our 2x buffer we use 2px).
-    int dist = 2;
+    // PC version mostly uses a 1px outline.
+    int dist = 1;
     PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 - dist, drawY - dist);
     PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 + dist, drawY - dist);
     PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 - dist, drawY + dist);
