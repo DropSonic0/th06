@@ -84,6 +84,7 @@ struct GLFuncTable
     void GLAPIENTRY (*glDrawArrays)(GLenum mode, GLint first, GLsizei count);
     void GLAPIENTRY (*glFlush)(void);
     void GLAPIENTRY (*glFinish)(void);
+    void GLAPIENTRY (*glDisable)(GLenum cap);
     void GLAPIENTRY (*glEnable)(GLenum cap);
     void GLAPIENTRY (*glEnableClientState)(GLenum cap);
     void GLAPIENTRY (*glFogf)(GLenum pname, GLfloat param);
