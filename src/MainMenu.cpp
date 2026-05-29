@@ -1919,7 +1919,7 @@ ZunResult MainMenu::ChoosePracticeLevel() const
                 g_AsciiManager.color = (color >> 1) << 0x18 | 0x0080C0C0;
             }
             g_AsciiManager.AddFormatText(&textPos, "STAGE %d  %.9d", stageNum + 1,
-                                         g_GameManager.pscr[charShotType][stageNum][g_GameManager.difficulty].score);
+                                         (u32)g_GameManager.pscr[charShotType][stageNum][g_GameManager.difficulty].score);
             textPos.y += 24;
         }
         g_AsciiManager.color = 0xFFFFFFFF;

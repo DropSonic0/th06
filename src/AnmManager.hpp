@@ -349,19 +349,12 @@ struct AnmManager
         this->FlushVertexBuffer();
         this->dirtyFogNear = nearPlane;
         this->dirtyFogFar = farPlane;
-#ifdef __PS3__
-        this->fogNear = nearPlane;
-        this->fogFar = farPlane;
-#endif
         this->dirtyFlags |= (1 << DIRTY_FOG);
     }
 
     void SetFogColor(ZunColor color)
     {
         this->dirtyFogColor = color;
-#ifdef __PS3__
-        this->fogColor = color;
-#endif
         this->dirtyFlags |= (1 << DIRTY_FOG);
     }
 
@@ -476,10 +469,6 @@ struct AnmManager
     // Creates, binds, and set parameters for a new texture
     void CreateTextureObject();
     void UpdateDirtyStates();
-#ifdef __PS3__
-    void ApplySoftwareFog(VertexTex1DiffuseXyzrhw *verts, i32 count, const ZunMatrix &viewMatrix);
-    void ApplySoftwareFog(VertexTex1DiffuseXyz *verts, i32 count, const ZunMatrix &viewMatrix);
-#endif
 
     AnmLoadedSprite sprites[2048];
     AnmVm virtualMachine;
