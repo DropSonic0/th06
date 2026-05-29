@@ -26,7 +26,6 @@ void ZunViewport::Get()
 
     g_GfxBackend->GetViewport(viewPortGet);
     g_GfxBackend->GetDepthRange(depthRangeGet);
-    g_GameErrorContext.Log("RawVP: %u %u %u %u\n", (unsigned int)viewPortGet[0], (unsigned int)viewPortGet[1], (unsigned int)viewPortGet[2], (unsigned int)viewPortGet[3]);
 
     this->x = (i32)((viewPortGet[0] - VIEWPORT_OFF_X) / WIDTH_RESOLUTION_SCALE);
     this->y = (i32)((viewPortGet[1] - VIEWPORT_OFF_Y) / HEIGHT_RESOLUTION_SCALE);
@@ -45,12 +44,10 @@ void ZunViewport::Get()
 
 ZunMatrix inverseViewportMatrix()
 {
-    g_GameErrorContext.Log("IVP start\n");
     ZunMatrix inverseMatrix;
     ZunViewport viewport;
 
     viewport.Get();
-    g_GameErrorContext.Log("VP: %d %d %d %d\n", (int)viewport.x, (int)viewport.y, (int)viewport.width, (int)viewport.height);
 
     inverseMatrix.Identity();
 

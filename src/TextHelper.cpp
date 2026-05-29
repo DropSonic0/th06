@@ -124,10 +124,14 @@ bool TextHelper::InvertAlpha(i32 x, i32 y, i32 spriteWidth, i32 fontHeight)
 #else
             if (pixel[0]) // A (ARGB)
             {
-                // Purely vertical gradient to match original game look
-                pixel[1] = pixel[1] - pixel[1] * row / fontHeight / 2; // R
-                pixel[2] = pixel[2] - pixel[2] * row / fontHeight / 2; // G
-                pixel[3] = pixel[3] - pixel[3] * row / fontHeight / 4; // B
+                // Purely vertical gradient to match original game look.
+                // We only apply it to pixels that are part of the text, not the shadow/outline,
+                // by checking if they are not near-black.
+                if (pixel[1] > 20 || pixel[2] > 20 || pixel[3] > 20) {
+                    pixel[1] = pixel[1] - pixel[1] * row / fontHeight / 4; // B
+                    pixel[2] = pixel[2] - pixel[2] * row / fontHeight / 2; // G
+                    pixel[3] = pixel[3] - pixel[3] * row / fontHeight / 2; // R
+                }
             }
 #endif
         }
@@ -261,9 +265,9 @@ static void PS3_RenderText(const char *text, int fontHeight, u32 color, int xPos
     stbtt_GetFontVMetrics(&g_Font, &ascent, &descent, &lineGap);
     int baseline = (int)(ascent * scale);
 
-    u8 red = (color >> 16) & 0xFF;
+    u8 red = color & 0xFF;
     u8 green = (color >> 8) & 0xFF;
-    u8 blue = color & 0xFF;
+    u8 blue = (color >> 16) & 0xFF;
 
     const char *p = text;
     int x = xPos;
@@ -326,13 +330,27 @@ static void PS3_RenderText(const char *text, int fontHeight, u32 color, int xPos
                     u8 alpha = g.bitmap[j * g.w + k];
                     if (alpha > 0) {
                         u8 *dst = rowDst + px * 4;
-                        u8 oldA = dst[0];
-                        u32 newA = alpha + (u32)oldA * (255 - alpha) / 255;
-                        if (newA > 0) {
-                            dst[1] = (u8)((red * alpha + (u32)dst[1] * oldA * (255 - alpha) / 255) / newA);
-                            dst[2] = (u8)((green * alpha + (u32)dst[2] * oldA * (255 - alpha) / 255) / newA);
-                            dst[3] = (u8)((blue * alpha + (u32)dst[3] * oldA * (255 - alpha) / 255) / newA);
-                            dst[0] = (u8)newA;
+                        if (dst[0] == 0) {
+                            dst[0] = alpha;
+                            dst[1] = red;
+                            dst[2] = green;
+                            dst[3] = blue;
+                        } else {
+                            // Standard Alpha "Over" blending to allow soft accumulation
+                            u32 a = alpha;
+                            u32 da = dst[0];
+
+                            // If we're drawing the same color (e.g. outline/shadow passes), 
+                            // use max alpha instead of blending to keep it crisp and prevent "fat" edges.
+                            if (dst[1] == red && dst[2] == green && dst[3] == blue) {
+                                if (a > da) dst[0] = (u8)a;
+                            } else {
+                                u32 outA = a + da - (a * da / 255);
+                                dst[1] = (u8)((red * a + (u32)dst[1] * da * (255 - a) / 255) / (outA ? outA : 1));
+                                dst[2] = (u8)((green * a + (u32)dst[2] * da * (255 - a) / 255) / (outA ? outA : 1));
+                                dst[3] = (u8)((blue * a + (u32)dst[3] * da * (255 - a) / 255) / (outA ? outA : 1));
+                                dst[0] = (u8)outA;
+                            }
                         }
                     }
                 }
@@ -342,24 +360,28 @@ static void PS3_RenderText(const char *text, int fontHeight, u32 color, int xPos
     }
 }
 
-static void PS3_ScaleSurface(u8 *src, int srcW, int srcH, int srcPitch, u8 *dst, int dstW, int dstH, int dstPitch)
+static void PS3_ScaleSurface(u8 *src, int srcW, int srcH, int srcPitch, u8 *dst, int dstW, int dstH, int dstPitch,
+                             int maxDstW, int maxDstH)
 {
     for (int y = 0; y < dstH; y++)
     {
+        if (y >= maxDstH) break;
         for (int x = 0; x < dstW; x++)
         {
+            if (x >= maxDstW) break;
             int srcX = x * 2;
             int srcY = y * 2;
 
             u32 r = 0, g = 0, b = 0, a = 0;
             int count = 0;
-            for (int dy = 0; dy < 2; dy++)
+            // 2x2 box filter for better sharpness while maintaining anti-aliasing
+            for (int dy = 0; dy <= 1; dy++)
             {
-                for (int dx = 0; dx < 2; dx++)
+                for (int dx = 0; dx <= 1; dx++)
                 {
                     int sx = srcX + dx;
                     int sy = srcY + dy;
-                    if (sx < srcW && sy < srcH)
+                    if (sx >= 0 && sx < srcW && sy >= 0 && sy < srcH)
                     {
                         u8 *p = src + sy * srcPitch + sx * 4;
                         u32 alpha = p[0];
@@ -374,13 +396,28 @@ static void PS3_ScaleSurface(u8 *src, int srcW, int srcH, int srcPitch, u8 *dst,
             u8 *dp = dst + y * dstPitch + x * 4;
             if (count > 0)
             {
-                u32 avgA = a / 4;
+                // Average alpha with a sharpening curve to match the crispness of the original PC version.
+                // This curve increases contrast in the alpha channel, making edges sharper.
+                float avgA = (float)a / count;
+                if (avgA > 0.0f && avgA < 255.0f) {
+                    float x_a = avgA / 255.0f;
+                    // Cubic sharpening curve (smoothstep-like but steeper)
+                    x_a = x_a * x_a * (3.0f - 2.0f * x_a);
+                    x_a = (x_a - 0.5f) * 1.5f + 0.5f; // Extra contrast boost
+                    if (x_a < 0.0f) x_a = 0.0f;
+                    if (x_a > 1.0f) x_a = 1.0f;
+                    avgA = x_a * 255.0f;
+                }
                 dp[0] = (u8)avgA;
-                if (avgA > 0) {
+
+                if (a > 0)
+                {
                     dp[1] = (u8)(r / a);
                     dp[2] = (u8)(g / a);
                     dp[3] = (u8)(b / a);
-                } else {
+                }
+                else
+                {
                     dp[1] = dp[2] = dp[3] = 0;
                 }
             }
@@ -427,13 +464,6 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                                      i32 fontWidth, ZunColor textColor, ZunColor shadowColor, const char *string,
                                      TextureData *outTexture)
 {
-#ifdef __PS3__
-    static bool logged = false;
-    if (!logged) {
-        std::printf("DEBUG: TextHelper::RenderTextToTexture PS3 path active\n");
-        logged = true;
-    }
-#endif
     char convertedText[1024];
 #ifndef __PS3__
     SDL_Rect finalCopyDst;
@@ -512,25 +542,27 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 #else
     std::memset(g_TextBufferSurface, 0, PS3_TEXT_BUFFER_WIDTH * PS3_TEXT_BUFFER_HEIGHT * 4);
 
-    // Thick outline: diamond pattern, 2px distance at 2x scale = 1px at 1x scale
-    for (int dy = -2; dy <= 2; dy++)
-    {
-        for (int dx = -2; dx <= 2; dx++)
-        {
-            if (dx * dx + dy * dy <= 5 && (dx != 0 || dy != 0))
-            {
-                PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 + dx, dy + 2);
-            }
-        }
-    }
+    const int margin = 8;
+    const int drawY = 2;
 
-    if (shadowColor != COLOR_WHITE)
-    {
-        // Render shadow. Original is roughly (1, 1) offset. At 2x scale, it's (2, 2).
-        PS3_RenderText(convertedText, fontHeight * 2, shadowColor, xPos * 2 + 2, 2 + 2);
-    }
+    // Original game uses a +3, +2 shadow at 1x scale, so we use +3, +2 at 2x scale 
+    // to match the non-PS3 path's look (which is also 2x).
+    u32 realShadowColor = (shadowColor == COLOR_WHITE) ? COLOR_BLACK : shadowColor;
+    PS3_RenderText(convertedText, fontHeight * 2, realShadowColor, xPos * 2 + 3, drawY + 2);
 
-    PS3_RenderText(convertedText, fontHeight * 2, textColor, xPos * 2, 2);
+    // PC version mostly uses a 1px outline (rendered as a single 1px pass in GDI, but 
+    // for our 2x buffer we use 2px).
+    int dist = 2;
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 - dist, drawY - dist);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 + dist, drawY - dist);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 - dist, drawY + dist);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 + dist, drawY + dist);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 - dist, drawY);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2 + dist, drawY);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2, drawY - dist);
+    PS3_RenderText(convertedText, fontHeight * 2, COLOR_BLACK, xPos * 2, drawY + dist);
+
+    PS3_RenderText(convertedText, fontHeight * 2, textColor, xPos * 2, drawY);
 #endif
 
     // Once we get an API abstraction layer for surface operations, this needs to change
@@ -549,8 +581,20 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         outTexture->width * SDL_BYTESPERPIXEL(SDL_PIXELFORMAT_RGBA32), SDL_PIXELFORMAT_RGBA32);
 #endif
 
-    // Apply vertical gradient only to the text area (offset by 2 pixels vertically)
+#ifdef __PS3__
+    int srcX = std::max(0, xPos * 2 - margin);
+    int srcW = spriteWidth * 2 + margin * 2;
+    // Keep srcH aligned with what we're going to scale
+    int srcH = fontHeight * 2 + margin; 
+#endif
+
+    // Apply vertical gradient only to the text area
+#ifndef __PS3__
     InvertAlpha(std::max(0, xPos * 2 - 2), 2, spriteWidth * 2 + 4, fontHeight * 2);
+#else
+    // On PS3, we render at drawY=margin. We apply the gradient to the text rows specifically.
+    InvertAlpha(srcX, drawY, srcW, fontHeight * 2);
+#endif
 
 #ifndef __PS3__
     finalCopyDst.x = 0;
@@ -563,13 +607,18 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
         SDL_Log("SDL_BlitScaled failed! Error: %s", SDL_GetError());
     }
 #else
-    // Adjust scaling to include the outlines (+-2px) and the 2px vertical shift
+    // Adjust scaling to include the outlines/shadow
     // We scale from 2x back to 1x.
-    int srcX = std::max(0, xPos * 2 - 2);
     int dstX = srcX / 2;
-    PS3_ScaleSurface((u8 *)g_TextBufferSurface + (srcX * 4), spriteWidth * 2 + 4, fontHeight * 2 + 6,
-                     PS3_TEXT_BUFFER_WIDTH * 4, outTexture->textureData + (yPos * outTexture->width + dstX) * 4,
-                     spriteWidth + 2, (fontHeight * 2 + 6) / 2, outTexture->width * 4);
+    // The text is rendered at drawY in the 2x buffer. 
+    // We scale starting from y=0 in the buffer, and the text will be at drawY.
+    int srcY = 0;
+    u8 *dstStart = outTexture->textureData + (yPos * outTexture->width + dstX) * 4;
+    int maxDstW = outTexture->width - dstX;
+    int maxDstH = outTexture->height - yPos;
+
+    PS3_ScaleSurface((u8 *)g_TextBufferSurface + (srcY * PS3_TEXT_BUFFER_WIDTH * 4) + (srcX * 4), srcW, srcH,
+                     PS3_TEXT_BUFFER_WIDTH * 4, dstStart, srcW / 2, srcH / 2, outTexture->width * 4, maxDstW, maxDstH);
 #endif
 
     g_AnmManager->SetCurrentTexture(outTexture->handle);
@@ -578,8 +627,8 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                                   outTexture->textureData);
 
 #ifdef __PS3__
-    g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 #endif
 
 #ifndef __PS3__

@@ -629,7 +629,6 @@ ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, 
 
 ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 {
-    g_GameErrorContext.Log("AnmManager::LoadAnm(idx=%d, path=%s) started.\n", anmIdx, path);
     this->ReleaseAnm(anmIdx);
     this->anmFiles[anmIdx] = (AnmRawEntry *)FileSystem::OpenPath(path, 0);
 
@@ -2188,7 +2187,6 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
 
 ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 {
-    g_GameErrorContext.Log("AnmManager::LoadSurface(%d, %s) started.\n", surfaceIdx, path);
 #ifndef __PS3__
     if (this->surfaces[surfaceIdx] != NULL)
     {
@@ -2245,7 +2243,6 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
     this->surfaces[surfaceIdx]->h = y;
     this->surfaces[surfaceIdx]->textureHandle = 0;
 
-    g_GameErrorContext.Log("AnmManager::LoadSurface(%d, %s) finished. Dimensions: %dx%d\n", surfaceIdx, path, x, y);
     return ZUN_SUCCESS;
 #endif
     return ZUN_SUCCESS;
@@ -2397,7 +2394,6 @@ void AnmManager::CopySurfaceToBackBuffer(i32 surfaceIdx, i32 srcX, i32 srcY, i32
 void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY, i32 rectLeft, i32 rectTop,
                                              i32 rectWidth, i32 rectHeight)
 {
-    g_GameErrorContext.Log("AnmManager::CopySurfaceRectToBackBuffer(%d, dstX=%d, dstY=%d, w=%d, h=%d) started.\n", surfaceIdx, dstX, dstY, rectWidth, rectHeight);
 #ifndef __PS3__
     SDL_Surface *srcSurface = this->surfaces[surfaceIdx];
 
@@ -2437,18 +2433,14 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     this->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
 
     if (srcSurface->textureHandle == 0) {
-        g_GameErrorContext.Log("Creating texture for surface %d...\n", surfaceIdx);
         srcSurface->textureHandle = g_GfxBackend->CreateTexture();
         g_GfxBackend->BindTexture(srcSurface->textureHandle);
         g_GfxBackend->SetTextureFilter();
         u32 textureWidth = BitCeil((u32)srcSurface->w);
         u32 textureHeight = BitCeil((u32)srcSurface->h);
-        g_GameErrorContext.Log("Surface size: %dx%d, Texture size: %dx%d\n", srcSurface->w, srcSurface->h, textureWidth, textureHeight);
         g_GfxBackend->SetTextureImage(textureWidth, textureHeight, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE, NULL);
         g_GfxBackend->SetTextureSubImage(0, 0, srcSurface->w, srcSurface->h, srcSurface->pixels);
-        g_GameErrorContext.Log("Texture created and data uploaded.\n");
     } else {
-        g_GameErrorContext.Log("Binding existing texture for surface %d...\n", surfaceIdx);
         g_GfxBackend->BindTexture(srcSurface->textureHandle);
     }
 
