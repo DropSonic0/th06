@@ -46,11 +46,17 @@ struct TextureData
 // Endian-neutral version of ZunColor, for use with OpenGL
 struct ColorData
 {
+#ifndef __PS3__
     u8 r;
     u8 g;
     u8 b;
     u8 a;
-
+#else
+    u8 a;
+    u8 r;
+    u8 g;
+    u8 b;
+#endif
     ColorData()
     {
     }
