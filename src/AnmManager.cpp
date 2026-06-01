@@ -56,10 +56,10 @@ static ZunColor ApplyFog(ZunColor color, f32 z, f32 fogNear, f32 fogFar, ZunColo
     if (fogFactor > 1.0f)
         fogFactor = 1.0f;
 
+    u32 a = (color >> 24) & 0xff;
     u32 r = (color >> 16) & 0xff;
     u32 g = (color >> 8) & 0xff;
     u32 b = color & 0xff;
-    u32 a = (color >> 24) & 0xff;
 
     u32 fr = (fogColor >> 16) & 0xff;
     u32 fg = (fogColor >> 8) & 0xff;
@@ -268,10 +268,10 @@ AnmManager::AnmManager()
     g_PrimitivesToDrawVertexBuf[1].position.w = g_PrimitivesToDrawVertexBuf[2].position.w;
     g_PrimitivesToDrawVertexBuf[0].position.w = g_PrimitivesToDrawVertexBuf[1].position.w;
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(0xffffffff);
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(0xffffffff);
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(0xffffffff);
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(0xffffffff);
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
 #endif
     g_PrimitivesToDrawVertexBuf[0].textureUV.x = 0.0f;
     g_PrimitivesToDrawVertexBuf[0].textureUV.y = 0.0f;
@@ -1076,10 +1076,10 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
 #endif
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
@@ -1145,10 +1145,10 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
             vm->sprite->uvEnd.y + vm->uvScrollPos.y;
 
 #ifdef __PS3__
-        g_PrimitivesToDrawNoVertexBuf[0].diffuse = ColorData(vm->color);
-        g_PrimitivesToDrawNoVertexBuf[1].diffuse = ColorData(vm->color);
-        g_PrimitivesToDrawNoVertexBuf[2].diffuse = ColorData(vm->color);
-        g_PrimitivesToDrawNoVertexBuf[3].diffuse = ColorData(vm->color);
+        g_PrimitivesToDrawNoVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+        g_PrimitivesToDrawNoVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+        g_PrimitivesToDrawNoVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+        g_PrimitivesToDrawNoVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
 #endif
         this->SetAttributePointer(VERTEX_ARRAY_POSITION, sizeof(*g_PrimitivesToDrawNoVertexBuf),
                                   &g_PrimitivesToDrawNoVertexBuf[0].position);
@@ -1279,10 +1279,10 @@ ZunResult AnmManager::DrawNoRotation(const AnmVm *vm)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
 #endif
 
     return this->DrawOrthographic(vm, true);
@@ -1359,10 +1359,10 @@ ZunResult AnmManager::Draw(const AnmVm *vm)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
 #endif
 
     return this->DrawOrthographic(vm, false);
@@ -1412,10 +1412,10 @@ ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(vm->color);
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(vm->color);
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
 #endif
 
     return this->DrawOrthographic(vm, false);
@@ -1518,7 +1518,7 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
                 ZunVec4 viewPos = originalView * worldPos;
                 c = ApplyFog(c, viewPos.z, this->dirtyFogNear, this->dirtyFogFar, this->dirtyFogColor);
             }
-            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(c);
+            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
 #endif
         }
 
@@ -1671,7 +1671,7 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
                 ZunVec4 viewPos = originalView * worldPos;
                 c = ApplyFog(c, viewPos.z, this->dirtyFogNear, this->dirtyFogFar, this->dirtyFogColor);
             }
-            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(c);
+            g_PrimitivesToDrawVertexBuf[i].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
 #endif
         }
 
@@ -2334,6 +2334,10 @@ void AnmManager::ReleaseSurface(i32 surfaceIdx)
 #ifndef __PS3__
         SDL_FreeSurface(this->surfaces[surfaceIdx]);
 #else
+		if (this->surfaces[surfaceIdx]->textureHandle != 0)
+        {
+            g_GfxBackend->DeleteTexture(this->surfaces[surfaceIdx]->textureHandle);
+        }
         if (this->surfaces[surfaceIdx]->pixels)
             stbi_image_free(this->surfaces[surfaceIdx]->pixels);
         delete this->surfaces[surfaceIdx];
@@ -2471,10 +2475,10 @@ void AnmManager::CopySurfaceRectToBackBuffer(i32 surfaceIdx, i32 dstX, i32 dstY,
     verts[3].position = ZunVec3((f32)dstX + rectWidth, (f32)dstY + rectHeight, 0.0f);
 
 #ifdef __PS3__
-    verts[0].diffuse = ColorData(0xffffffff);
-    verts[1].diffuse = ColorData(0xffffffff);
-    verts[2].diffuse = ColorData(0xffffffff);
-    verts[3].diffuse = ColorData(0xffffffff);
+    verts[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    verts[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    verts[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
+    verts[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xffffffff));
 #endif
 
     verts[0].textureUV = ZunVec2(((f32)rectLeft) / textureWidth, ((f32)rectTop) / textureHeight);

@@ -34,6 +34,12 @@
 #define COLOR_SET_ALPHA3(color, alpha) (COLOR_RGB(color) | ((alpha) << 24))
 #define COLOR_COMBINE_ALPHA(color, alpha) (((alpha) & COLOR_ALPHA_MASK) | COLOR_RGB(color))
 
+#ifdef __PS3__
+#define ZUN_COLOR_TO_PSGL_COLOR(color) ((COLOR_RGB(color) << 8) | COLOR_ALPHA(color))
+#else
+#define ZUN_COLOR_TO_PSGL_COLOR(color) (color)
+#endif
+
 #define COLOR_MENU_ACTIVE_BACKGROUND 0x40000000
 // TODO: find a better name for this color
 #define COLOR_START_MENU_ITEM_INACTIVE 0x80300000

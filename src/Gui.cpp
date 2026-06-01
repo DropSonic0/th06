@@ -770,8 +770,8 @@ ZunResult GuiImpl::DrawDialogue() const
                                            (g_GameManager.arcadeRegionSize.x - 256.0f) / 2.0f + 256.0f + 16.0f,
                                        384.0f + dialogueBoxHeight, 0.0f, 1.0f);
 
-    vertices[0].diffuse = vertices[1].diffuse = ColorData(0xd0000000);
-    vertices[2].diffuse = vertices[3].diffuse = ColorData(0x90000000);
+    vertices[0].diffuse = vertices[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xd0000000));
+    vertices[2].diffuse = vertices[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0x90000000));
     //    vertices[0].position.w = vertices[1].position.w = vertices[2].position.w = vertices[3].position.w = 1.0f;
     g_AnmManager->DrawNoRotation(&this->msg.portraits[0]);
     g_AnmManager->DrawNoRotation(&this->msg.portraits[1]);
@@ -1192,8 +1192,8 @@ void Gui::DrawGameScene()
             vertices[2].position = ZunVec4(496.0f, 202.0f, 0.1f, 1.0f);
             vertices[3].position = ZunVec4(g_GameManager.currentPower + 496 + 0.0f, 202.0f, 0.1f, 1.0f);
 
-            vertices[0].diffuse = vertices[2].diffuse = ColorData(0xe0e0e0ff);
-            vertices[1].diffuse = vertices[3].diffuse = ColorData(0x80e0e0ff);
+            vertices[0].diffuse = vertices[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0xe0e0e0ff));
+            vertices[1].diffuse = vertices[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(0x80e0e0ff));
 
             //            vertices[0].position.w = vertices[1].position.w = vertices[2].position.w =
             //            vertices[3].position.w = 1.0;

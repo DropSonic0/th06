@@ -71,7 +71,7 @@ GfxInterface *FixedFunctionGL::Init()
     options.transientMemorySize = 0;
     options.errorConsole = 0;
     options.fifoSize = 0;
-    options.hostMemorySize = 32 * 1024 * 1024;
+    options.hostMemorySize = 64 * 1024 * 1024;
     
     psglInit(&options);
     g_GameErrorContext.Log("PSGL initialized.\n");

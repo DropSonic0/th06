@@ -48,6 +48,7 @@ ChainCallbackResult ScreenEffect::CalcFadeIn(ScreenEffect *effect)
     if (effect->effectLength != 0)
     {
         effect->fadeAlpha = 255.0f - ((effect->timer.AsFramesFloat() * 255.0f) / effect->effectLength);
+
         if (effect->fadeAlpha < 0)
         {
             effect->fadeAlpha = 0;
@@ -77,7 +78,7 @@ void ScreenEffect::DrawSquare(const ZunRect *rect, ZunColor rectColor)
     vertices[2].position = ZunVec4(rect->left, rect->bottom, 0.0f, 1.0f);
     vertices[3].position = ZunVec4(rect->right, rect->bottom, 0.0f, 1.0f);
 
-    vertices[0].diffuse = vertices[1].diffuse = vertices[2].diffuse = vertices[3].diffuse = ColorData(rectColor);
+    vertices[0].diffuse = vertices[1].diffuse = vertices[2].diffuse = vertices[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(rectColor));
 
     g_AnmManager->SetProjectionMode(PROJECTION_MODE_ORTHOGRAPHIC);
 
@@ -111,6 +112,7 @@ ChainCallbackResult ScreenEffect::CalcFadeOut(ScreenEffect *effect)
     if (effect->effectLength != 0)
     {
         effect->fadeAlpha = (effect->timer.AsFramesFloat() * 255.0f) / effect->effectLength;
+
         if (effect->fadeAlpha < 0)
         {
             effect->fadeAlpha = 0;
