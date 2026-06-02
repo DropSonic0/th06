@@ -41,6 +41,8 @@ void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
 void MidiOutput::StartTimer(u32 delay, void* cb, void *data)
 {
     this->StopTimer();
+    this->lastTimerTicks = SDL_GetTicks();
+    this->timerId = 1; // Dummy value to indicate it's "running"
 }
 #endif
 
@@ -242,12 +244,15 @@ ZunResult MidiOutput::ParseFile(i32 fileIdx)
         std::memcpy(this->tracks[trackIdx].trackData, currentCursor, trackLength);
         currentCursor += trackLength;
     }
-    this->tempo = 1000;
+    this->tempo = 500000;
     return ZUN_SUCCESS;
 }
 
 ZunResult MidiOutput::LoadFile(const char *midiPath)
 {
+#ifdef __PS3__
+    utils::DebugPrint2("MIDI: LoadFile %s", midiPath);
+#endif
     if (this->ReadFileData(0x1f, midiPath) != ZUN_SUCCESS)
     {
         return ZUN_ERROR;
@@ -280,6 +285,9 @@ void MidiOutput::LoadTracks()
 
 ZunResult MidiOutput::Play()
 {
+#ifdef __PS3__
+    utils::DebugPrint2("MIDI: Play() called");
+#endif
     if (this->tracks == NULL)
     {
         return ZUN_ERROR;
@@ -287,7 +295,12 @@ ZunResult MidiOutput::Play()
 
     this->LoadTracks();
     this->midiOutDev.OpenDevice(0xFFFFFFFF);
+#ifndef __PS3__
     this->StartTimer(1, NULL, NULL);
+#else
+    this->lastTimerTicks = SDL_GetTicks();
+    this->timerId = 1;
+#endif
 
     return ZUN_SUCCESS;
 }

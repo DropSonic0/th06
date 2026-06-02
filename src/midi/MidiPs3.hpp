@@ -3,8 +3,16 @@
 #include "ZunResult.hpp"
 #include "inttypes.hpp"
 
-// The MIDI interface used if a specific platform MIDI API is not supported
-// Obviously can't do much, but something needs to be linked
+// PS3 MIDI renderer using software synthesis (placeholder for now)
+
+struct MidiPs3Voice
+{
+    bool active;
+    u8 note;
+    u8 velocity;
+    float phase;
+    float phaseInc;
+};
 
 struct MidiDevice
 {
@@ -17,9 +25,8 @@ struct MidiDevice
     bool SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte);
     bool SendLongMsg(const u8 *buf, u32 len);
 
-    // Render is a no-op for the default device
-    void Render(float *buffer, int samples) {}
+    void Render(i32 *buffer, u32 samples);
 
   private:
-    bool printedWarning;
+    MidiPs3Voice voices[64];
 };

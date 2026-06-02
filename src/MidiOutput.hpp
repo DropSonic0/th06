@@ -7,7 +7,9 @@
 #include <SDL2/SDL_timer.h>
 #endif
 
-#ifdef _WIN32
+#ifdef __PS3__
+#include "midi/MidiPs3.hpp"
+#elif defined(_WIN32)
 #include "midi/MidiWin32.hpp"
 #elif defined(LIBASOUND_MIDI_SUPPORT)
 #include "midi/MidiAlsa.hpp"

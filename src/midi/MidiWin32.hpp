@@ -19,6 +19,9 @@ struct MidiDevice
     bool SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte);
     bool SendLongMsg(const u8 *buf, u32 len);
 
+    // Render is a no-op for Win32 device
+    void Render(float *buffer, int samples) {}
+
   private:
 #ifdef _WIN32
     ZunResult UnprepareHeader(LPMIDIHDR pmh);

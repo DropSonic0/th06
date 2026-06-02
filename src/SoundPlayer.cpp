@@ -260,6 +260,7 @@ ZunResult SoundPlayer::InitializeDSound()
 #endif
 
     //utils::Log("SoundPlayer: InitializeDSound SUCCESS");
+    utils::DebugPrint2("SoundPlayer: init success. musicMode=%d", (int)g_Supervisor.cfg.musicMode);
     g_GameErrorContext.Log(TH_DBG_SOUNDPLAYER_INIT_SUCCESS);
     return ZUN_SUCCESS;
 
@@ -1056,9 +1057,14 @@ int SoundPlayer::MixAudio(u32 samples)
 #endif
 
     bool bgmActive = false;
+    bool midiActive = false;
 #ifdef __PS3__
     // Quick check without full IO lock
     bgmActive = (this->backgroundMusic.srcWav.fileStream != NULL);
+    if (g_Supervisor.cfg.musicMode == MIDI && g_Supervisor.midiOutput != NULL && g_Supervisor.midiOutput->timerId != 0) {
+        midiActive = true;
+    }
+
     sys_mutex_lock(this->soundBufMutex, 0);
 
     // Save state for rollback - must be done INSIDE the lock
@@ -1112,6 +1118,15 @@ int SoundPlayer::MixAudio(u32 samples)
         bgmActive = true;
     }
 #endif
+
+    if (midiActive)
+    {
+#ifdef __PS3__
+        g_Supervisor.midiOutput->OnTimerElapsed();
+        g_Supervisor.midiOutput->midiOutDev.Render(mixBuffer, samples);
+#endif
+        playingChannels++;
+    }
 
     // On PS3, double check that we actually have valid data in at least one buffer
     if (bgmActive)

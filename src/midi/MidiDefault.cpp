@@ -2,7 +2,7 @@
 #include "GameErrorContext.hpp"
 #include "i18n.hpp"
 
-#if !defined(_WIN32) && !defined(LIBASOUND_MIDI_SUPPORT)
+#if !defined(_WIN32) && !defined(LIBASOUND_MIDI_SUPPORT) && !defined(__PS3__)
 MidiDevice::MidiDevice()
 {
     printedWarning = false;
