@@ -819,10 +819,27 @@ void AnmManager::LoadSprite(u32 spriteIdx, const AnmLoadedSprite *sprite)
         (this->sprites[spriteIdx].startPixelInclusive.x + 0.5f) / this->sprites[spriteIdx].textureWidth;
     this->sprites[spriteIdx].uvEnd.x =
         (this->sprites[spriteIdx].endPixelInclusive.x - 0.5f) / this->sprites[spriteIdx].textureWidth;
+#ifdef __PS3__
+    if (this->sprites[spriteIdx].sourceFileIndex == ANM_FILE_CAPTURE)
+    {
+        this->sprites[spriteIdx].uvStart.y =
+            (this->sprites[spriteIdx].endPixelInclusive.y - 0.5f) / this->sprites[spriteIdx].textureHeight;
+        this->sprites[spriteIdx].uvEnd.y =
+            (this->sprites[spriteIdx].startPixelInclusive.y + 0.5f) / this->sprites[spriteIdx].textureHeight;
+    }
+    else
+    {
+        this->sprites[spriteIdx].uvStart.y =
+            (this->sprites[spriteIdx].startPixelInclusive.y + 0.5f) / this->sprites[spriteIdx].textureHeight;
+        this->sprites[spriteIdx].uvEnd.y =
+            (this->sprites[spriteIdx].endPixelInclusive.y - 0.5f) / this->sprites[spriteIdx].textureHeight;
+    }
+#else
     this->sprites[spriteIdx].uvStart.y =
         (this->sprites[spriteIdx].startPixelInclusive.y + 0.5f) / this->sprites[spriteIdx].textureHeight;
     this->sprites[spriteIdx].uvEnd.y =
         (this->sprites[spriteIdx].endPixelInclusive.y - 0.5f) / this->sprites[spriteIdx].textureHeight;
+#endif
 
     this->sprites[spriteIdx].widthPx =
         this->sprites[spriteIdx].endPixelInclusive.x - this->sprites[spriteIdx].startPixelInclusive.x;
@@ -2635,6 +2652,22 @@ cleanup:
     SDL_FreeSurface(dstFormatSurface);
     delete[] backBufferPixels;
     delete[] dstFormatPixels;
+#else
+    if (this->textures[textureId].handle == 0 || width <= 0 || height <= 0)
+    {
+        return;
+    }
+
+    this->SetCurrentTexture(this->textures[textureId].handle);
+
+    // Use hardware to copy backbuffer to texture. This is much faster than ReadPixels + CPU resize + SetTextureSubImage.
+    // Note: This won't do the 0.5f uv offset, but for a blurred background it doesn't matter.
+    // Also, glCopyTexImage2D origin is bottom-left, so we just need to calculate the correct y.
+    g_GfxBackend->CopyTextureFromBackbuffer((i32)(left * WIDTH_RESOLUTION_SCALE + VIEWPORT_OFF_X),
+                                            (i32)(g_GameWindowHeightReal - (top + height) * HEIGHT_RESOLUTION_SCALE -
+                                                  VIEWPORT_OFF_Y),
+                                            (i32)(width * WIDTH_RESOLUTION_SCALE),
+                                            (i32)(height * HEIGHT_RESOLUTION_SCALE));
 #endif
 }
 
