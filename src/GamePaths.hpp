@@ -23,7 +23,7 @@
 // =============================================================================
 
 #ifndef __PS3__
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #else
 #include <cell/cell_fs.h>
 #endif
@@ -53,5 +53,8 @@ void Resolve(char *outBuf, size_t outBufSize, const char *path);
 // Convenience: ensure the user-data directory for a given path exists.
 // E.g. for "replay/th6_01.rpy", creates GetUserPath() + "replay/".
 void EnsureParentDir(const char *resolvedPath);
+
+// Returns true if the game should load Japanese data.
+bool IsJapanese();
 
 } // namespace GamePaths

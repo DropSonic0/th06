@@ -1513,7 +1513,7 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
             g_PrimitivesToDrawVertexBuf[i].position = worldPos;
 #ifdef __PS3__
             ZunColor c = vm->color;
-            if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) != 0)
+            if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
             {
                 ZunVec4 viewPos = originalView * worldPos;
                 c = ApplyFog(c, viewPos.z, this->dirtyFogNear, this->dirtyFogFar, this->dirtyFogColor);
@@ -1666,7 +1666,7 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
             g_PrimitivesToDrawVertexBuf[i].position = worldPos;
 #ifdef __PS3__
             ZunColor c = vm->color;
-            if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) != 0)
+            if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0)
             {
                 ZunVec4 viewPos = originalView * worldPos;
                 c = ApplyFog(c, viewPos.z, this->dirtyFogNear, this->dirtyFogFar, this->dirtyFogColor);

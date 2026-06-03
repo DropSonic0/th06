@@ -67,4 +67,5 @@ struct FixedFunctionGL : GfxInterface
 
     u32 m_viewport[4];
     f32 m_depthRange[2];
+    bool m_textureEnabled;
 };

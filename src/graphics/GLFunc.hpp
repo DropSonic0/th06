@@ -79,6 +79,27 @@ typedef char GLchar;
 #ifndef GL_TEXTURE_ENV_MODE
 #define GL_TEXTURE_ENV_MODE 0x2200
 #endif
+#ifndef GL_FOG
+#define GL_FOG 0x0B60
+#endif
+#ifndef GL_FOG_MODE
+#define GL_FOG_MODE 0x0B65
+#endif
+#ifndef GL_FOG_DENSITY
+#define GL_FOG_DENSITY 0x0B62
+#endif
+#ifndef GL_FOG_START
+#define GL_FOG_START 0x0B63
+#endif
+#ifndef GL_FOG_END
+#define GL_FOG_END 0x0B64
+#endif
+#ifndef GL_FOG_COLOR
+#define GL_FOG_COLOR 0x0B66
+#endif
+#ifndef GL_LINEAR
+#define GL_LINEAR 0x2601
+#endif
 #endif
 
 // Function pointers for OpenGL functions used in EoSD. This is necessary because Windows

@@ -39,6 +39,11 @@ namespace GamePaths
 static char s_userPath[512] = "";
 #ifdef __PS3__
 static char s_savePath[512] = "";
+static bool s_isJapanese = false;
+#elif defined(THJP)
+static bool s_isJapanese = true;
+#else
+static bool s_isJapanese = false;
 #endif
 
 void Init()
@@ -46,11 +51,19 @@ void Init()
 #ifdef __PS3__
     cellSysmoduleLoadModule(0x003e); // CELL_SYSMODULE_SYSUTIL_GAME
 
-    // Assets are in USRDIR
-    ::snprintf(s_userPath, sizeof(s_userPath), "/dev_bdvd/kouma/");
-#ifndef THJP
-	::snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/USRDIR/");
-#endif
+    CellFsStat st;
+    if (cellFsStat("/dev_bdvd/kouma/", &st) == CELL_FS_SUCCEEDED)
+    {
+        // Assets are in USRDIR
+        ::snprintf(s_userPath, sizeof(s_userPath), "/dev_bdvd/kouma/");
+        s_isJapanese = true;
+    }
+    else
+    {
+        ::snprintf(s_userPath, sizeof(s_userPath), "/dev_hdd0/game/TH06PORT0/USRDIR/");
+        s_isJapanese = false;
+    }
+
     // Default save path to asset path
     ::snprintf(s_savePath, sizeof(s_savePath), "%s", s_userPath);
 #endif
@@ -146,6 +159,11 @@ void Init()
 const char *GetUserPath()
 {
     return s_userPath;
+}
+
+bool IsJapanese()
+{
+    return s_isJapanese;
 }
 
 bool IsAssetPath(const char *path)

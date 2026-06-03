@@ -157,6 +157,7 @@ GfxInterface *FixedFunctionGL::Init()
 
     g_GameErrorContext.Log("Init trace start\n");
     g_glFuncTable.glEnable(GL_TEXTURE_2D);
+    self->m_textureEnabled = true;
     g_glFuncTable.glEnableClientState(GL_VERTEX_ARRAY);
 
 #ifndef __PS3__
@@ -174,7 +175,9 @@ GfxInterface *FixedFunctionGL::Init()
     {
         g_glFuncTable.glEnable(GL_FOG);
     }
+#endif
 
+#ifndef __PS3__
     g_glFuncTable.glFogf(GL_FOG_DENSITY, 1.0f);
     g_glFuncTable.glFogf(GL_FOG_MODE, GL_LINEAR);
 #endif
@@ -193,7 +196,6 @@ GfxInterface *FixedFunctionGL::Init()
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PRIMARY_COLOR);
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
 #else
-    g_GameErrorContext.Log("Setting GL_TEXTURE_ENV_MODE to GL_MODULATE...\n");
     g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 #endif
     g_GameErrorContext.Log("Init trace end\n");
@@ -256,10 +258,14 @@ void FixedFunctionGL::ToggleVertexAttribute(u8 attr, bool enable)
 {
     if (attr & VERTEX_ATTR_TEX_COORD)
     {
+        m_textureEnabled = enable;
         // Arg 0 will be the texture is it's used, and diffuse otherwise. Arg 1 will always be diffuse
         if (enable)
         {
             g_glFuncTable.glEnable(GL_TEXTURE_2D);
+#ifdef __PS3__
+            g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+#endif
             g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
             g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
             g_glFuncTable.glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -267,6 +273,9 @@ void FixedFunctionGL::ToggleVertexAttribute(u8 attr, bool enable)
         else
         {
             g_glFuncTable.glDisable(GL_TEXTURE_2D);
+#ifdef __PS3__
+            g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
             g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_PRIMARY_COLOR);
             g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PRIMARY_COLOR);
             g_glFuncTable.glDisableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -304,7 +313,7 @@ void FixedFunctionGL::SetAttributePointer(VertexAttributeArrays attr, std::size_
 
 void FixedFunctionGL::SetColorOp(TextureOpComponent component, ColorOp op)
 {
-    const GLenum opEnums[3] = {GL_MODULATE, GL_ADD, GL_REPLACE};
+    static const GLenum opEnums[3] = {GL_MODULATE, GL_ADD, GL_REPLACE};
 
     if (component > COMPONENT_ALPHA || op > COLOR_OP_REPLACE)
     {
@@ -319,14 +328,14 @@ void FixedFunctionGL::SetColorOp(TextureOpComponent component, ColorOp op)
 
     if (component == COMPONENT_RGB)
     {
-        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_TEXTURE);
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, m_textureEnabled ? GL_TEXTURE : GL_PRIMARY_COLOR);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_PRIMARY_COLOR);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
     }
     else
     {
-        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, GL_TEXTURE);
+        g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_ALPHA, m_textureEnabled ? GL_TEXTURE : GL_PRIMARY_COLOR);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_ALPHA, GL_PRIMARY_COLOR);
         g_glFuncTable.glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
