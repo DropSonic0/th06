@@ -416,8 +416,8 @@ struct AnmManager
     void DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
     void DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowColor, const char *fmt, ...);
     ZunResult DrawNoRotation(const AnmVm *vm);
-    ZunResult DrawOrthographic(const AnmVm *vm, bool roundToPixel);
-    ZunResult DrawFacingCamera(const AnmVm *vm);
+    ZunResult DrawOrthographic(const AnmVm *vm, bool roundToPixel, ZunColor colorOverride = 0);
+    ZunResult DrawFacingCamera(const AnmVm *vm, f32 viewZ = 0.0f);
     ZunResult Draw2(const AnmVm *vm);
     ZunResult Draw3(const AnmVm *vm);
 

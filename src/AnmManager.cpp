@@ -40,36 +40,48 @@ AnmManager *g_AnmManager;
 #ifdef __PS3__
 static ZunColor ApplyFog(ZunColor color, f32 z, f32 fogNear, f32 fogFar, ZunColor fogColor)
 {
+    // If fog is invalid or disabled, return original color
     if (fogFar <= 0.0f || fogNear >= fogFar)
     {
         return color;
     }
 
-    // Direct3D linear fog: f = (end - d) / (end - start)
-    // We assume z is depth (distance from camera)
-    f32 depth = z;
-    if (depth < 0.0f) depth = -depth;
+    // Direct3D linear fog formula: f = (end - d) / (end - start)
+    // On PS3/OpenGL, view-space Z is negative, and the camera is offset by ~896 units
+    // (half_height / tan(pi/12)). To match PC fog which starts from the camera plane,
+    // we subtract this offset.
+    f32 depth = ZUN_FABSF(z) - 896.0f;
+    if (depth < 0.0f) depth = 0.0f;
 
-    f32 fogFactor = (fogFar - depth) / (fogFar - fogNear);
-    if (fogFactor < 0.0f)
-        fogFactor = 0.0f;
-    if (fogFactor > 1.0f)
+    // Calculate fog factor with clamping
+    f32 fogFactor;
+    if (depth <= fogNear) {
         fogFactor = 1.0f;
+    } else if (depth >= fogFar) {
+        fogFactor = 0.0f;
+    } else {
+        fogFactor = (fogFar - depth) / (fogFar - fogNear);
+    }
 
-    u32 a = (color >> 24) & 0xff;
-    u32 r = (color >> 16) & 0xff;
-    u32 g = (color >> 8) & 0xff;
-    u32 b = color & 0xff;
+    // To make the fog look thicker like the PC version, we use a quadratic curve
+    fogFactor = fogFactor * fogFactor;
 
-    u32 fr = (fogColor >> 16) & 0xff;
-    u32 fg = (fogColor >> 8) & 0xff;
-    u32 fb = fogColor & 0xff;
+    // Extract components as floats for better precision during blending
+    f32 a = (f32)((color >> 24) & 0xff);
+    f32 r = (f32)((color >> 16) & 0xff);
+    f32 g = (f32)((color >> 8) & 0xff);
+    f32 b = (f32)(color & 0xff);
 
-    r = (u32)(r * fogFactor + fr * (1.0f - fogFactor));
-    g = (u32)(g * fogFactor + fg * (1.0f - fogFactor));
-    b = (u32)(b * fogFactor + fb * (1.0f - fogFactor));
+    f32 fr = (f32)((fogColor >> 16) & 0xff);
+    f32 fg = (f32)((fogColor >> 8) & 0xff);
+    f32 fb = (f32)(fogColor & 0xff);
 
-    return (a << 24) | (r << 16) | (g << 8) | b;
+    // Linear interpolation: Color = Color * f + FogColor * (1 - f)
+    r = r * fogFactor + fr * (1.0f - fogFactor);
+    g = g * fogFactor + fg * (1.0f - fogFactor);
+    b = b * fogFactor + fb * (1.0f - fogFactor);
+
+    return (((u32)a) << 24) | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
 }
 #endif
 
@@ -87,7 +99,9 @@ static const PixelDataType g_TextureFormatTypeMapping[6] = {static_cast<PixelDat
                                                             PIXEL_UNSIGNED_SHORT_5_6_5,    PIXEL_UNSIGNED_BYTE,
                                                             PIXEL_UNSIGNED_SHORT_4_4_4_4};
 
+#ifndef __PS3__
 static const u8 g_TextureFormatBytesPerPixel[6] = {0, 4, 2, 2, 3, 2};
+#endif
 
 void AnmManager::CreateTextureObject()
 {
@@ -513,11 +527,13 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
     TextureData *textureDesc;
 
     u8 *dstData;
+#ifndef __PS3__
     const u8 *srcData;
     u8 *dstData8;
     const u8 *srcData8;
     u16 *dstData16;
     const u16 *srcData16;
+#endif
     u32 x;
     u32 y;
 
@@ -1033,7 +1049,7 @@ void AnmManager::UpdateDirtyStates()
     }
 }
 
-ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
+ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel, ZunColor colorOverride)
 {
     float triangleX1, triangleX2, triangleY1, triangleY2;
     if (roundToPixel)
@@ -1093,10 +1109,11 @@ ZunResult AnmManager::DrawOrthographic(const AnmVm *vm, bool roundToPixel)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    ZunColor c = (colorOverride != 0) ? colorOverride : vm->color;
+    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
+    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
+    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
+    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(c));
 #endif
 
     if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF) & 1) == 0)
@@ -1385,7 +1402,7 @@ ZunResult AnmManager::Draw(const AnmVm *vm)
     return this->DrawOrthographic(vm, false);
 }
 
-ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
+ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm, f32 viewZ)
 {
     f32 centerX;
     f32 centerY;
@@ -1429,10 +1446,12 @@ ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
     }
 
 #ifdef __PS3__
-    g_PrimitivesToDrawVertexBuf[0].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[1].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[2].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
-    g_PrimitivesToDrawVertexBuf[3].diffuse = ColorData(ZUN_COLOR_TO_PSGL_COLOR(vm->color));
+    ZunColor c = vm->color;
+    if (((g_Supervisor.cfg.opts >> GCOS_DONT_USE_FOG) & 1) == 0 && viewZ != 0.0f)
+    {
+        c = ApplyFog(c, viewZ, this->dirtyFogNear, this->dirtyFogFar, this->dirtyFogColor);
+        return this->DrawOrthographic(vm, false, c);
+    }
 #endif
 
     return this->DrawOrthographic(vm, false);
@@ -1441,8 +1460,10 @@ ZunResult AnmManager::DrawFacingCamera(const AnmVm *vm)
 ZunResult AnmManager::Draw3(const AnmVm *vm)
 {
     ZunMatrix worldTransformMatrix;
+#ifndef __PS3__
     ZunMatrix rotationMatrix;
     ZunMatrix textureMatrix;
+#endif
     f32 scaledXCenter;
     f32 scaledYCenter;
 
@@ -1514,8 +1535,8 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
     worldTransformMatrix.m[3][2] = vm->pos.z;
 
     // Now, set transform matrix.
-    ZunMatrix modelView;
 #ifndef __PS3__
+    ZunMatrix modelView;
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) != 0)
     {
         modelView = originalView * worldTransformMatrix;
@@ -1626,8 +1647,10 @@ ZunResult AnmManager::Draw3(const AnmVm *vm)
 ZunResult AnmManager::Draw2(const AnmVm *vm)
 {
     ZunMatrix worldTransformMatrix;
+#ifndef __PS3__
     ZunMatrix unusedMatrix;
     ZunMatrix textureMatrix;
+#endif
 
     if (!vm->flags.isVisible)
     {
@@ -1666,9 +1689,9 @@ ZunResult AnmManager::Draw2(const AnmVm *vm)
     worldTransformMatrix.m[1][1] *= -vm->scaleY;
 
     ZunMatrix originalView = this->dirtyTransformMatrices[MATRIX_VIEW];
-    ZunMatrix modelView;
 
 #ifndef __PS3__
+    ZunMatrix modelView;
     if ((g_Supervisor.cfg.opts >> GCOS_DONT_USE_VERTEX_BUF & 1) != 0)
     {
         modelView = originalView * worldTransformMatrix;
@@ -2066,9 +2089,9 @@ stop:
         }
         for (local_38 = 0; local_38 < 4; local_38++)
         {
-            local_34 = ((f32)COLOR_GET_COMPONENT(local_28, local_38) - (f32)COLOR_GET_COMPONENT(local_2c, local_38)) *
+            local_34 = (i32)(((f32)COLOR_GET_COMPONENT(local_28, local_38) - (f32)COLOR_GET_COMPONENT(local_2c, local_38)) *
                            local_30 +
-                       COLOR_GET_COMPONENT(local_2c, local_38);
+                       COLOR_GET_COMPONENT(local_2c, local_38));
             if (local_34 < 0)
             {
                 local_34 = 0;
@@ -2161,9 +2184,9 @@ void AnmManager::DrawVmTextFmt(AnmVm *vm, ZunColor textColor, ZunColor shadowCol
     va_start(argptr, fmt);
     vsprintf(buffer, fmt, argptr);
     va_end(argptr);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                           vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                           fontWidth, vm->fontHeight, textColor, shadowColor, buffer);
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                           (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                           (i32)fontWidth, vm->fontHeight, textColor, shadowColor, buffer);
     vm->flags.isVisible = true;
     return;
 }
@@ -2179,13 +2202,13 @@ void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadow
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                           vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                           fontWidth, vm->fontHeight, textColor, shadowColor, " ");
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                           (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                           (i32)fontWidth, vm->fontHeight, textColor, shadowColor, " ");
     secondPartStartX =
-        vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
-                           vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
+        (i32)(vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth - ((f32)strlen(buf) * (f32)(fontWidth + 1) / 2.0f));
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
+                           (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, (i32)fontWidth, vm->fontHeight, textColor,
                            shadowColor, buf);
     vm->flags.isVisible = true;
     return;
@@ -2202,13 +2225,13 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
     va_start(args, fmt);
     vsprintf(buf, fmt, args);
     va_end(args);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, vm->sprite->startPixelInclusive.x,
-                           vm->sprite->startPixelInclusive.y, vm->sprite->textureWidth, vm->sprite->textureHeight,
-                           fontWidth, vm->fontHeight, textColor, shadowColor, " ");
-    secondPartStartX = vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth / 2.0f -
-                       ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f);
-    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, vm->sprite->startPixelInclusive.y,
-                           vm->sprite->textureWidth, vm->sprite->textureHeight, fontWidth, vm->fontHeight, textColor,
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, (i32)vm->sprite->startPixelInclusive.x,
+                           (i32)vm->sprite->startPixelInclusive.y, (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight,
+                           (i32)fontWidth, vm->fontHeight, textColor, shadowColor, " ");
+    secondPartStartX = (i32)(vm->sprite->startPixelInclusive.x + vm->sprite->textureWidth / 2.0f -
+                       ((f32)strlen(buf) * (f32)(fontWidth + 1) / 4.0f));
+    this->DrawTextToSprite(vm->sprite->sourceFileIndex, secondPartStartX, (i32)vm->sprite->startPixelInclusive.y,
+                           (i32)vm->sprite->textureWidth, (i32)vm->sprite->textureHeight, (i32)fontWidth, vm->fontHeight, textColor,
                            shadowColor, buf);
     vm->flags.isVisible = true;
     return;
@@ -2274,7 +2297,6 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
     return ZUN_SUCCESS;
 #endif
-    return ZUN_SUCCESS;
 
     //    u8 *data = FileSystem::OpenPath(path, 0);
     //    if (data == NULL)

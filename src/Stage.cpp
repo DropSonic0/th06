@@ -688,13 +688,19 @@ ZunResult Stage::RenderObjects(i32 zLevel)
                         worldMatrix.m[3][2] = curQuadVm->pos.z;
                         projectVec3(quadPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                                     g_Supervisor.viewMatrix, worldMatrix);
+                        ZunVec4 worldPos(curQuadVm->pos.x, -curQuadVm->pos.y, curQuadVm->pos.z, 1.0f);
+
                         worldMatrix.m[3][0] = quadWidth * curQuadVm->scaleX + worldMatrix.m[3][0];
                         projectVec3(quadScaledPos, projectSrc, g_Supervisor.viewport, g_Supervisor.projectionMatrix,
                                     g_Supervisor.viewMatrix, worldMatrix);
                         curQuadVm->scaleX = (quadScaledPos.x - quadPos.x) / quadWidth;
                         curQuadVm->scaleY = curQuadVm->scaleX;
                         curQuadVm->pos = quadPos;
-                        g_AnmManager->DrawFacingCamera(curQuadVm);
+
+                        // Recalculate viewZ for fogging since DrawFacingCamera needs it
+                        // Use the world position we saved before overwriting curQuadVm->pos
+                        ZunVec4 eyeVector = g_Supervisor.viewMatrix * worldPos;
+                        g_AnmManager->DrawFacingCamera(curQuadVm, eyeVector.z);
                     }
                     else
                     {
