@@ -1,0 +1,44 @@
+#pragma once
+
+#include "ZunResult.hpp"
+#include "inttypes.hpp"
+
+#ifdef LIBASOUND_MIDI_SUPPORT
+#include <alsa/asoundlib.h>
+#endif
+
+struct MidiDevice
+{
+  public:
+    MidiDevice();
+    ~MidiDevice();
+
+    ZunResult Close();
+    bool OpenDevice(u32 uDeviceId);
+    bool SendShortMsg(u8 midiStatus, u8 firstByte, u8 secondByte);
+    bool SendLongMsg(const u8 *buf, u32 len);
+
+    // Render is a no-op for ALSA device
+    void Render(float *buffer, int samples) {}
+
+  private:
+    void Reset();
+    bool GetDestPort();
+
+#ifdef LIBASOUND_MIDI_SUPPORT
+    snd_seq_t *sequencer;
+
+    snd_midi_event_t *encoder;
+#else
+    void *sequencer;
+    void *encoder;
+#endif
+    u32 encoderBufferSize;
+
+    int sourcePort;
+
+    int destClient;
+    int destPort;
+
+    bool hasConnection;
+};
