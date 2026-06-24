@@ -1252,6 +1252,11 @@ void AnmManager::FlushVertexBuffer()
 #ifdef __PS3__
 ZunResult AnmManager::AddSpriteToDrawBuffer(VertexTex1DiffuseXyzrhw *vertices, const ZunMatrix &viewMatrix)
 {
+    if (this->spritesToDraw >= (0x18000 / 6) - 1)
+    {
+        this->FlushVertexBuffer();
+    }
+
     this->vertexBufferEndPtr[0] = vertices[0];
     this->vertexBufferEndPtr[1] = vertices[1];
     this->vertexBufferEndPtr[2] = vertices[2];

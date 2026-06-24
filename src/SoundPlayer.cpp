@@ -618,19 +618,6 @@ ZunResult SoundPlayer::LoadWav(const char *path)
 #ifndef __PS3__
     this->backgroundMusic.srcWav.fileStream = fileStream;
     this->backgroundMusic.srcWav.dataStartOffset = SDL_RWtell(fileStream);
-#else
-    this->backgroundMusic.srcWav.dataStartOffset = ftell(fileStream);
-    this->backgroundMusic.streamCachePos = 0;
-    this->backgroundMusic.streamCacheValid[0] = 0;
-    this->backgroundMusic.streamCacheValid[1] = 0;
-    this->backgroundMusic.activeBuffer = 0;
-    this->backgroundMusic.bufferBusy[0] = true;
-    this->backgroundMusic.bufferBusy[1] = true;
-    this->backgroundMusic.fraction = 1.0;
-    this->backgroundMusic.lastSamples[0] = 0;
-    this->backgroundMusic.lastSamples[1] = 0;
-    this->backgroundMusic.nextSamples[0] = 0;
-    this->backgroundMusic.nextSamples[1] = 0;
 #endif
     this->backgroundMusic.loopStart = 0;
     this->backgroundMusic.loopEnd = this->backgroundMusic.srcWav.samples;
@@ -644,6 +631,18 @@ ZunResult SoundPlayer::LoadWav(const char *path)
     sys_mutex_lock(this->bgmStateMutex, 0);
 #endif
     this->backgroundMusic.srcWav.fileStream = fileStream;
+    this->backgroundMusic.srcWav.dataStartOffset = ftell(fileStream);
+    this->backgroundMusic.streamCachePos = 0;
+    this->backgroundMusic.streamCacheValid[0] = 0;
+    this->backgroundMusic.streamCacheValid[1] = 0;
+    this->backgroundMusic.activeBuffer = 0;
+    this->backgroundMusic.bufferBusy[0] = true;
+    this->backgroundMusic.bufferBusy[1] = true;
+    this->backgroundMusic.fraction = 1.0;
+    this->backgroundMusic.lastSamples[0] = 0;
+    this->backgroundMusic.lastSamples[1] = 0;
+    this->backgroundMusic.nextSamples[0] = 0;
+    this->backgroundMusic.nextSamples[1] = 0;
 #ifdef __PS3__
     sys_mutex_unlock(this->bgmStateMutex);
     sys_mutex_unlock(this->soundBufMutex);

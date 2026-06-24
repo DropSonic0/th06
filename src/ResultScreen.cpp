@@ -366,6 +366,10 @@ ZunResult ResultScreen::ParsePscr(ScoreDat *scoreDat, Pscr *outClrd)
 
 void ResultScreen::ReleaseScoreDat(ScoreDat *scoreDat)
 {
+    if (scoreDat == NULL)
+    {
+        return;
+    }
     ScoreListNode *scores;
     ResultScreen::FreeAllScores(scoreDat->scores);
     scores = scoreDat->scores;

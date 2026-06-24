@@ -28,6 +28,7 @@
 #else
 #include <sys/sys_time.h>
 #include <PSGL/psgl.h>
+#include <sys/memory.h>
 #define SDL_GetTicks() ((u32)(sys_time_get_system_time() / 1000))
 #define SDL_GL_SwapWindow(x) psglSwap()
 #include <stdio.h>
@@ -615,6 +616,28 @@ void Supervisor::DrawFpsCounter()
         g_LastTime = curTime;
         g_NumFramesSinceLastTime = 0;
         sprintf(g_FpsCounterBuffer, "%.02ffps", fps);
+
+#ifndef DDEBUG
+        {
+            u32 free_mem = 0;
+            u32 total_mem = 0;
+#ifdef __PS3__
+            sys_memory_info_t mem_info;
+            sys_memory_get_user_memory_size(&mem_info);
+            free_mem = mem_info.available_user_memory;
+            total_mem = mem_info.total_user_memory;
+#else
+            // Mock data for PC testing
+            total_mem = 256 * 1024 * 1024;
+            free_mem = 128 * 1024 * 1024;
+#endif
+            if (total_mem > 0) {
+                sprintf(g_FpsCounterBuffer + strlen(g_FpsCounterBuffer), " RAM:%u/%uMB", 
+                    (total_mem - free_mem) / 1024 / 1024, total_mem / 1024 / 1024);
+            }
+        }
+#endif
+
         if (g_GameManager.isInMenu != 0)
         {
             framerate = 60.f / g_Supervisor.framerateMultiplier;
@@ -632,7 +655,11 @@ void Supervisor::DrawFpsCounter()
     }
     if (!g_Supervisor.isInEnding)
     {
+#ifndef DDEBUG
+        fpsCounterPos.x = 360.0;
+#else
         fpsCounterPos.x = 512.0;
+#endif
         fpsCounterPos.y = 464.0;
         fpsCounterPos.z = 0.0;
         g_AsciiManager.AddString(&fpsCounterPos, g_FpsCounterBuffer);
