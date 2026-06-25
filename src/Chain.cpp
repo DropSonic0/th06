@@ -365,17 +365,19 @@ destroy_elem:
         to_remove->prev = NULL;
         to_remove->next = NULL;
 
-        if (to_remove->deletedCallback != NULL)
-        {
-            ChainDeletedCallback callback = to_remove->deletedCallback;
-            to_remove->deletedCallback = NULL;
-            callback(to_remove->arg);
-        }
-
         if (to_remove->isHeapAllocated)
         {
             delete to_remove;
             to_remove = NULL;
+        }
+        else
+        {
+            if (to_remove->deletedCallback != NULL)
+            {
+                ChainDeletedCallback callback = to_remove->deletedCallback;
+                to_remove->deletedCallback = NULL;
+                callback(to_remove->arg);
+            }
         }
     }
 }

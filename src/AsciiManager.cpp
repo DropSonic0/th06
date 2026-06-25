@@ -164,7 +164,8 @@ void AsciiManager::CutChain()
 {
     g_Chain.Cut(&g_AsciiManagerCalcChain);
     g_Chain.Cut(&g_AsciiManagerOnDrawMenusChain);
-    g_Chain.Cut(&g_AsciiManagerOnDrawPopupsChain);
+    // What about g_AsciiManagerOnDrawPopupsChain? It looks like zun forgot
+    // to free it!
 }
 
 void AsciiManager::AddString(const ZunVec3 *position, const char *text)

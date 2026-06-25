@@ -254,8 +254,7 @@ ZunResult ReplayManager::AddedCallback(ReplayManager *mgr)
     }
     if (mgr->replayData->stageReplayData[g_GameManager.currentStage - 1] != NULL)
     {
-        ReleaseStageReplayData(mgr->replayData->stageReplayData[g_GameManager.currentStage - 1]);
-        mgr->replayData->stageReplayData[g_GameManager.currentStage - 1] = NULL;
+        utils::DebugPrint2("error : replay.cpp");
     }
     mgr->replayData->stageReplayData[g_GameManager.currentStage - 1] = AllocateStageReplayData(sizeof(StageReplayData));
     stageReplayData = mgr->replayData->stageReplayData[g_GameManager.currentStage - 1];

@@ -97,11 +97,7 @@ i32 Pbg3Archive::Release()
         delete[] this->entries;
         this->entries = NULL;
     }
-    if (this->unk != NULL)
-    {
-        std::free(this->unk);
-        this->unk = NULL;
-    }
+    std::free(this->unk);
     return true;
 }
 
