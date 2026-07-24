@@ -23,6 +23,9 @@
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "thirdparty/stb_image_resize.h"
 #include <PSGL/psgl.h>
+#include <stddef.h>
+
+extern "C" void *memalign(size_t boundary, size_t size);
 #endif
 #include "graphics/GLFunc.hpp"
 
@@ -444,43 +447,63 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     this->textures[textureIdx].fileData = data;
 
     int x, y, n;
-    // We always want 4 channels for simplicity on PS3, or we could match textureFormat
-    rawTextureData = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
-    if (rawTextureData == NULL)
+    u8 *decodedPixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
+    if (decodedPixels == NULL)
     {
         return ZUN_ERROR;
     }
     width = x;
     height = y;
-    // PS3/PSGL might need different texture format handling here
     textureFormat = TEX_FMT_A8R8G8B8;
 
-    // Resize if doesn't match ANM expected dimensions
     const AnmRawEntry *entry = this->anmFiles[textureIdx];
+    u8 *resizedPixels = decodedPixels;
     if (width != entry->width || height != entry->height)
     {
-        u8 *textureData2 = (u8 *)std::malloc(entry->width * entry->height * 4);
-        if (textureData2 != NULL)
+        resizedPixels = (u8 *)std::malloc(entry->width * entry->height * 4);
+        if (resizedPixels != NULL)
         {
-            stbir_resize_uint8(rawTextureData, width, height, 0, textureData2, entry->width, entry->height, 0, 4);
-            stbi_image_free(rawTextureData);
-            rawTextureData = textureData2;
+            stbir_resize_uint8(decodedPixels, width, height, 0, resizedPixels, entry->width, entry->height, 0, 4);
+            stbi_image_free(decodedPixels);
             width = entry->width;
             height = entry->height;
         }
+        else
+        {
+            resizedPixels = decodedPixels;
+        }
     }
 
-    // Byte swap from RGBA to ARGB
+    // Allocate final texture data block aligned to 128 bytes
+    rawTextureData = (u8 *)memalign(128, width * height * 4);
+    if (rawTextureData == NULL)
+    {
+        if (resizedPixels != decodedPixels) std::free(resizedPixels);
+        else stbi_image_free(decodedPixels);
+        return ZUN_ERROR;
+    }
+
+    // Perform color conversion (from RGBA to ARGB8888) into the 128-byte aligned block
     for (int i = 0; i < width * height; ++i)
     {
-        u8 r = rawTextureData[i * 4 + 0];
-        u8 g = rawTextureData[i * 4 + 1];
-        u8 b = rawTextureData[i * 4 + 2];
-        u8 a = rawTextureData[i * 4 + 3];
-        rawTextureData[i * 4 + 0] = a;
-        rawTextureData[i * 4 + 1] = r;
-        rawTextureData[i * 4 + 2] = g;
-        rawTextureData[i * 4 + 3] = b;
+        u8 r = resizedPixels[i * 4 + 0];
+        u8 g = resizedPixels[i * 4 + 1];
+        u8 b = resizedPixels[i * 4 + 2];
+        u8 a = resizedPixels[i * 4 + 3];
+        rawTextureData[i * 4 + 0] = a; // A
+        rawTextureData[i * 4 + 1] = r; // R
+        rawTextureData[i * 4 + 2] = g; // G
+        rawTextureData[i * 4 + 3] = b; // B
+    }
+
+    // Free the raw/resized pixel block
+    if (resizedPixels != decodedPixels)
+    {
+        std::free(resizedPixels);
+    }
+    else
+    {
+        stbi_image_free(decodedPixels);
     }
 #endif
 
@@ -617,40 +640,62 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
     }
 
     int alphaW, alphaH, alphaN;
-    u8 *alphaData = stbi_load_from_memory(data, g_LastFileSize, &alphaW, &alphaH, &alphaN, 4);
+    u8 *decodedAlpha = stbi_load_from_memory(data, g_LastFileSize, &alphaW, &alphaH, &alphaN, 4);
     std::free(data);
-    if (alphaData == NULL)
+    if (decodedAlpha == NULL)
     {
         return ZUN_ERROR;
     }
 
+    u8 *resizedAlpha = decodedAlpha;
     if (alphaW != textureDesc->width || alphaH != textureDesc->height)
     {
-        u8 *alphaData2 = (u8 *)std::malloc(textureDesc->width * textureDesc->height * 4);
-        if (alphaData2 != NULL)
+        resizedAlpha = (u8 *)std::malloc(textureDesc->width * textureDesc->height * 4);
+        if (resizedAlpha != NULL)
         {
-            stbir_resize_uint8(alphaData, alphaW, alphaH, 0, alphaData2, textureDesc->width, textureDesc->height, 0, 4);
-            stbi_image_free(alphaData);
-            alphaData = alphaData2;
+            stbir_resize_uint8(decodedAlpha, alphaW, alphaH, 0, resizedAlpha, textureDesc->width, textureDesc->height, 0, 4);
+            stbi_image_free(decodedAlpha);
             alphaW = textureDesc->width;
             alphaH = textureDesc->height;
         }
-    }
-
-    dstData = (u8 *)textureDesc->textureData;
-    // For simplicity, assuming TEX_FMT_A8R8G8B8 and 4 channels from stbi_load
-    if (textureDesc->format == TEX_FMT_A8R8G8B8)
-    {
-        for (y = 0; y < textureDesc->height; y++)
+        else
         {
-            for (x = 0; x < textureDesc->width; x++)
-            {
-                // Layout is ARGB, alpha is at index 0
-                dstData[(y * textureDesc->width + x) * 4 + 0] = alphaData[(y * textureDesc->width + x) * 4 + 0];
-            }
+            resizedAlpha = decodedAlpha;
         }
     }
-    stbi_image_free(alphaData);
+
+    // Allocate 128-byte aligned temporary memory block for conversion
+    u8 *alignedAlphaData = (u8 *)memalign(128, textureDesc->width * textureDesc->height * 4);
+    if (alignedAlphaData != NULL)
+    {
+        // Copy/convert resizedAlpha to the 128-byte aligned temporary block
+        std::memcpy(alignedAlphaData, resizedAlpha, textureDesc->width * textureDesc->height * 4);
+
+        dstData = (u8 *)textureDesc->textureData;
+        // For simplicity, assuming TEX_FMT_A8R8G8B8 and 4 channels from stbi_load
+        if (textureDesc->format == TEX_FMT_A8R8G8B8)
+        {
+            for (y = 0; y < textureDesc->height; y++)
+            {
+                for (x = 0; x < textureDesc->width; x++)
+                {
+                    // Layout is ARGB, alpha is at index 0 of alignedAlphaData
+                    dstData[(y * textureDesc->width + x) * 4 + 0] = alignedAlphaData[(y * textureDesc->width + x) * 4 + 0];
+                }
+            }
+        }
+        free(alignedAlphaData);
+    }
+
+    // Free raw/resized temporary block
+    if (resizedAlpha != decodedAlpha)
+    {
+        std::free(resizedAlpha);
+    }
+    else
+    {
+        stbi_image_free(decodedAlpha);
+    }
 #endif
 
     this->SetCurrentTexture(this->textures[textureIdx].handle);
@@ -814,7 +859,7 @@ void AnmManager::ReleaseTexture(i32 textureIdx)
     delete[] this->textures[textureIdx].textureData;
 #else
     if (this->textures[textureIdx].textureData)
-        stbi_image_free(this->textures[textureIdx].textureData);
+        free(this->textures[textureIdx].textureData);
 #endif
     this->textures[textureIdx].textureData = NULL;
 }
@@ -2287,21 +2332,31 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
         return ZUN_ERROR;
     }
 
-    // Byte swap from RGBA to ARGB
+    // Allocate 128-byte aligned memory block for the surface pixels
+    u8 *alignedPixels = (u8 *)memalign(128, x * y * 4);
+    if (alignedPixels == NULL)
+    {
+        stbi_image_free(pixels);
+        return ZUN_ERROR;
+    }
+
+    // Byte swap from RGBA to ARGB directly into the aligned memory block
     for (int i = 0; i < x * y; ++i)
     {
         u8 r = pixels[i * 4 + 0];
         u8 g = pixels[i * 4 + 1];
         u8 b = pixels[i * 4 + 2];
         u8 a = pixels[i * 4 + 3];
-        pixels[i * 4 + 0] = a;
-        pixels[i * 4 + 1] = r;
-        pixels[i * 4 + 2] = g;
-        pixels[i * 4 + 3] = b;
+        alignedPixels[i * 4 + 0] = a; // A
+        alignedPixels[i * 4 + 1] = r; // R
+        alignedPixels[i * 4 + 2] = g; // G
+        alignedPixels[i * 4 + 3] = b; // B
     }
 
+    stbi_image_free(pixels);
+
     this->surfaces[surfaceIdx] = new PS3Surface;
-    this->surfaces[surfaceIdx]->pixels = pixels;
+    this->surfaces[surfaceIdx]->pixels = alignedPixels;
     this->surfaces[surfaceIdx]->w = x;
     this->surfaces[surfaceIdx]->h = y;
     this->surfaces[surfaceIdx]->textureHandle = 0;
@@ -2389,7 +2444,7 @@ void AnmManager::ReleaseSurface(i32 surfaceIdx)
             g_GfxBackend->DeleteTexture(this->surfaces[surfaceIdx]->textureHandle);
         }
         if (this->surfaces[surfaceIdx]->pixels)
-            stbi_image_free(this->surfaces[surfaceIdx]->pixels);
+            free(this->surfaces[surfaceIdx]->pixels);
         delete this->surfaces[surfaceIdx];
 #endif
         this->surfaces[surfaceIdx] = NULL;

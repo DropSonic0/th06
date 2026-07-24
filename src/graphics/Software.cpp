@@ -9,6 +9,10 @@
 #include <algorithm>
 #include <cmath>
 
+#ifdef __PS3__
+EngineStruct Engine = {nullptr, nullptr, nullptr};
+#endif
+
 constexpr u8 alphaThreshold = 4;
 
 GfxInterface *Software::Init()
@@ -62,11 +66,23 @@ GfxInterface *Software::Init()
         return NULL;
     }
 #endif
+#ifdef __PS3__
+    Engine.frameBuffer = (u32 *)memalign(128, GAME_WINDOW_WIDTH * GAME_WINDOW_HEIGHT * sizeof(u32));
+    Engine.frameBuffer2x = (u32 *)memalign(128, (GAME_WINDOW_WIDTH * 2) * (GAME_WINDOW_HEIGHT * 2) * sizeof(u32));
+    Engine.texBuffer = (u32 *)memalign(128, 1024 * 1024 * sizeof(u32));
+
+    u32 *framebuffer = Engine.frameBuffer;
+    self->framebuffer = framebuffer;
+
+    f32 *depthBuffer = (f32 *)memalign(128, GAME_WINDOW_WIDTH * GAME_WINDOW_HEIGHT * sizeof(f32));
+    self->depthBuffer = depthBuffer;
+#else
     u32 *framebuffer = new u32[GAME_WINDOW_WIDTH * GAME_WINDOW_HEIGHT];
     self->framebuffer = framebuffer;
 
     f32 *depthBuffer = new f32[GAME_WINDOW_WIDTH * GAME_WINDOW_HEIGHT];
     self->depthBuffer = depthBuffer;
+#endif
     self->noVertexBuffer = g_Supervisor.cfg.opts & (1 << GCOS_DONT_USE_VERTEX_BUF);
     self->noFog = g_Supervisor.cfg.opts & (1 << GCOS_DONT_USE_FOG);
 
@@ -96,6 +112,29 @@ void Software::Exit()
         this->framebufferTexture = NULL;
     }
 #endif
+#ifdef __PS3__
+    if (Engine.frameBuffer)
+    {
+        free(Engine.frameBuffer);
+        Engine.frameBuffer = NULL;
+        this->framebuffer = NULL;
+    }
+    if (Engine.frameBuffer2x)
+    {
+        free(Engine.frameBuffer2x);
+        Engine.frameBuffer2x = NULL;
+    }
+    if (Engine.texBuffer)
+    {
+        free(Engine.texBuffer);
+        Engine.texBuffer = NULL;
+    }
+    if (this->depthBuffer)
+    {
+        free(this->depthBuffer);
+        this->depthBuffer = NULL;
+    }
+#else
     if (this->framebuffer)
     {
         delete[] this->framebuffer;
@@ -106,6 +145,7 @@ void Software::Exit()
         delete[] this->depthBuffer;
         this->depthBuffer = NULL;
     }
+#endif
 #ifdef __PS3__
     for (auto texture : textures)
     {

@@ -95,10 +95,10 @@ void GameErrorContext::Flush()
             m_ShowMessageBox = false;
         }
 
-#ifndef __PS3__
+
         if (FileSystem::WriteDataToFile("log.txt", m_Buffer, (size_t)(m_BufferEnd - m_Buffer)) != 0)
         {
         }
-#endif
+
     }
 }

@@ -500,18 +500,25 @@ void ReplayManager::SaveReplay(const char *replayPath, char *replayName)
 
                 // Write the data to the replay file.
                 file = FileSystem::FopenUTF8(replayPath, "wb");
-                std::fwrite(&replayCopy, sizeof(ReplayHeader), 1, file);
-                for (stageIdx = 0; stageIdx < ARRAY_SIZE_SIGNED(mgr->replayData->stageReplayData); stageIdx += 1)
+                if (file == NULL)
                 {
-                    if (mgr->replayData->stageReplayData[stageIdx] != NULL)
-                    {
-                        std::fwrite(mgr->replayData->stageReplayData[stageIdx], 1,
-                                    ((iptr)mgr->replayInputStageBookmarks[stageIdx]) -
-                                        ((iptr)mgr->replayData->stageReplayData[stageIdx]),
-                                    file);
-                    }
+                    utils::DebugPrint2("error : failed to open %s for writing\n", replayPath);
                 }
-                std::fclose(file);
+                else
+                {
+                    std::fwrite(&replayCopy, sizeof(ReplayHeader), 1, file);
+                    for (stageIdx = 0; stageIdx < ARRAY_SIZE_SIGNED(mgr->replayData->stageReplayData); stageIdx += 1)
+                    {
+                        if (mgr->replayData->stageReplayData[stageIdx] != NULL)
+                        {
+                            std::fwrite(mgr->replayData->stageReplayData[stageIdx], 1,
+                                        ((iptr)mgr->replayInputStageBookmarks[stageIdx]) -
+                                            ((iptr)mgr->replayData->stageReplayData[stageIdx]),
+                                        file);
+                        }
+                    }
+                    std::fclose(file);
+                }
             }
             for (stageIdx = 0; stageIdx < ARRAY_SIZE_SIGNED(mgr->replayData->stageReplayData); stageIdx += 1)
             {

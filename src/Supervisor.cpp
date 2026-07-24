@@ -769,8 +769,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
         }
         else
         {
-            g_Supervisor.cfg.musicMode = MIDI;
-            utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
+            g_Supervisor.cfg.musicMode = OFF;
         }
         g_Supervisor.cfg.playSounds = 1;
         g_Supervisor.cfg.defaultDifficulty = 1;
@@ -783,7 +782,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
     {
         g_Supervisor.cfg = *data;
         if ((g_Supervisor.cfg.lifeCount >= 5) || (g_Supervisor.cfg.bombCount >= 4) ||
-            (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 3) ||
+            (g_Supervisor.cfg.colorMode16bit >= 2) || (g_Supervisor.cfg.musicMode >= 2) ||
             (g_Supervisor.cfg.defaultDifficulty >= 5) || (g_Supervisor.cfg.playSounds >= 2) ||
             (g_Supervisor.cfg.windowed >= 2) || (g_Supervisor.cfg.frameskipConfig >= 3) ||
             (g_Supervisor.cfg.version != GAME_VERSION) || (g_LastFileSize != 0x38))
@@ -802,8 +801,7 @@ ZunResult Supervisor::LoadConfig(const char *path)
             }
             else
             {
-                g_Supervisor.cfg.musicMode = MIDI;
-                utils::DebugPrint(TH_ERR_NO_WAVE_FILE);
+                g_Supervisor.cfg.musicMode = OFF;
             }
             g_Supervisor.cfg.playSounds = 1;
             g_Supervisor.cfg.defaultDifficulty = 1;

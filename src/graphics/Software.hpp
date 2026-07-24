@@ -7,6 +7,17 @@
 #else
 #include <PSGL/psgl.h>
 #include <PSGL/psglu.h>
+#include <stddef.h>
+
+extern "C" void *memalign(size_t boundary, size_t size);
+
+struct EngineStruct
+{
+    u32 *frameBuffer;
+    u32 *frameBuffer2x;
+    u32 *texBuffer;
+};
+extern EngineStruct Engine;
 #endif
 #include <memory>
 #include <vector>

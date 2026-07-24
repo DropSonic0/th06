@@ -24,6 +24,11 @@ FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
     char resolvedPath[512];
     GamePaths::Resolve(resolvedPath, sizeof(resolvedPath), filepath);
 
+    if (mode != NULL && (std::strchr(mode, 'w') != NULL || std::strchr(mode, 'a') != NULL))
+    {
+        GamePaths::EnsureParentDir(resolvedPath);
+    }
+
 #ifndef _WIN32
     return std::fopen(resolvedPath, mode);
 #else

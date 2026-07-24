@@ -23,6 +23,8 @@
 #include "utils.hpp"
 
 #ifdef __PS3__
+SYS_PROCESS_PARAM(1001, 1024 * 1024);
+
 void sysutil_callback(uint64_t status, uint64_t param, void *userdata)
 {
     (void)param;
