@@ -9,6 +9,16 @@
 #endif
 
 #include "pbg3/Pbg3Archive.hpp"
+#include "ZunMemory.hpp"
+
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
 
 Pbg3Archive **g_Pbg3Archives;
 
@@ -97,7 +107,7 @@ i32 Pbg3Archive::Release()
         delete[] this->entries;
         this->entries = NULL;
     }
-    std::free(this->unk);
+    free(this->unk);
     return true;
 }
 

@@ -30,6 +30,15 @@
 #endif
 #include <cstring>
 
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 static const char *const g_ShortCharacterList[4] = {"ReimuA ", "ReimuB ", "MarisaA", "MarisaB"};
 static const char *const g_DifficultyList[5] = {"Easy   ", "Normal ", "Hard   ", "Lunatic", "Extra  "};
 static const char *const g_StageList[7] = {"Stage1", "Stage2", "Stage3", "Stage4", "Stage5", "Stage6", "Extra "};
@@ -1305,7 +1314,7 @@ i32 MainMenu::ReplayHandling()
                     }
                     else
                     {
-                        std::free(replayData);
+                        free(replayData);
                     }
                 }
                 //                _mkdir("./replay");
@@ -1378,7 +1387,7 @@ i32 MainMenu::ReplayHandling()
                 this->stateTimer = 0;
                 this->cursor = 0;
                 g_SoundPlayer.PlaySoundByIdx(SOUND_SELECT);
-                this->currentReplay = (ReplayData *)std::malloc(sizeof(ReplayData));
+                this->currentReplay = (ReplayData *)malloc(sizeof(ReplayData));
                 this->currentReplay->header =
                     (ReplayHeader *)FileSystem::OpenPath(this->replayFilePaths[this->chosenReplay], 1);
                 ReplayManager::ValidateReplayData(this->currentReplay->header, g_LastFileSize);
@@ -1463,8 +1472,8 @@ i32 MainMenu::ReplayHandling()
             }
             g_GameManager.livesRemaining = this->currentReplay->stageReplayData[cur]->livesRemaining;
             g_GameManager.bombsRemaining = this->currentReplay->stageReplayData[cur]->bombsRemaining;
-            std::free(this->currentReplay->header);
-            std::free(this->currentReplay);
+            free(this->currentReplay->header);
+            free(this->currentReplay);
             this->currentReplay = NULL;
             g_GameManager.currentStage = this->cursor;
             g_Supervisor.curState = SUPERVISOR_STATE_GAMEMANAGER;
@@ -1472,8 +1481,8 @@ i32 MainMenu::ReplayHandling()
         }
         if (WAS_PRESSED(TH_BUTTON_RETURNMENU))
         {
-            std::free(this->currentReplay->header);
-            std::free(this->currentReplay);
+            free(this->currentReplay->header);
+            free(this->currentReplay);
             this->currentReplay = NULL;
             this->gameState = STATE_REPLAY_ANIM;
             this->stateTimer = 0;
@@ -2172,14 +2181,14 @@ ZunResult MainMenu::RegisterChain(u32 isDemo)
     {
         if (menu->replayFileData[i].header != NULL)
         {
-            std::free(menu->replayFileData[i].header);
+            free(menu->replayFileData[i].header);
             menu->replayFileData[i].header = NULL;
         }
     }
     if (menu->currentReplay != NULL)
     {
-        std::free(menu->currentReplay->header);
-        std::free(menu->currentReplay);
+        free(menu->currentReplay->header);
+        free(menu->currentReplay);
         menu->currentReplay = NULL;
     }
 
@@ -2307,14 +2316,14 @@ ZunResult MainMenu::DeletedCallback(MainMenu *menu)
     {
         if (menu->replayFileData[i].header != NULL)
         {
-            std::free(menu->replayFileData[i].header);
+            free(menu->replayFileData[i].header);
             menu->replayFileData[i].header = NULL;
         }
     }
     if (menu->currentReplay != NULL)
     {
-        std::free(menu->currentReplay->header);
-        std::free(menu->currentReplay);
+        free(menu->currentReplay->header);
+        free(menu->currentReplay);
         menu->currentReplay = NULL;
     }
     return ZUN_SUCCESS;

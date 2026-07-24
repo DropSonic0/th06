@@ -1,6 +1,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "ZunMemory.hpp"
+
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
 
 #include "sjis_conv_table.h"
 #include "sjis_converter.h"

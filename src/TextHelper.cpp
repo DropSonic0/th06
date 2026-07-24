@@ -18,6 +18,16 @@
 #endif
 #include <algorithm>
 #include <cstring>
+#include "ZunMemory.hpp"
+
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
 
 #ifndef __PS3__
 static TTF_Font *g_Font;
@@ -74,7 +84,7 @@ ZunResult TextHelper::CreateTextBuffer()
     }
     g_GameErrorContext.Log("stbtt_InitFont finished.\n");
 
-    g_TextBufferSurface = std::malloc(PS3_TEXT_BUFFER_WIDTH * PS3_TEXT_BUFFER_HEIGHT * 4);
+    g_TextBufferSurface = malloc(PS3_TEXT_BUFFER_WIDTH * PS3_TEXT_BUFFER_HEIGHT * 4);
 #endif
 
     return ZUN_SUCCESS;
@@ -277,7 +287,7 @@ static void PS3_RenderText(const char *text, int fontHeight, u32 color, int xPos
     if (std::strcmp(text, lastText) != 0 || fontHeight != lastFontHeight) {
         // Clear old cache
         for (int i = 0; i < cacheCount; i++) {
-            std::free(cache[i].bitmap);
+            free(cache[i].bitmap);
         }
         cacheCount = 0;
         std::strncpy(lastText, text, 1023);
@@ -301,7 +311,7 @@ static void PS3_RenderText(const char *text, int fontHeight, u32 color, int xPos
             cache[cacheCount].w = w;
             cache[cacheCount].h = h;
             if (w > 0 && h > 0) {
-                cache[cacheCount].bitmap = (u8*)std::malloc(w * h);
+                cache[cacheCount].bitmap = (u8*)malloc(w * h);
                 stbtt_MakeCodepointBitmap(&g_Font, cache[cacheCount].bitmap, w, h, w, scale, scale, codepoint);
             } else {
                 cache[cacheCount].bitmap = nullptr;
@@ -653,7 +663,7 @@ void TextHelper::ReleaseTextBuffer()
 #else
     if (g_TextBufferSurface != NULL)
     {
-        std::free(g_TextBufferSurface);
+        free(g_TextBufferSurface);
         g_TextBufferSurface = NULL;
     }
 #endif

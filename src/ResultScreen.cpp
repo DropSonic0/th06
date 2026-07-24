@@ -21,6 +21,15 @@
 #include <cstring>
 #include <ctime>
 
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 static const f32 g_DifficultyWeightsList[5] = {-30.0f, -10.0f, 20.0f, 30.0f, 30.0f};
 
 static const u32 g_DefaultMagic = 'DMYS';
@@ -63,7 +72,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
     {
     FAILED_TO_READ:
         scoreDatSize = sizeof(ScoreRaw);
-        scoreRaw = (ScoreRaw *)std::malloc(scoreDatSize);
+        scoreRaw = (ScoreRaw *)malloc(scoreDatSize);
         scoreRaw->dataOffset = (u32)sizeof(ScoreRaw);
         scoreRaw->fileLen = sizeof(ScoreRaw);
     }
@@ -124,7 +133,7 @@ ScoreDat *ResultScreen::OpenScore(const char *path)
     scoreDat->rawScoreFile = scoreRaw;
 
     scoreListNodeSize = sizeof(ScoreListNode);
-    scoreDat->scores = (ScoreListNode *)std::malloc(scoreListNodeSize);
+    scoreDat->scores = (ScoreListNode *)malloc(scoreListNodeSize);
     scoreDat->scores->next = NULL;
     scoreDat->scores->data = NULL;
     scoreDat->scores->prev = NULL;
@@ -209,7 +218,7 @@ i32 ResultScreen::LinkScore(ScoreListNode *prevNode, Hscr *newScore)
     nextNode = prevNode->next;
     scoreNodeSize = sizeof(ScoreListNode);
 
-    prevNode->next = (ScoreListNode *)std::malloc(scoreNodeSize);
+    prevNode->next = (ScoreListNode *)malloc(scoreNodeSize);
     prevNode->next->prev = prevNode;
     prevNode = prevNode->next;
     prevNode->data = newScore;
@@ -523,7 +532,7 @@ void ResultScreen::WriteScore(ResultScreen *resultScreen)
         remainingSize--;
     }
     FileSystem::WriteDataToFile("score.dat", fileBuffer, sizeOfFile);
-    std::free(fileBuffer);
+    free(fileBuffer);
 }
 
 i32 ResultScreen::LinkScoreEx(Hscr *out, i32 difficulty, i32 character)
@@ -876,7 +885,7 @@ i32 ResultScreen::HandleReplaySaveKeyboard()
                 {
                     this->replays[idx] = *replayLoaded;
                 }
-                std::free((void *)replayLoaded);
+                free((void *)replayLoaded);
             }
         }
 

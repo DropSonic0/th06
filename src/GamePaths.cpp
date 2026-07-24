@@ -45,6 +45,12 @@ static bool s_isJapanese = true;
 #else
 static bool s_isJapanese = false;
 #endif
+static bool s_initialized = false;
+
+bool IsInitialized()
+{
+    return s_initialized;
+}
 
 void Init()
 {
@@ -154,6 +160,7 @@ void Init()
     // Desktop: all files relative to the working directory.
     s_userPath[0] = '\0';
 #endif
+    s_initialized = true;
 }
 
 const char *GetUserPath()

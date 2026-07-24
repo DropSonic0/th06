@@ -13,6 +13,15 @@
 #include "Supervisor.hpp"
 #include "utils.hpp"
 
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 ReplayManager *g_ReplayManager;
 
 ZunResult ReplayManager::ValidateReplayData(const ReplayHeader *data, i32 fileSize)
@@ -207,17 +216,17 @@ ChainCallbackResult ReplayManager::OnDraw(ReplayManager *mgr)
 
 inline StageReplayData *AllocateStageReplayData(i32 size)
 {
-    return (StageReplayData *)std::malloc(size);
+    return (StageReplayData *)malloc(size);
 }
 
 inline void ReleaseReplayData(void *data)
 {
-    return std::free(data);
+    return free(data);
 }
 
 inline void ReleaseStageReplayData(void *data)
 {
-    return std::free(data);
+    return free(data);
 }
 
 ZunResult ReplayManager::AddedCallback(ReplayManager *mgr)
@@ -229,9 +238,9 @@ ZunResult ReplayManager::AddedCallback(ReplayManager *mgr)
     mgr->frameId = 0;
     if (mgr->replayData == NULL)
     {
-        mgr->replayData = (ReplayData *)std::malloc(sizeof(ReplayData));
+        mgr->replayData = (ReplayData *)malloc(sizeof(ReplayData));
         std::memset(mgr->replayData, 0, sizeof(ReplayData));
-        mgr->replayData->header = (ReplayHeader *)std::malloc(sizeof(ReplayHeader));
+        mgr->replayData->header = (ReplayHeader *)malloc(sizeof(ReplayHeader));
         std::memset(mgr->replayData->header, 0, sizeof(ReplayHeader));
         std::memcpy(&mgr->replayData->header->magic[0], "T6RP", 4);
         mgr->replayData->header->shottypeChara = g_GameManager.character * 2 + g_GameManager.shotType;
@@ -280,20 +289,20 @@ ZunResult ReplayManager::AddedCallbackDemo(ReplayManager *mgr)
     mgr->frameId = 0;
     if (mgr->replayData == NULL)
     {
-        mgr->replayData = (ReplayData *)std::malloc(sizeof(ReplayData));
+        mgr->replayData = (ReplayData *)malloc(sizeof(ReplayData));
         std::memset(mgr->replayData, 0, sizeof(ReplayData));
 
         mgr->replayData->header = (ReplayHeader *)FileSystem::OpenPath(mgr->replayFile, g_GameManager.demoMode == 0);
         if (mgr->replayData->header == NULL)
         {
-            std::free(mgr->replayData);
+            free(mgr->replayData);
             mgr->replayData = NULL;
             return ZUN_ERROR;
         }
         if (ValidateReplayData(mgr->replayData->header, g_LastFileSize) != ZUN_SUCCESS)
         {
-            std::free(mgr->replayData->header);
-            std::free(mgr->replayData);
+            free(mgr->replayData->header);
+            free(mgr->replayData);
             mgr->replayData = NULL;
             return ZUN_ERROR;
         }
@@ -353,17 +362,17 @@ ZunResult ReplayManager::DeletedCallback(ReplayManager *mgr)
             {
                 if (!mgr->IsDemo())
                 {
-                    std::free(mgr->replayData->stageReplayData[idx]);
+                    free(mgr->replayData->stageReplayData[idx]);
                 }
                 mgr->replayData->stageReplayData[idx] = NULL;
             }
         }
         if (mgr->replayData->header != NULL)
         {
-            std::free(mgr->replayData->header);
+            free(mgr->replayData->header);
             mgr->replayData->header = NULL;
         }
-        std::free(mgr->replayData);
+        free(mgr->replayData);
         mgr->replayData = NULL;
     }
     delete mgr;

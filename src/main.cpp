@@ -19,6 +19,7 @@
 #include "Stage.hpp"
 #include "Supervisor.hpp"
 #include "ZunResult.hpp"
+#include "ZunMemory.hpp"
 #include "i18n.hpp"
 #include "utils.hpp"
 
@@ -40,6 +41,10 @@ int main(int argc, char *argv[])
 {
     (void)argc;
     (void)argv;
+
+#ifdef __PS3__
+    ZunMemory::Init();
+#endif
 
     GamePaths::Init();
 

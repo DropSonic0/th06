@@ -1,4 +1,7 @@
+#define ZUN_MEMORY_INTERNAL
+
 #include "ZunMemory.hpp"
+#include "GameErrorContext.hpp"
 #include <cstring>
 #include <cstdlib>
 
@@ -21,23 +24,72 @@ struct MemoryBlock
 } __attribute__((aligned(16)));
 
 static sys_addr_t g_PoolAddr = 0;
-static const size_t g_PoolSize = 64 * 1024 * 1024; // Reverted to 64MB for safety
+static size_t g_PoolSize = 64 * 1024 * 1024; // Default to 64MB Pool
 static MemoryBlock *g_Head = nullptr;
 static bool g_Initialized = false;
 static int g_InitResult = -1;
 static sys_lwmutex_t g_Mutex;
 static size_t g_AllocatedBlocks = 0;
+static bool g_AllocatedFromSys = false;
 
 void Init()
 {
     if (g_Initialized)
         return;
 
-    sys_addr_t addr;
-    // Use 64KB pages and correct Read/Write protection flag
-    g_InitResult = sys_memory_allocate(g_PoolSize, SYS_MEMORY_PAGE_SIZE_64K | SYS_MEMORY_PROT_READ_WRITE, &addr);
+    sys_memory_info_t mem_info;
+    sys_memory_get_user_memory_size(&mem_info);
+    printf("[ZunMemory] Total User Memory: %zu, Available User Memory: %zu\n", mem_info.total_user_memory, mem_info.available_user_memory);
+    g_GameErrorContext.Log("[ZunMemory] Total User Memory: %zu, Available User Memory: %zu\n", mem_info.total_user_memory, mem_info.available_user_memory);
+
+    sys_addr_t addr = 0;
+    size_t trySizes[] = { 64 * 1024 * 1024, 48 * 1024 * 1024, 32 * 1024 * 1024, 24 * 1024 * 1024, 16 * 1024 * 1024 };
+    size_t allocatedSize = 0;
+    g_AllocatedFromSys = false;
+
+    // Try sys_memory_allocate first with page sizes and standard attributes
+    uint64_t tryPages[] = { SYS_MEMORY_PAGE_SIZE_1M, SYS_MEMORY_PAGE_SIZE_64K };
+    for (size_t p = 0; p < sizeof(tryPages) / sizeof(tryPages[0]); p++)
+    {
+        for (size_t i = 0; i < sizeof(trySizes) / sizeof(trySizes[0]); i++)
+        {
+            g_InitResult = sys_memory_allocate(trySizes[i], tryPages[p] | SYS_MEMORY_PROT_READ_WRITE, &addr);
+            if (g_InitResult == 0)
+            {
+                allocatedSize = trySizes[i];
+                g_AllocatedFromSys = true;
+                break;
+            }
+        }
+        if (g_InitResult == 0)
+        {
+            break;
+        }
+    }
+
+    // If sys_memory_allocate failed, try allocating the pool via standard malloc (ppu heap)
     if (g_InitResult != 0)
     {
+        printf("[ZunMemory] sys_memory_allocate failed (0x%X). Falling back to ppu heap allocation...\n", g_InitResult);
+        g_GameErrorContext.Log("[ZunMemory] sys_memory_allocate failed (0x%X). Falling back to ppu heap allocation...\n", g_InitResult);
+        
+        for (size_t i = 0; i < sizeof(trySizes) / sizeof(trySizes[0]); i++)
+        {
+            void *p = std::malloc(trySizes[i]);
+            if (p != nullptr)
+            {
+                addr = (sys_addr_t)p;
+                allocatedSize = trySizes[i];
+                g_InitResult = 0;
+                break;
+            }
+        }
+    }
+
+    if (g_InitResult != 0)
+    {
+        printf("[ZunMemory] ERROR: All pool allocation methods failed!\n");
+        g_GameErrorContext.Log("[ZunMemory] ERROR: All pool allocation methods failed!\n");
         return;
     }
 
@@ -46,11 +98,21 @@ void Init()
     g_InitResult = sys_lwmutex_create(&g_Mutex, &attr);
     if (g_InitResult != 0)
     {
-        sys_memory_free(addr);
+        printf("[ZunMemory] ERROR: sys_lwmutex_create failed with 0x%X\n", g_InitResult);
+        g_GameErrorContext.Log("[ZunMemory] ERROR: sys_lwmutex_create failed with 0x%X\n", g_InitResult);
+        if (g_AllocatedFromSys)
+        {
+            sys_memory_free(addr);
+        }
+        else
+        {
+            std::free((void*)addr);
+        }
         return;
     }
 
     g_PoolAddr = addr;
+    g_PoolSize = allocatedSize;
     g_Head = (MemoryBlock *)g_PoolAddr;
     g_Head->size = g_PoolSize - sizeof(MemoryBlock);
     g_Head->next = nullptr;
@@ -59,12 +121,20 @@ void Init()
 
     g_Initialized = true;
     g_AllocatedBlocks = 0;
+    
+    printf("[ZunMemory] Initialized custom memory pool at %p of size %zu MB successfully (allocatedFromSys: %d)\n", 
+           (void*)g_PoolAddr, g_PoolSize / (1024 * 1024), g_AllocatedFromSys ? 1 : 0);
+    g_GameErrorContext.Log("[ZunMemory] Initialized custom memory pool at %p of size %zu MB successfully (allocatedFromSys: %d)\n", 
+           (void*)g_PoolAddr, g_PoolSize / (1024 * 1024), g_AllocatedFromSys ? 1 : 0);
 }
 
 void *Alloc(size_t size)
 {
     if (!g_Initialized)
-        return std::malloc(size);
+    {
+        void *res = std::malloc(size);
+        return res;
+    }
 
     sys_lwmutex_lock(&g_Mutex, SYS_NO_TIMEOUT);
 
@@ -96,6 +166,7 @@ void *Alloc(size_t size)
             curr->isFree = 0;
             g_AllocatedBlocks++;
             void* res = (void *)((char *)curr + sizeof(MemoryBlock));
+            
             sys_lwmutex_unlock(&g_Mutex);
             return res;
         }
@@ -105,7 +176,8 @@ void *Alloc(size_t size)
     sys_lwmutex_unlock(&g_Mutex);
     
     // Fallback to malloc if pool is full
-    return std::malloc(size);
+    void *res = std::malloc(size);
+    return res;
 }
 
 void Free(void *ptr)
@@ -230,7 +302,7 @@ void *operator new(size_t size)
     return ZunMemory::Alloc(size);
 }
 
-void operator delete(void *ptr) noexcept
+void operator delete(void *ptr) throw()
 {
     ZunMemory::Free(ptr);
 }
@@ -240,18 +312,18 @@ void *operator new[](size_t size)
     return ZunMemory::Alloc(size);
 }
 
-void operator delete[](void *ptr) noexcept
+void operator delete[](void *ptr) throw()
 {
     ZunMemory::Free(ptr);
 }
 
-void operator delete(void *ptr, size_t size) noexcept
+void operator delete(void *ptr, size_t size) throw()
 {
     (void)size;
     ZunMemory::Free(ptr);
 }
 
-void operator delete[](void *ptr, size_t size) noexcept
+void operator delete[](void *ptr, size_t size) throw()
 {
     (void)size;
     ZunMemory::Free(ptr);

@@ -30,6 +30,15 @@ extern "C" void *memalign(size_t boundary, size_t size);
 #include "graphics/GLFunc.hpp"
 
 #ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
+#ifdef __PS3__
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawVertexBuf[4] __attribute__((aligned(16)));
 static VertexTex1DiffuseXyzrhw g_PrimitivesToDrawNoVertexBuf[4] __attribute__((aligned(16)));
 static VertexTex1DiffuseXyz g_PrimitivesToDrawUnknown[4] __attribute__((aligned(16)));
@@ -133,7 +142,7 @@ SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_Pixel
 
     if (rwData == NULL)
     {
-        std::free(data);
+        free(data);
         return NULL;
     }
 
@@ -141,7 +150,7 @@ SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_Pixel
 
     if (imageSrcSurface == NULL)
     {
-        std::free(data);
+        free(data);
         return NULL;
     }
 
@@ -155,7 +164,7 @@ SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_Pixel
     }
     else
     {
-        std::free(data);
+        free(data);
     }
 
     return imageTargetSurface;
@@ -460,7 +469,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     u8 *resizedPixels = decodedPixels;
     if (width != entry->width || height != entry->height)
     {
-        resizedPixels = (u8 *)std::malloc(entry->width * entry->height * 4);
+        resizedPixels = (u8 *)malloc(entry->width * entry->height * 4);
         if (resizedPixels != NULL)
         {
             stbir_resize_uint8(decodedPixels, width, height, 0, resizedPixels, entry->width, entry->height, 0, 4);
@@ -478,7 +487,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     rawTextureData = (u8 *)memalign(128, width * height * 4);
     if (rawTextureData == NULL)
     {
-        if (resizedPixels != decodedPixels) std::free(resizedPixels);
+        if (resizedPixels != decodedPixels) free(resizedPixels);
         else stbi_image_free(decodedPixels);
         return ZUN_ERROR;
     }
@@ -499,7 +508,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
     // Free the raw/resized pixel block
     if (resizedPixels != decodedPixels)
     {
-        std::free(resizedPixels);
+        free(resizedPixels);
     }
     else
     {
@@ -641,7 +650,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 
     int alphaW, alphaH, alphaN;
     u8 *decodedAlpha = stbi_load_from_memory(data, g_LastFileSize, &alphaW, &alphaH, &alphaN, 4);
-    std::free(data);
+    free(data);
     if (decodedAlpha == NULL)
     {
         return ZUN_ERROR;
@@ -650,7 +659,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
     u8 *resizedAlpha = decodedAlpha;
     if (alphaW != textureDesc->width || alphaH != textureDesc->height)
     {
-        resizedAlpha = (u8 *)std::malloc(textureDesc->width * textureDesc->height * 4);
+        resizedAlpha = (u8 *)malloc(textureDesc->width * textureDesc->height * 4);
         if (resizedAlpha != NULL)
         {
             stbir_resize_uint8(decodedAlpha, alphaW, alphaH, 0, resizedAlpha, textureDesc->width, textureDesc->height, 0, 4);
@@ -690,7 +699,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
     // Free raw/resized temporary block
     if (resizedAlpha != decodedAlpha)
     {
-        std::free(resizedAlpha);
+        free(resizedAlpha);
     }
     else
     {
@@ -740,7 +749,7 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
         return ZUN_ERROR;
     }
 
-    g_GameErrorContext.Log("Anm loaded. numSprites=%d, numScripts=%d, width=%d, height=%d, format=%d\n", (int)anm->numSprites, (int)anm->numScripts, (int)anm->width, (int)anm->height, (int)anm->format);
+    //g_GameErrorContext.Log("Anm loaded. numSprites=%d, numScripts=%d, width=%d, height=%d, format=%d\n", (int)anm->numSprites, (int)anm->numScripts, (int)anm->width, (int)anm->height, (int)anm->format);
 
     anm->textureIdx = anmIdx;
 
@@ -2324,7 +2333,7 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 
     int x, y, n;
     u8 *pixels = stbi_load_from_memory(data, g_LastFileSize, &x, &y, &n, 4);
-    std::free(data);
+    free(data);
 
     if (pixels == NULL)
     {

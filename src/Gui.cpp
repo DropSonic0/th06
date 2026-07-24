@@ -16,6 +16,15 @@
 #include "ZunColor.hpp"
 #include "utils.hpp"
 
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 Gui g_Gui;
 static ChainElem g_GuiCalcChain;
 static ChainElem g_GuiDrawChain;
@@ -470,7 +479,7 @@ ZunResult Gui::LoadMsg(const char *path) const
     this->impl->msg.currentInstr = NULL;
 
     this->impl->msg.instrs =
-        (const MsgRawInstr **)std::malloc(sizeof(MsgRawInstr **) * (i32)this->impl->msg.msgFile->numInstrs);
+        (const MsgRawInstr **)malloc(sizeof(MsgRawInstr **) * (i32)this->impl->msg.msgFile->numInstrs);
 
     for (idx = 0; idx < (i32)this->impl->msg.msgFile->numInstrs; idx++)
     {
@@ -482,10 +491,10 @@ ZunResult Gui::LoadMsg(const char *path) const
 
 void Gui::FreeMsgFile() const
 {
-    std::free((void *)this->impl->msg.msgFile);
+    free((void *)this->impl->msg.msgFile);
     this->impl->msg.msgFile = NULL;
 
-    std::free(this->impl->msg.instrs);
+    free(this->impl->msg.instrs);
     this->impl->msg.instrs = NULL;
 }
 

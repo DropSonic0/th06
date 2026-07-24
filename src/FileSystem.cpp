@@ -17,6 +17,15 @@
 #include "pbg3/Pbg3Archive.hpp"
 #include "utils.hpp"
 
+#ifdef __PS3__
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 u32 g_LastFileSize;
 
 FILE *FileSystem::FopenUTF8(const char *filepath, const char *mode)
@@ -137,7 +146,7 @@ u8 *FileSystem::OpenPath(const char *filepath, int isExternalResource)
             fsize = std::ftell(file);
             g_LastFileSize = fsize;
             std::fseek(file, 0, SEEK_SET);
-            data = (u8 *)std::malloc(fsize);
+            data = (u8 *)malloc(fsize);
             std::fread(data, 1, fsize, file);
             std::fclose(file);
         }

@@ -1,5 +1,6 @@
 #include "GameErrorContext.hpp"
 #include "FileSystem.hpp"
+#include "GamePaths.hpp"
 #ifndef __PS3__
 #include <SDL2/SDL_messagebox.h>
 #include <cstdarg>
@@ -42,6 +43,8 @@ const char *GameErrorContext::Log(const char *fmt, ...)
         }
     }
 
+    this->Flush();
+
     return fmt;
 }
 
@@ -76,17 +79,20 @@ const char *GameErrorContext::Fatal(const char *fmt, ...)
         }
     }
 
+    this->Flush();
+
     return fmt;
 }
 
 void GameErrorContext::Flush()
 {
-    FILE *logFile;
+    if (!GamePaths::IsInitialized())
+    {
+        return;
+    }
 
     if (m_BufferEnd != m_Buffer)
     {
-        g_GameErrorContext.Log(TH_ERR_LOGGER_END);
-
         if (m_ShowMessageBox)
         {
 #ifndef __PS3__
@@ -95,10 +101,14 @@ void GameErrorContext::Flush()
             m_ShowMessageBox = false;
         }
 
-
-        if (FileSystem::WriteDataToFile("log.txt", m_Buffer, (size_t)(m_BufferEnd - m_Buffer)) != 0)
+        FILE *f = FileSystem::FopenUTF8("log.txt", "ab");
+        if (f != NULL)
         {
+            std::fwrite(m_Buffer, 1, (size_t)(m_BufferEnd - m_Buffer), f);
+            std::fclose(f);
         }
 
+        m_BufferEnd = m_Buffer;
+        m_Buffer[0] = '\0';
     }
 }
