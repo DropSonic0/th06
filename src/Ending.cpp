@@ -13,6 +13,16 @@
 #include "utils.hpp"
 #include <cstdlib>
 
+#ifdef __PS3__
+#include "ZunMemory.hpp"
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 i32 Ending::ReadEndFileParameter()
 {
     i32 readResult;
@@ -441,7 +451,7 @@ ZunResult Ending::LoadEnding(const char *endFilePath)
         this->timer1.InitializeForPopup();
         if (endFileDat != NULL)
         {
-            std::free(endFileDat);
+            free(endFileDat);
         }
         return ZUN_SUCCESS;
     }
@@ -624,7 +634,7 @@ ZunResult Ending::DeletedCallback(Ending *ending)
     // be correct since ending->endFileData was allocated with malloc. One way to solve it, would be to do the same with
     // ending, and align both variables with var_order, but that would be "incorrect", weird...
     char *endfiledata = ending->endFileData;
-    std::free(endfiledata);
+    free(endfiledata);
 
     g_Chain.Cut(ending->drawChain);
     ending->drawChain = NULL;

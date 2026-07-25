@@ -214,13 +214,15 @@ void GameWindow::CreateGameWindow()
 
     for (u32 i = 0; i < ARRAY_SIZE(s_RenderBackends); i++)
     {
+        g_GameErrorContext.Log("Trying to initialize renderer backend %s...\n", s_RenderBackends[i].name);
         g_GfxBackend = s_RenderBackends[i].TryInit();
         if (g_GfxBackend)
         {
-            g_GameErrorContext.Log("Using renderer backend %s\n", s_RenderBackends[i].name);
+            g_GameErrorContext.Log("Successfully initialized renderer backend %s\n", s_RenderBackends[i].name);
             utils::DebugPrint2("Using renderer backend %s", s_RenderBackends[i].name);
             break;
         }
+        g_GameErrorContext.Log("Renderer creation for backend %s failed!\n", s_RenderBackends[i].name);
         utils::DebugPrint2("Renderer creation for backend %s failed", s_RenderBackends[i].name);
     }
 

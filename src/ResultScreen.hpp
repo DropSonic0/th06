@@ -179,11 +179,7 @@ struct ScoreDat
 struct ResultScreen
 {
     ResultScreen();
-    ~ResultScreen()
-    {
-        ScoreDat *sd = this->scoreDat;
-        std::free(sd);
-    };
+    ~ResultScreen();
 
     static ZunResult RegisterChain(i32 unk);
     static ChainCallbackResult OnUpdate(ResultScreen *r);

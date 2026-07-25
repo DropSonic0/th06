@@ -24,7 +24,7 @@
 #include "utils.hpp"
 
 #ifdef __PS3__
-SYS_PROCESS_PARAM(1001, 1024 * 1024);
+SYS_PROCESS_PARAM(1001, 2 * 1024 * 1024);
 
 void sysutil_callback(uint64_t status, uint64_t param, void *userdata)
 {
@@ -67,12 +67,14 @@ int main(int argc, char *argv[])
 
     //    g_Supervisor.hInstance = hInstance;
 
+    g_GameErrorContext.Log("Calling Supervisor::LoadConfig(%s)...\n", TH_CONFIG_FILE);
     if (g_Supervisor.LoadConfig(TH_CONFIG_FILE) != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log("Failed to load config.\n");
         g_GameErrorContext.Flush();
         return -1;
     }
+    g_GameErrorContext.Log("Supervisor::LoadConfig finished successfully.\n");
 
     //    if (GameWindow::InitD3dInterface())
     //    {
@@ -88,18 +90,27 @@ int main(int argc, char *argv[])
     //    SystemParametersInfo(SPI_SETPOWEROFFACTIVE, 0, NULL, SPIF_SENDCHANGE);
 
 restart:
+    g_GameErrorContext.Log("Entering restart sequence...\n");
+    g_GameErrorContext.Log("Calling GameWindow::CreateGameWindow()...\n");
     GameWindow::CreateGameWindow();
+    g_GameErrorContext.Log("GameWindow::CreateGameWindow() finished.\n");
 
+    g_GameErrorContext.Log("Allocating g_AnmManager...\n");
     g_AnmManager = new AnmManager();
+    g_GameErrorContext.Log("g_AnmManager allocated successfully.\n");
 
+    g_GameErrorContext.Log("Calling GameWindow::InitD3dRendering()...\n");
     if (GameWindow::InitD3dRendering() != ZUN_SUCCESS)
     {
         g_GameErrorContext.Log("Failed to initialize D3D rendering.\n");
         g_GameErrorContext.Flush();
         return 1;
     }
+    g_GameErrorContext.Log("GameWindow::InitD3dRendering() finished successfully.\n");
 
+    g_GameErrorContext.Log("Calling g_SoundPlayer.InitializeDSound()...\n");
     g_SoundPlayer.InitializeDSound();
+    g_GameErrorContext.Log("g_SoundPlayer.InitializeDSound() finished.\n");
     
     g_GameErrorContext.Log("Calling Controller::GetJoystickCaps()...\n");
     Controller::GetJoystickCaps();
@@ -112,6 +123,7 @@ restart:
         g_GameErrorContext.Log("Failed to register supervisor chain.\n");
         goto stop;
     }
+    g_GameErrorContext.Log("Supervisor::RegisterChain() finished successfully.\n");
 #ifndef __PS3__
     if (!g_Supervisor.cfg.windowed)
     {

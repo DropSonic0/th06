@@ -21,6 +21,16 @@
 #include <string.h>
 #endif
 
+#ifdef __PS3__
+#include "ZunMemory.hpp"
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 #ifndef __PS3__
 void MidiOutput::StartTimer(u32 delay, SDL_TimerCallback cb, void *data)
 {
@@ -140,7 +150,7 @@ ZunResult MidiOutput::ReadFileData(u32 idx, const char *path)
 
 void MidiOutput::ReleaseFileData(u32 idx)
 {
-    std::free(this->midiFileData[idx]);
+    free(this->midiFileData[idx]);
 
     this->midiFileData[idx] = NULL;
 }
@@ -419,7 +429,7 @@ void MidiOutput::ProcessMsg(MidiTrack *track)
         {
             curTrackLength = MidiOutput::ReadVariableLength(&track->curTrackDataCursor);
 
-            sysExData = (u8 *)std::malloc(curTrackLength + 1);
+            sysExData = (u8 *)malloc(curTrackLength + 1);
             sysExData[0] = MIDI_OPCODE_SYSTEM_EXCLUSIVE;
 
             std::memcpy(sysExData + 1, track->curTrackDataCursor, curTrackLength);
@@ -428,7 +438,7 @@ void MidiOutput::ProcessMsg(MidiTrack *track)
 
             track->curTrackDataCursor += curTrackLength;
 
-            std::free(sysExData);
+            free(sysExData);
         }
         else if (opcode == MIDI_OPCODE_SYSTEM_RESET)
         {

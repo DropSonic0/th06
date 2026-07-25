@@ -1374,6 +1374,12 @@ ResultScreen::ResultScreen()
     this->cursor = 1;
 }
 
+ResultScreen::~ResultScreen()
+{
+    ScoreDat *sd = this->scoreDat;
+    free(sd);
+}
+
 ChainCallbackResult ResultScreen::OnUpdate(ResultScreen *resultScreen)
 {
     i32 difficulty;

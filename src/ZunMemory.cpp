@@ -24,13 +24,14 @@ struct MemoryBlock
 } __attribute__((aligned(16)));
 
 static sys_addr_t g_PoolAddr = 0;
-static size_t g_PoolSize = 64 * 1024 * 1024; // Default to 64MB Pool
+static size_t g_PoolSize = 80 * 1024 * 1024; // Default to 80MB Pool
 static MemoryBlock *g_Head = nullptr;
 static bool g_Initialized = false;
 static int g_InitResult = -1;
 static sys_lwmutex_t g_Mutex;
 static size_t g_AllocatedBlocks = 0;
 static bool g_AllocatedFromSys = false;
+static bool g_InZunAllocLog = false;
 
 void Init()
 {
@@ -43,7 +44,7 @@ void Init()
     g_GameErrorContext.Log("[ZunMemory] Total User Memory: %zu, Available User Memory: %zu\n", mem_info.total_user_memory, mem_info.available_user_memory);
 
     sys_addr_t addr = 0;
-    size_t trySizes[] = { 64 * 1024 * 1024, 48 * 1024 * 1024, 32 * 1024 * 1024, 24 * 1024 * 1024, 16 * 1024 * 1024 };
+    size_t trySizes[] = { 80 * 1024 * 1024, 64 * 1024 * 1024, 48 * 1024 * 1024, 32 * 1024 * 1024, 16 * 1024 * 1024 };
     size_t allocatedSize = 0;
     g_AllocatedFromSys = false;
 
@@ -53,7 +54,7 @@ void Init()
     {
         for (size_t i = 0; i < sizeof(trySizes) / sizeof(trySizes[0]); i++)
         {
-            g_InitResult = sys_memory_allocate(trySizes[i], tryPages[p] | SYS_MEMORY_PROT_READ_WRITE, &addr);
+            g_InitResult = sys_memory_allocate(trySizes[i], tryPages[p], &addr);
             if (g_InitResult == 0)
             {
                 allocatedSize = trySizes[i];
@@ -139,18 +140,18 @@ void *Alloc(size_t size)
     sys_lwmutex_lock(&g_Mutex, SYS_NO_TIMEOUT);
 
     // 16-byte alignment
-    size = (size + 15) & ~15;
+    size_t alignedSize = (size + 15) & ~15;
 
     MemoryBlock *curr = g_Head;
     while (curr)
     {
-        if (curr->isFree && curr->size >= size)
+        if (curr->isFree && curr->size >= alignedSize)
         {
             // Split block if there's enough space for a new block header + at least 16 bytes
-            if (curr->size >= size + sizeof(MemoryBlock) + 16)
+            if (curr->size >= alignedSize + sizeof(MemoryBlock) + 16)
             {
-                MemoryBlock *newBlock = (MemoryBlock *)((char *)curr + sizeof(MemoryBlock) + size);
-                newBlock->size = curr->size - size - sizeof(MemoryBlock);
+                MemoryBlock *newBlock = (MemoryBlock *)((char *)curr + sizeof(MemoryBlock) + alignedSize);
+                newBlock->size = curr->size - alignedSize - sizeof(MemoryBlock);
                 newBlock->next = curr->next;
                 newBlock->prev = curr;
                 newBlock->isFree = 1;
@@ -160,7 +161,7 @@ void *Alloc(size_t size)
                     curr->next->prev = newBlock;
                 }
 
-                curr->size = size;
+                curr->size = alignedSize;
                 curr->next = newBlock;
             }
             curr->isFree = 0;
@@ -177,6 +178,13 @@ void *Alloc(size_t size)
     
     // Fallback to malloc if pool is full
     void *res = std::malloc(size);
+
+    if (!g_InZunAllocLog)
+    {
+        g_InZunAllocLog = true;
+        g_GameErrorContext.Log("[ZunMemory] Alloc: pool full/exhausted, fallback malloc returned %p for size %zu\n", res, size);
+        g_InZunAllocLog = false;
+    }
     return res;
 }
 
@@ -251,7 +259,9 @@ void *Realloc(void *ptr, size_t size)
     sys_lwmutex_unlock(&g_Mutex);
 
     if (size <= oldSize)
+    {
         return ptr;
+    }
 
     void *newPtr = Alloc(size);
     if (newPtr)

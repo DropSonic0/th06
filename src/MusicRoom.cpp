@@ -9,6 +9,16 @@
 #include <cstdlib>
 #include <cstring>
 
+#ifdef __PS3__
+#include "ZunMemory.hpp"
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 ZunResult MusicRoom::CheckInputEnable()
 {
     if (this->waitFramesCount >= 8)
@@ -395,7 +405,7 @@ finishMusiccmtRead:
         musicRoom->descriptionSprites[i].flags.anchor = AnmVmAnchor_TopLeft;
     }
 
-    std::free(fileBase);
+    free(fileBase);
 
     return ZUN_SUCCESS;
 }

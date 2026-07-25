@@ -14,6 +14,7 @@
 
 #include "FileSystem.hpp"
 #include "GamePaths.hpp"
+#include "GameErrorContext.hpp"
 #include "pbg3/Pbg3Archive.hpp"
 #include "utils.hpp"
 

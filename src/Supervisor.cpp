@@ -19,6 +19,16 @@
 #include "inttypes.hpp"
 #include "utils.hpp"
 
+#ifdef __PS3__
+#include "ZunMemory.hpp"
+#undef malloc
+#undef free
+#undef realloc
+#define malloc(size) ZunMemory::Alloc(size)
+#define free(ptr) ZunMemory::Free(ptr)
+#define realloc(ptr, size) ZunMemory::Realloc(ptr, size)
+#endif
+
 #ifndef __PS3__
 #include <SDL2/SDL_joystick.h>
 #include <SDL2/SDL_timer.h>
@@ -635,6 +645,14 @@ void Supervisor::DrawFpsCounter()
                 sprintf(g_FpsCounterBuffer + strlen(g_FpsCounterBuffer), " RAM:%u/%uMB", 
                     (total_mem - free_mem) / 1024 / 1024, total_mem / 1024 / 1024);
             }
+#ifdef __PS3__
+            size_t pool_used = 0, pool_total = 0;
+            ZunMemory::GetPoolStats(&pool_used, &pool_total);
+            if (pool_total > 0) {
+                sprintf(g_FpsCounterBuffer + strlen(g_FpsCounterBuffer), " POOL:%u/%uMB", 
+                    (u32)(pool_used / 1024 / 1024), (u32)(pool_total / 1024 / 1024));
+            }
+#endif
         }
 #endif
 
@@ -655,10 +673,14 @@ void Supervisor::DrawFpsCounter()
     }
     if (!g_Supervisor.isInEnding)
     {
+#ifndef __PS3__
 #ifndef DDEBUG
         fpsCounterPos.x = 360.0;
 #else
         fpsCounterPos.x = 512.0;
+#endif
+#else
+        fpsCounterPos.x = 160.0;
 #endif
         fpsCounterPos.y = 464.0;
         fpsCounterPos.z = 0.0;
