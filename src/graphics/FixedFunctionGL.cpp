@@ -63,12 +63,12 @@ GfxInterface *FixedFunctionGL::Init()
     SDL_GL_SetSwapInterval(1);
 #else
     g_GameErrorContext.Log("FixedFunctionGL::Init (PS3 path) initializing PSGL...\n");
-    PSGLinitOptions options;
-    options.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE;
-    options.maxSPUs = 1;
+	PSGLinitOptions options;
+	options.enable = PSGL_INIT_MAX_SPUS | PSGL_INIT_INITIALIZE_SPUS | PSGL_INIT_HOST_MEMORY_SIZE | PSGL_INIT_PERSISTENT_MEMORY_SIZE | PSGL_INIT_TRANSIENT_MEMORY_SIZE;
+	options.maxSPUs = 1;
     options.initializeSPUs = true;
-    options.persistentMemorySize = 0;
-    options.transientMemorySize = 0;
+    options.persistentMemorySize = 24 * 1024 * 1024;
+    options.transientMemorySize = 8 * 1024 * 1024;
     options.errorConsole = 0;
     options.fifoSize = 0;
     options.hostMemorySize = 64 * 1024 * 1024;
@@ -476,21 +476,43 @@ void FixedFunctionGL::SetDepthFunc(DepthFunc func)
     }
 }
 
+static u32 g_LiveTextureCount = 0;
+
 GfxTextureHandle FixedFunctionGL::CreateTexture()
 {
     GLuint texture = 0;
     g_glFuncTable.glGenTextures(1, &texture);
+    g_LiveTextureCount++;
     return texture;
+}
+
+u32 FixedFunctionGL::GetLiveTextureCount()
+{
+    return g_LiveTextureCount;
 }
 
 void FixedFunctionGL::BindTexture(GfxTextureHandle handle)
 {
     g_glFuncTable.glBindTexture(GL_TEXTURE_2D, handle);
+    m_boundTexture = handle;
 }
 
 void FixedFunctionGL::DeleteTexture(GfxTextureHandle handle)
 {
-    g_glFuncTable.glDeleteTextures(1, (GLuint *)&handle);
+    if (handle != 0 && g_LiveTextureCount > 0)
+    {
+        g_LiveTextureCount--;
+    }
+#ifdef __PS3__
+    // Explicitly unbind the texture if it's currently bound to ensure PSGL releases driver/host memory immediately
+    if (m_boundTexture == handle)
+    {
+        g_glFuncTable.glBindTexture(GL_TEXTURE_2D, 0);
+        m_boundTexture = 0;
+    }
+#endif
+    GLuint textureId = (GLuint)handle;
+    g_glFuncTable.glDeleteTextures(1, &textureId);
 }
 
 void FixedFunctionGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data)

@@ -272,6 +272,33 @@ void *Realloc(void *ptr, size_t size)
     return newPtr;
 }
 
+void *AllocAligned(size_t size, size_t alignment)
+{
+    size_t totalSize = size + alignment - 1 + sizeof(void *);
+
+    void *rawPtr = Alloc(totalSize);
+    if (rawPtr == nullptr)
+    {
+        return nullptr;
+    }
+
+    uintptr_t rawAddr = (uintptr_t)rawPtr + sizeof(void *);
+    uintptr_t alignedAddr = (rawAddr + alignment - 1) & ~((uintptr_t)alignment - 1);
+
+    ((void **)alignedAddr)[-1] = rawPtr;
+
+    return (void *)alignedAddr;
+}
+
+void FreeAligned(void *ptr)
+{
+    if (ptr == nullptr)
+        return;
+
+    void *rawPtr = ((void **)ptr)[-1];
+    Free(rawPtr);
+}
+
 void GetPoolStats(size_t *used, size_t *total)
 {
     if (!g_Initialized)

@@ -48,6 +48,7 @@ struct FixedFunctionGL : GfxInterface
     virtual GfxTextureHandle CreateTexture();
     virtual void BindTexture(GfxTextureHandle handle);
     virtual void DeleteTexture(GfxTextureHandle handle);
+    static u32 GetLiveTextureCount();
     virtual void SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data);
     virtual void SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data);
 
@@ -69,4 +70,5 @@ struct FixedFunctionGL : GfxInterface
     u32 m_viewport[4];
     f32 m_depthRange[2];
     bool m_textureEnabled;
+    GfxTextureHandle m_boundTexture = 0;
 };

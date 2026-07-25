@@ -18,6 +18,7 @@
 #include "i18n.hpp"
 #include "inttypes.hpp"
 #include "utils.hpp"
+#include "graphics/FixedFunctionGL.hpp"
 
 #ifdef __PS3__
 #include "ZunMemory.hpp"
@@ -651,6 +652,17 @@ void Supervisor::DrawFpsCounter()
             if (pool_total > 0) {
                 sprintf(g_FpsCounterBuffer + strlen(g_FpsCounterBuffer), " POOL:%u/%uMB", 
                     (u32)(pool_used / 1024 / 1024), (u32)(pool_total / 1024 / 1024));
+            }
+				sprintf(g_FpsCounterBuffer + strlen(g_FpsCounterBuffer), " TEX:%u", 
+                (u32)FixedFunctionGL::GetLiveTextureCount());
+
+            static u32 s_LastLoggedTex = 0xFFFFFFFF;
+            u32 curTex = (u32)FixedFunctionGL::GetLiveTextureCount();
+            if (curTex != s_LastLoggedTex)
+            {
+                g_GameErrorContext.Log("[TexCount] TEX:%u RAM_used:%uMB POOL_used:%uMB\n",
+                    curTex, (total_mem - free_mem) / 1024 / 1024, (u32)(pool_used / 1024 / 1024));
+                s_LastLoggedTex = curTex;
             }
 #endif
         }
