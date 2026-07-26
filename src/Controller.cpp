@@ -24,6 +24,8 @@ static u8 *keyboardState;
 static CellPadData g_LastPS3PadData;
 static CellKbData g_LastPS3KbState[TH_PS3_KB_MAX];
 static uint8_t g_PS3KbConnected[TH_PS3_KB_MAX];
+static uint8_t g_PS3KeyboardState[256];
+static uint32_t g_PS3KeyboardModifiers;
 
 // Fallback declarations for missing SDK headers
 extern "C"
@@ -573,7 +575,7 @@ u16 Controller::GetInput(void)
 	{
 		for (int i = 0; i < TH_PS3_KB_MAX; i++)
 		{
-			if (i < (int)kbInfo.max_connect && kbInfo.status[i] == 1)
+			if (i < (int)kbInfo.max_connect && kbInfo.status[i] != 0)
 			{
 				if (!g_PS3KbConnected[i])
 				{
@@ -590,19 +592,41 @@ u16 Controller::GetInput(void)
 					kbData.mkey = 0xFFFFFFFF;
 
 					int readRes = cellKbRead(i, &kbData);
-					if (readRes < 0)
+					if (readRes == CELL_KB_ERROR_NO_DEVICE || readRes == CELL_KB_ERROR_UNINITIALIZED)
+					{
+						memset(&g_LastPS3KbState[i], 0, sizeof(CellKbData));
+						memset(g_PS3KeyboardState, 0, sizeof(g_PS3KeyboardState));
+						g_PS3KeyboardModifiers = 0;
+						g_PS3KbConnected[i] = 0;
+						break;
+					}
+					if (readRes != 0)
 					{
 						break;
 					}
 
 					// Check if kbData was actually written to (sentinel check)
-					if (kbData.len == 0xFFFFFFFF && kbData.mkey == 0xFFFFFFFF)
+					if (kbData.len == 0xFFFFFFFF || kbData.mkey == 0xFFFFFFFF)
 					{
 						break;
 					}
 
-					// Accumulate keypresses from all packets read this frame so they don't get lost
-					buttons |= GetButtonsFromKbData(kbData);
+					// Update the persistent state-based keyboard arrays
+					memset(g_PS3KeyboardState, 0, sizeof(g_PS3KeyboardState));
+					int len = kbData.len;
+					if (len > CELL_KB_MAX_KEYCODES)
+					{
+						len = CELL_KB_MAX_KEYCODES;
+					}
+					for (int k = 0; k < len; k++)
+					{
+						u16 keycode = kbData.keycode[k] & 0xFF;
+						if (keycode < 256)
+						{
+							g_PS3KeyboardState[keycode] = 1;
+						}
+					}
+					g_PS3KeyboardModifiers = kbData.mkey;
 
 					g_LastPS3KbState[i] = kbData;
 					safety++;
@@ -613,17 +637,65 @@ u16 Controller::GetInput(void)
 				if (g_PS3KbConnected[i])
 				{
 					memset(&g_LastPS3KbState[i], 0, sizeof(CellKbData));
+					memset(g_PS3KeyboardState, 0, sizeof(g_PS3KeyboardState));
+					g_PS3KeyboardModifiers = 0;
 					g_PS3KbConnected[i] = 0;
 				}
 			}
 		}
 	}
 
-	// Process currently held keys from the latest keyboard state
-	for (int k = 0; k < TH_PS3_KB_MAX; k++)
+	// Build the held keyboard inputs from our persistent state
+	if (g_PS3KeyboardModifiers != 0xFFFFFFFF)
 	{
-		buttons |= GetButtonsFromKbData(g_LastPS3KbState[k]);
+		if (g_PS3KeyboardModifiers & (CELL_KB_MKEY_L_SHIFT | CELL_KB_MKEY_R_SHIFT))
+		{
+			buttons |= TH_BUTTON_FOCUS;
+		}
+		if (g_PS3KeyboardModifiers & (CELL_KB_MKEY_L_CTRL | CELL_KB_MKEY_R_CTRL))
+		{
+			buttons |= TH_BUTTON_SKIP;
+		}
 	}
+
+	if (g_PS3KeyboardState[CELL_KEYC_UP_ARROW])
+		buttons |= TH_BUTTON_UP;
+	if (g_PS3KeyboardState[CELL_KEYC_DOWN_ARROW])
+		buttons |= TH_BUTTON_DOWN;
+	if (g_PS3KeyboardState[CELL_KEYC_LEFT_ARROW])
+		buttons |= TH_BUTTON_LEFT;
+	if (g_PS3KeyboardState[CELL_KEYC_RIGHT_ARROW])
+		buttons |= TH_BUTTON_RIGHT;
+	if (g_PS3KeyboardState[CELL_KEYC_Z])
+		buttons |= TH_BUTTON_SHOOT;
+	if (g_PS3KeyboardState[CELL_KEYC_X])
+		buttons |= TH_BUTTON_BOMB;
+	if (g_PS3KeyboardState[CELL_KEYC_ESCAPE])
+		buttons |= TH_BUTTON_MENU;
+	if (g_PS3KeyboardState[CELL_KEYC_Q])
+		buttons |= TH_BUTTON_Q;
+	if (g_PS3KeyboardState[CELL_KEYC_S])
+		buttons |= TH_BUTTON_S;
+	if (g_PS3KeyboardState[CELL_KEYC_ENTER] || g_PS3KeyboardState[CELL_KEYC_KPAD_ENTER])
+		buttons |= TH_BUTTON_ENTER;
+	if (g_PS3KeyboardState[CELL_KEYC_HOME])
+		buttons |= TH_BUTTON_HOME;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_2])
+		buttons |= TH_BUTTON_DOWN;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_4])
+		buttons |= TH_BUTTON_LEFT;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_6])
+		buttons |= TH_BUTTON_RIGHT;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_8])
+		buttons |= TH_BUTTON_UP;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_7])
+		buttons |= TH_BUTTON_UP | TH_BUTTON_LEFT;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_9])
+		buttons |= TH_BUTTON_UP | TH_BUTTON_RIGHT;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_1])
+		buttons |= TH_BUTTON_DOWN | TH_BUTTON_LEFT;
+	if (g_PS3KeyboardState[CELL_KEYC_KPAD_3])
+		buttons |= TH_BUTTON_DOWN | TH_BUTTON_RIGHT;
 #endif
 
 #ifndef __PS3__
@@ -662,6 +734,8 @@ void Controller::ResetKeyboard(void)
 	cellKbInit(TH_PS3_KB_MAX);
 	memset(g_LastPS3KbState, 0, sizeof(g_LastPS3KbState));
 	memset(g_PS3KbConnected, 0, sizeof(g_PS3KbConnected));
+	memset(g_PS3KeyboardState, 0, sizeof(g_PS3KeyboardState));
+	g_PS3KeyboardModifiers = 0;
 #endif
 
 #ifndef __PS3__
