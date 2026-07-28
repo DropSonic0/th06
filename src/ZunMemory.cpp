@@ -24,7 +24,7 @@ struct MemoryBlock
 } __attribute__((aligned(16)));
 
 static sys_addr_t g_PoolAddr = 0;
-static size_t g_PoolSize = 80 * 1024 * 1024; // Default to 80MB Pool
+static size_t g_PoolSize = 32 * 1024 * 1024; // Default to 80MB Pool
 static MemoryBlock *g_Head = nullptr;
 static bool g_Initialized = false;
 static int g_InitResult = -1;
@@ -44,7 +44,7 @@ void Init()
     g_GameErrorContext.Log("[ZunMemory] Total User Memory: %zu, Available User Memory: %zu\n", mem_info.total_user_memory, mem_info.available_user_memory);
 
     sys_addr_t addr = 0;
-    size_t trySizes[] = { 80 * 1024 * 1024, 64 * 1024 * 1024, 48 * 1024 * 1024, 32 * 1024 * 1024, 16 * 1024 * 1024 };
+    size_t trySizes[] = { 32 * 1024 * 1024, 16 * 1024 * 1024 };
     size_t allocatedSize = 0;
     g_AllocatedFromSys = false;
 

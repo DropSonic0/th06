@@ -577,8 +577,11 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
 	bool textureBufferJustAllocated = false;
 	if (!outTexture->textureData || outTexture->format != TEX_FMT_A8R8G8B8)
 	{
-		free(outTexture->textureData);
-		outTexture->textureData = (u8 *)malloc(outTexture->width * outTexture->height * 4);
+		if (outTexture->textureData)
+		{
+			ZunMemory::FreeAligned(outTexture->textureData);
+		}
+		outTexture->textureData = (u8 *)ZunMemory::AllocAligned(outTexture->width * outTexture->height * 4, 128);
 		memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
 		outTexture->format = TEX_FMT_A8R8G8B8;
 		textureBufferJustAllocated = true;
