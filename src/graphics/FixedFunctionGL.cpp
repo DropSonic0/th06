@@ -556,10 +556,49 @@ void FixedFunctionGL::SetTextureImage(u32 width, u32 height, PixelFormat fmt, Pi
 void FixedFunctionGL::SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data)
 {
 #ifndef __PS3__
-    g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
+	g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
 #else
-    g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, GL_ARGB_SCE, GL_UNSIGNED_BYTE, data);
+	g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, GL_ARGB_SCE, GL_UNSIGNED_BYTE, data);
 #endif
+}
+
+void FixedFunctionGL::SetTextureSubImageFmt(i32 xoffset, i32 yoffset, i32 width, i32 height, PixelFormat fmt,
+	PixelDataType type, const void *data)
+{
+	GLenum glFmt = GL_RGBA;
+	GLenum glType = GL_UNSIGNED_BYTE;
+
+	switch (fmt)
+	{
+	case PIXEL_RGBA:
+#ifndef __PS3__
+		glFmt = GL_RGBA;
+#else
+		glFmt = GL_ARGB_SCE;
+#endif
+		break;
+	case PIXEL_RGB:
+		glFmt = GL_RGB;
+		break;
+	}
+
+	switch (type)
+	{
+	case PIXEL_UNSIGNED_BYTE:
+		glType = GL_UNSIGNED_BYTE;
+		break;
+	case PIXEL_UNSIGNED_SHORT_5_5_5_1:
+		glType = GL_UNSIGNED_SHORT_5_5_5_1;
+		break;
+	case PIXEL_UNSIGNED_SHORT_5_6_5:
+		glType = GL_UNSIGNED_SHORT_5_6_5;
+		break;
+	case PIXEL_UNSIGNED_SHORT_4_4_4_4:
+		glType = GL_UNSIGNED_SHORT_4_4_4_4;
+		break;
+	}
+
+	g_glFuncTable.glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height, glFmt, glType, data);
 }
 
 void FixedFunctionGL::ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels)

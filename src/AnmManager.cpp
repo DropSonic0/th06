@@ -125,6 +125,19 @@ void AnmManager::CreateTextureObject()
 	g_GfxBackend->SetTextureFilter();
 }
 
+void AnmManager::GetOrCreateTextureObject(i32 textureIdx)
+{
+	if (this->textures[textureIdx].handle != 0)
+	{
+		this->currentTextureHandle = this->textures[textureIdx].handle;
+		g_GfxBackend->BindTexture(this->currentTextureHandle);
+		g_GfxBackend->SetTextureFilter();
+		return;
+	}
+
+	this->CreateTextureObject();
+}
+
 #ifndef __PS3__
 SDL_Surface *AnmManager::LoadToSurfaceWithFormat(const char *filename, SDL_PixelFormatEnum format, u8 **fileData)
 {
@@ -406,6 +419,11 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 	u8 *rawTextureData = NULL;
 	i32 width, height;
 
+	bool prevHadHandle = this->textures[textureIdx].handle != 0;
+	u32 prevWidth = this->textures[textureIdx].width;
+	u32 prevHeight = this->textures[textureIdx].height;
+	i32 prevFormat = this->textures[textureIdx].format;
+
 	ReleaseTexture(textureIdx);
 
 #ifndef __PS3__
@@ -486,7 +504,7 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 	}
 
 	// Allocate final texture data block aligned to 128 bytes
-	rawTextureData = (u8 *)memalign(128, width * height * 4);
+	rawTextureData = (u8 *)ZunMemory::AllocAligned(width * height * 4, 128);
 	if (rawTextureData == NULL)
 	{
 		if (resizedPixels != decodedPixels) free(resizedPixels);
@@ -518,12 +536,15 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 	}
 #endif
 
-	CreateTextureObject();
+	GetOrCreateTextureObject(textureIdx);
 
 	// Clear any errors that might be pending
 	while (g_GfxBackend->HasError())
 	{
 	}
+
+	bool canSubImage = prevHadHandle && prevWidth == (u32)width && prevHeight == (u32)height &&
+		prevFormat == textureFormat;
 
 	this->textures[textureIdx].handle = this->currentTextureHandle;
 	this->textures[textureIdx].textureData = rawTextureData;
@@ -539,8 +560,16 @@ ZunResult AnmManager::LoadTexture(i32 textureIdx, const char *textureName, i32 t
 	// g_glFuncTable.glTexImage2D(GL_TEXTURE_2D, 0, g_TextureFormatTypeGfxMapping[textureFormat], textureSurface->w,
 	//                            textureSurface->h, 0, g_TextureFormatTypeGfxMapping[textureFormat],
 	//                            g_TextureFormatTypeMapping[textureFormat], rawTextureData);
-	g_GfxBackend->SetTextureImage(width, height, g_TextureFormatTypeGfxMapping[textureFormat],
-		g_TextureFormatTypeMapping[textureFormat], rawTextureData);
+	if (canSubImage)
+	{
+		g_GfxBackend->SetTextureSubImageFmt(0, 0, width, height, g_TextureFormatTypeGfxMapping[textureFormat],
+			g_TextureFormatTypeMapping[textureFormat], rawTextureData);
+	}
+	else
+	{
+		g_GfxBackend->SetTextureImage(width, height, g_TextureFormatTypeGfxMapping[textureFormat],
+			g_TextureFormatTypeMapping[textureFormat], rawTextureData);
+	}
 
 	if (g_GfxBackend->HasError())
 	{
@@ -676,7 +705,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 	}
 
 	// Allocate 128-byte aligned temporary memory block for conversion
-	u8 *alignedAlphaData = (u8 *)memalign(128, textureDesc->width * textureDesc->height * 4);
+	u8 *alignedAlphaData = (u8 *)ZunMemory::AllocAligned(textureDesc->width * textureDesc->height * 4, 128);
 	if (alignedAlphaData != NULL)
 	{
 		// Copy/convert resizedAlpha to the 128-byte aligned temporary block
@@ -695,7 +724,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 				}
 			}
 		}
-		free(alignedAlphaData);
+		ZunMemory::FreeAligned(alignedAlphaData);
 	}
 
 	// Free raw/resized temporary block
@@ -714,8 +743,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 	g_GfxBackend->SetTextureImage(textureDesc->width, textureDesc->height, PIXEL_RGBA,
 		g_TextureFormatTypeMapping[textureFormat], textureDesc->textureData);
 #else
-	// On PS3 we forced it to A8R8G8B8 in LoadTexture
-	g_GfxBackend->SetTextureImage(textureDesc->width, textureDesc->height, PIXEL_RGBA,
+	g_GfxBackend->SetTextureSubImageFmt(0, 0, textureDesc->width, textureDesc->height, PIXEL_RGBA,
 		PIXEL_UNSIGNED_BYTE, textureDesc->textureData);
 #endif
 
@@ -724,7 +752,7 @@ ZunResult AnmManager::LoadTextureAlphaChannel(i32 textureIdx, const char *textur
 
 ZunResult AnmManager::CreateEmptyTexture(i32 textureIdx, u32 width, u32 height, i32 textureFormat)
 {
-	CreateTextureObject();
+	GetOrCreateTextureObject(textureIdx);
 
 	this->textures[textureIdx].handle = this->currentTextureHandle;
 	this->textures[textureIdx].width = BitCeil(width);
@@ -783,6 +811,15 @@ ZunResult AnmManager::LoadAnm(i32 anmIdx, const char *path, i32 spriteIdxOffset)
 			return ZUN_ERROR;
 		}
 	}
+
+#ifdef __PS3__
+	// The texture has been completely loaded and uploaded to PSGL/GPU. We don't need the CPU-side raw pixel copy anymore, so free it immediately to optimize RAM.
+	if (this->textures[anm->textureIdx].textureData)
+	{
+		ZunMemory::FreeAligned(this->textures[anm->textureIdx].textureData);
+		this->textures[anm->textureIdx].textureData = NULL;
+	}
+#endif
 
 	anm->spriteIdxOffset = spriteIdxOffset;
 
@@ -851,16 +888,9 @@ void AnmManager::ReleaseAnm(i32 anmIdx)
 
 void AnmManager::ReleaseTexture(i32 textureIdx)
 {
-	if (this->textures[textureIdx].handle != 0)
+	if (this->currentTextureHandle == this->textures[textureIdx].handle)
 	{
-		if (this->currentTextureHandle == this->textures[textureIdx].handle)
-		{
-			this->currentTextureHandle = 0;
-		}
-
-		g_GfxBackend->DeleteTexture(this->textures[textureIdx].handle);
-
-		this->textures[textureIdx].handle = 0;
+		this->currentTextureHandle = 0;
 	}
 
 	free((void *)this->textures[textureIdx].fileData);
@@ -870,7 +900,7 @@ void AnmManager::ReleaseTexture(i32 textureIdx)
 	delete[] this->textures[textureIdx].textureData;
 #else
 	if (this->textures[textureIdx].textureData)
-		free(this->textures[textureIdx].textureData);
+		ZunMemory::FreeAligned(this->textures[textureIdx].textureData);
 #endif
 	this->textures[textureIdx].textureData = NULL;
 }
@@ -2344,7 +2374,7 @@ ZunResult AnmManager::LoadSurface(i32 surfaceIdx, const char *path)
 	}
 
 	// Allocate 128-byte aligned memory block for the surface pixels
-	u8 *alignedPixels = (u8 *)memalign(128, x * y * 4);
+	u8 *alignedPixels = (u8 *)ZunMemory::AllocAligned(x * y * 4, 128);
 	if (alignedPixels == NULL)
 	{
 		stbi_image_free(pixels);
@@ -2455,7 +2485,7 @@ void AnmManager::ReleaseSurface(i32 surfaceIdx)
 			g_GfxBackend->DeleteTexture(this->surfaces[surfaceIdx]->textureHandle);
 		}
 		if (this->surfaces[surfaceIdx]->pixels)
-			free(this->surfaces[surfaceIdx]->pixels);
+			ZunMemory::FreeAligned(this->surfaces[surfaceIdx]->pixels);
 		delete this->surfaces[surfaceIdx];
 #endif
 		this->surfaces[surfaceIdx] = NULL;

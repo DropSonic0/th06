@@ -572,15 +572,17 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
     PS3_RenderText(convertedText, fontHeight * 2, textColor, xPos * 2, drawY);
 #endif
 
-    // Once we get an API abstraction layer for surface operations, this needs to change
-    //   We really shouldn't be clobbering the texture format
-    if (!outTexture->textureData || outTexture->format != TEX_FMT_A8R8G8B8)
-    {
-        free(outTexture->textureData);
-        outTexture->textureData = (u8 *)malloc(outTexture->width * outTexture->height * 4);
-        memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
-        outTexture->format = TEX_FMT_A8R8G8B8;
-    }
+	// Once we get an API abstraction layer for surface operations, this needs to change
+	// We really shouldn't be clobbering the texture format
+	bool textureBufferJustAllocated = false;
+	if (!outTexture->textureData || outTexture->format != TEX_FMT_A8R8G8B8)
+	{
+		free(outTexture->textureData);
+		outTexture->textureData = (u8 *)malloc(outTexture->width * outTexture->height * 4);
+		memset(outTexture->textureData, 0, outTexture->width * outTexture->height * 4);
+		outTexture->format = TEX_FMT_A8R8G8B8;
+		textureBufferJustAllocated = true;
+	}
 
 #ifndef __PS3__
     SDL_Surface *textureSurface = SDL_CreateRGBSurfaceWithFormatFrom(
@@ -628,10 +630,18 @@ void TextHelper::RenderTextToTexture(i32 xPos, i32 yPos, i32 spriteWidth, i32 sp
                      PS3_TEXT_BUFFER_WIDTH * 4, dstStart, srcW / 2, srcH / 2, outTexture->width * 4, maxDstW, maxDstH);
 #endif
 
-    g_AnmManager->SetCurrentTexture(outTexture->handle);
+	g_AnmManager->SetCurrentTexture(outTexture->handle);
 
-    g_GfxBackend->SetTextureImage(outTexture->width, outTexture->height, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE,
-                                  outTexture->textureData);
+	if (textureBufferJustAllocated)
+	{
+		g_GfxBackend->SetTextureImage(outTexture->width, outTexture->height, PIXEL_RGBA, PIXEL_UNSIGNED_BYTE,
+			outTexture->textureData);
+	}
+	else
+	{
+		g_GfxBackend->SetTextureSubImageFmt(0, 0, outTexture->width, outTexture->height, PIXEL_RGBA,
+			PIXEL_UNSIGNED_BYTE, outTexture->textureData);
+	}
 
 #ifdef __PS3__
     g_glFuncTable.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

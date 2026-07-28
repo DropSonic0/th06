@@ -147,8 +147,10 @@ struct GfxInterface
     virtual void DeleteTexture(GfxTextureHandle handle) = 0;
     virtual void SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data) = 0;
 
-    // should read as unsigned byte RGB
-    virtual void SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data) = 0;
+	// should read as unsigned byte RGB
+	virtual void SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data) = 0;
+	virtual void SetTextureSubImageFmt(i32 xoffset, i32 yoffset, i32 width, i32 height, PixelFormat fmt,
+		PixelDataType type, const void *data) = 0;
 
     virtual void ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels) = 0;
     virtual void CopyTextureFromBackbuffer(i32 x, i32 y, i32 width, i32 height) = 0;

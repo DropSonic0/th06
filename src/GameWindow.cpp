@@ -46,8 +46,7 @@ static const struct
 #ifndef __PS3__
     {"GL(ES) 2.0 / WebGL", WebGL::Create},
 #endif
-    {"Fixed function GL(ES)", FixedFunctionGL::Init},
-    {"Software fallback (VERY SLOW)", Software::Init}};
+    {"Fixed function GL(ES)", FixedFunctionGL::Init}};
 
 RenderResult GameWindow::Render()
 {

@@ -477,8 +477,9 @@ struct AnmManager
     void ApplySurfaceToColorBuffer(SDL_Surface *src, const SDL_Rect &srcRect, const SDL_Rect &dstRect,
                                    ZunColor color = 0xffffffff);
 #endif
-    // Creates, binds, and set parameters for a new texture
-    void CreateTextureObject();
+	// Creates, binds, and set parameters for a new texture
+	void CreateTextureObject();
+	void GetOrCreateTextureObject(i32 textureIdx);
     void UpdateDirtyStates();
 
     AnmLoadedSprite sprites[2048];
