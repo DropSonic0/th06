@@ -528,8 +528,8 @@ void GameWindow::InitD3dDevice(void)
     g_GfxBackend->SetBlendMode(BLEND_INV_SRC_ALPHA);
 
 #ifdef __PS3__
-    glEnable(GL_ALPHA_TEST);
-    glAlphaFunc(GL_GREATER, 0.1f);
+		glEnable(GL_ALPHA_TEST);
+	glAlphaFunc(GL_GEQUAL, 4.0f / 255.0f);
 #endif
 
     if (((g_Supervisor.cfg.opts >> GCOS_TURN_OFF_DEPTH_TEST) & 1) == 0)

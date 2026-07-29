@@ -24,7 +24,7 @@ struct MemoryBlock
 } __attribute__((aligned(16)));
 
 static sys_addr_t g_PoolAddr = 0;
-static size_t g_PoolSize = 32 * 1024 * 1024; // Default to 80MB Pool
+static size_t g_PoolSize = 32 * 1024 * 1024; // Default to 32MB Pool
 static MemoryBlock *g_Head = nullptr;
 static bool g_Initialized = false;
 static int g_InitResult = -1;

@@ -98,16 +98,17 @@ void GameErrorContext::Flush()
 #ifndef __PS3__
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "log", m_Buffer, NULL);
 #endif
+#ifndef DDEBUG
             m_ShowMessageBox = false;
         }
-
+#else
         FILE *f = FileSystem::FopenUTF8("log.txt", "ab");
         if (f != NULL)
         {
             std::fwrite(m_Buffer, 1, (size_t)(m_BufferEnd - m_Buffer), f);
             std::fclose(f);
         }
-
+#endif
         m_BufferEnd = m_Buffer;
         m_Buffer[0] = '\0';
     }

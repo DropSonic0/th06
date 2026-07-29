@@ -14,6 +14,7 @@
 #include "GameErrorContext.hpp"
 #include "GameManager.hpp"
 #include "GameWindow.hpp"
+#include "GamePaths.hpp"
 #include "ZunResult.hpp"
 #include "ZunTimer.hpp"
 #include "inttypes.hpp"
@@ -451,8 +452,8 @@ struct AnmManager
         vm->anmFileIndex = anmFileIdx;
         vm->pos = ZunVec3(0, 0, 0);
         vm->posOffset = ZunVec3(0, 0, 0);
-        vm->fontHeight = 15;
-        vm->fontWidth = 15;
+		vm->fontHeight = GamePaths::IsJapanese() ? 15 : 15;
+		vm->fontWidth = GamePaths::IsJapanese() ? 15 : 15;
 
         this->SetAndExecuteScript(vm, this->scripts[anmFileIdx]);
     }

@@ -74,7 +74,7 @@
       <OptimizationLevel>Level2</OptimizationLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <AdditionalIncludeDirectories>$(SolutionDir)\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>-D__PS3__ -DDEBUG %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D__PS3__ %(AdditionalOptions)</AdditionalOptions>
       <CppLanguageStd>Cpp11</CppLanguageStd>
     </ClCompile>
     <Link>
@@ -110,8 +110,6 @@
     <ClInclude Include="..\..\src\graphics\FixedFunctionGL.hpp" />
     <ClInclude Include="..\..\src\graphics\GfxInterface.hpp" />
     <ClInclude Include="..\..\src\graphics\GLFunc.hpp" />
-    <ClInclude Include="..\..\src\graphics\Software.hpp" />
-    <ClInclude Include="..\..\src\graphics\WebGL.hpp" />
     <ClInclude Include="..\..\src\Gui.hpp" />
     <ClInclude Include="..\..\src\i18n.hpp" />
     <ClInclude Include="..\..\src\inttypes.hpp" />
@@ -170,8 +168,6 @@
     <ClCompile Include="..\..\src\GameWindow.cpp" />
     <ClCompile Include="..\..\src\graphics\FixedFunctionGL.cpp" />
     <ClCompile Include="..\..\src\graphics\GLFunc.cpp" />
-    <ClCompile Include="..\..\src\graphics\Software.cpp" />
-    <ClCompile Include="..\..\src\graphics\WebGL.cpp" />
     <ClCompile Include="..\..\src\Gui.cpp" />
     <ClCompile Include="..\..\src\ItemManager.cpp" />
     <ClCompile Include="..\..\src\main.cpp" />
@@ -197,6 +193,7 @@
     <ClCompile Include="..\..\src\thirdparty\sjis_converter.cpp" />
     <ClCompile Include="..\..\src\utils.cpp" />
     <ClCompile Include="..\..\src\ZunMath.cpp" />
+    <ClCompile Include="..\..\src\ZunMemory.cpp" />
     <ClCompile Include="..\..\src\ZunTimer.cpp" />
   </ItemGroup>
   <ItemGroup>

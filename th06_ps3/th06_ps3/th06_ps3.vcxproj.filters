@@ -7,9 +7,6 @@
     <ClInclude Include="..\..\src\graphics\GfxInterface.hpp">
       <Filter>graphics</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\graphics\WebGL.hpp">
-      <Filter>graphics</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\pbg3\FileAbstraction.hpp">
       <Filter>pbg3</Filter>
     </ClInclude>
@@ -26,9 +23,6 @@
       <Filter>font</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\graphics\GLFunc.hpp">
-      <Filter>graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\graphics\Software.hpp">
       <Filter>graphics</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\midi\MidiAlsa.hpp">
@@ -107,9 +101,6 @@
     <ClCompile Include="..\..\src\graphics\FixedFunctionGL.cpp">
       <Filter>graphics</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\graphics\WebGL.cpp">
-      <Filter>graphics</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\pbg3\FileAbstraction.cpp">
       <Filter>pbg3</Filter>
     </ClCompile>
@@ -123,9 +114,6 @@
       <Filter>pbg3</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\graphics\GLFunc.cpp">
-      <Filter>graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\graphics\Software.cpp">
       <Filter>graphics</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\midi\MidiAlsa.cpp">
@@ -175,6 +163,7 @@
     <ClCompile Include="..\..\src\midi\MidiPs3.cpp">
       <Filter>midi</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ZunMemory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\src\graphics\ff.frag">

@@ -52,50 +52,31 @@ AnmManager *g_AnmManager;
 #ifdef __PS3__
 static ZunColor ApplyFog(ZunColor color, f32 z, f32 fogNear, f32 fogFar, ZunColor fogColor)
 {
-	// If fog is invalid or disabled, return original color
-	if (fogFar <= 0.0f || fogNear >= fogFar)
+	if (fogNear <= 0.0f || fogFar <= 0.0f || fogNear >= fogFar)
 	{
 		return color;
 	}
 
-	// Direct3D linear fog formula: f = (end - d) / (end - start)
-	// On PS3/OpenGL, view-space Z is negative, and the camera is offset by ~896 units
-	// (half_height / tan(pi/12)). To match PC fog which starts from the camera plane,
-	// we subtract this offset.
-	f32 depth = ZUN_FABSF(z) - 896.0f;
-	if (depth < 0.0f) depth = 0.0f;
-
-	// Calculate fog factor with clamping
-	f32 fogFactor;
-	if (depth <= fogNear) {
-		fogFactor = 1.0f;
-	}
-	else if (depth >= fogFar) {
+	f32 fogFactor = (fogFar - z) / (fogFar - fogNear);
+	if (fogFactor < 0.0f)
 		fogFactor = 0.0f;
-	}
-	else {
-		fogFactor = (fogFar - depth) / (fogFar - fogNear);
-	}
+	if (fogFactor > 1.0f)
+		fogFactor = 1.0f;
 
-	// To make the fog look thicker like the PC version, we use a quadratic curve
-	fogFactor = fogFactor * fogFactor;
+	u32 r = (color >> 16) & 0xff;
+	u32 g = (color >> 8) & 0xff;
+	u32 b = (color >> 0) & 0xff;
+	u32 a = (color >> 24) & 0xff;
 
-	// Extract components as floats for better precision during blending
-	f32 a = (f32)((color >> 24) & 0xff);
-	f32 r = (f32)((color >> 16) & 0xff);
-	f32 g = (f32)((color >> 8) & 0xff);
-	f32 b = (f32)(color & 0xff);
+	u32 fr = (fogColor >> 16) & 0xff;
+	u32 fg = (fogColor >> 8) & 0xff;
+	u32 fb = (fogColor >> 0) & 0xff;
 
-	f32 fr = (f32)((fogColor >> 16) & 0xff);
-	f32 fg = (f32)((fogColor >> 8) & 0xff);
-	f32 fb = (f32)(fogColor & 0xff);
+	r = (u32)(r * fogFactor + fr * (1.0f - fogFactor));
+	g = (u32)(g * fogFactor + fg * (1.0f - fogFactor));
+	b = (u32)(b * fogFactor + fb * (1.0f - fogFactor));
 
-	// Linear interpolation: Color = Color * f + FogColor * (1 - f)
-	r = r * fogFactor + fr * (1.0f - fogFactor);
-	g = g * fogFactor + fg * (1.0f - fogFactor);
-	b = b * fogFactor + fb * (1.0f - fogFactor);
-
-	return (((u32)a) << 24) | (((u32)r) << 16) | (((u32)g) << 8) | ((u32)b);
+	return (a << 24) | (r << 16) | (g << 8) | b;
 }
 #endif
 
@@ -2255,11 +2236,11 @@ void AnmManager::DrawTextToSprite(u32 textureDstIdx, i32 xPos, i32 yPos, i32 spr
 {
 	if (fontWidth <= 0)
 	{
-		fontWidth = 15;
+		fontWidth = GamePaths::IsJapanese() ? 15 : 15;
 	}
 	if (fontHeight <= 0)
 	{
-		fontHeight = 15;
+		fontHeight = GamePaths::IsJapanese() ? 15 : 15;
 	}
 
 	TextHelper::RenderTextToTexture(xPos, yPos, spriteWidth, spriteHeight, fontWidth, fontHeight, textColor,
@@ -2295,7 +2276,7 @@ void AnmManager::DrawStringFormat(AnmVm *vm, ZunColor textColor, ZunColor shadow
 	i32 fontWidth;
 	i32 secondPartStartX;
 
-	fontWidth = vm->fontWidth <= 0 ? 15 : vm->fontWidth;
+	fontWidth = vm->fontWidth <= 0 ? (GamePaths::IsJapanese() ? 15 : 11) : vm->fontWidth;
 	va_start(args, fmt);
 	vsprintf(buf, fmt, args);
 	va_end(args);
@@ -2318,7 +2299,7 @@ void AnmManager::DrawStringFormat2(AnmVm *vm, ZunColor textColor, ZunColor shado
 	i32 fontWidth;
 	i32 secondPartStartX;
 
-	fontWidth = vm->fontWidth <= 0 ? 15 : vm->fontWidth;
+	fontWidth = vm->fontWidth <= 0 ? (GamePaths::IsJapanese() ? 15 : 11) : vm->fontWidth;
 	va_start(args, fmt);
 	vsprintf(buf, fmt, args);
 	va_end(args);

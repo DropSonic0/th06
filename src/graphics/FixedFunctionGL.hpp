@@ -12,65 +12,66 @@
 
 struct FixedFunctionGL : GfxInterface
 {
-    static GfxInterface *Init();
-    static void SetContextFlags();
-    virtual void Exit();
-    ~FixedFunctionGL() override
-    {
-        Exit();
-    };
+	static GfxInterface *Init();
+	static void SetContextFlags();
+	virtual void Exit();
+	~FixedFunctionGL() override
+	{
+		Exit();
+	};
 
-    virtual void SetFogRange(f32 nearPlane, f32 farPlane);
-    virtual void SetFogColor(ZunColor color);
-    virtual void ToggleVertexAttribute(u8 attr, bool enable);
-    virtual void SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr);
-    virtual void SetColorOp(TextureOpComponent component, ColorOp op);
-    virtual void SetTextureFactor(ZunColor factor);
-    virtual void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix);
+	virtual void SetFogRange(f32 nearPlane, f32 farPlane);
+	virtual void SetFogColor(ZunColor color);
+	virtual void ToggleVertexAttribute(u8 attr, bool enable);
+	virtual void SetAttributePointer(VertexAttributeArrays attr, std::size_t stride, void *ptr);
+	virtual void SetColorOp(TextureOpComponent component, ColorOp op);
+	virtual void SetTextureFactor(ZunColor factor);
+	virtual void SetTransformMatrix(TransformMatrix type, const ZunMatrix &matrix);
 
-    virtual void SetTextureFilter();
+	virtual void SetTextureFilter();
 
-    virtual void GetViewport(u32 *viewport);
-    virtual void GetDepthRange(f32 *depthRange);
-    virtual void SetViewport(i32 x, i32 y, i32 width, i32 height);
-    virtual void SetDepthRange(f32 nearPlane, f32 farPlane);
+	virtual void GetViewport(u32 *viewport);
+	virtual void GetDepthRange(f32 *depthRange);
+	virtual void SetViewport(i32 x, i32 y, i32 width, i32 height);
+	virtual void SetDepthRange(f32 nearPlane, f32 farPlane);
 
-    virtual void Enable(Capabilities cap);
-    virtual bool HasError();
-    virtual void SetBlendMode(BlendMode mode);
-    virtual void SetDepthMask(bool enable);
-    virtual void SetDepthFunc(DepthFunc func);
+	virtual void Enable(Capabilities cap);
+	virtual bool HasError();
+	virtual void SetBlendMode(BlendMode mode);
+	virtual void SetDepthMask(bool enable);
+	virtual void SetDepthFunc(DepthFunc func);
 
-    virtual void SetClearDepth(f32 depth);
-    virtual void SetClearColor(f32 r, f32 g, f32 b, f32 a);
-    virtual void Clear(u32 clearBits);
+	virtual void SetClearDepth(f32 depth);
+	virtual void SetClearColor(f32 r, f32 g, f32 b, f32 a);
+	virtual void Clear(u32 clearBits);
 
-    virtual GfxTextureHandle CreateTexture();
-    virtual void BindTexture(GfxTextureHandle handle);
-    virtual void DeleteTexture(GfxTextureHandle handle);
-    static u32 GetLiveTextureCount();
+	virtual GfxTextureHandle CreateTexture();
+	virtual void BindTexture(GfxTextureHandle handle);
+	virtual void DeleteTexture(GfxTextureHandle handle);
+	static u32 GetLiveTextureCount();
 	virtual void SetTextureImage(u32 width, u32 height, PixelFormat fmt, PixelDataType type, const void *data);
 	virtual void SetTextureSubImage(i32 xoffset, i32 yoffset, i32 width, i32 height, const void *data);
 	virtual void SetTextureSubImageFmt(i32 xoffset, i32 yoffset, i32 width, i32 height, PixelFormat fmt,
 		PixelDataType type, const void *data);
 
-    virtual void ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels);
-    void CopyTextureFromBackbuffer(i32 x, i32 y, i32 width, i32 height) override;
+	virtual void ReadPixels(i32 x, i32 y, i32 width, i32 height, const void *pixels);
+	void CopyTextureFromBackbuffer(i32 x, i32 y, i32 width, i32 height) override;
 
-    virtual void Draw(PrimitiveType type, i32 start, i32 count);
-    virtual void SwapBuffers();
+	virtual void Draw(PrimitiveType type, i32 start, i32 count);
+	virtual void SwapBuffers();
 
-  private:
+private:
 #ifndef __PS3__
-    SDL_Window *window;
-    SDL_GLContext glContext;
+	SDL_Window *window;
+	SDL_GLContext glContext;
 #else
-    PSGLdevice *device;
-    PSGLcontext *glContext;
+	PSGLdevice *device;
+	PSGLcontext *glContext;
 #endif
 
-    u32 m_viewport[4];
-    f32 m_depthRange[2];
-    bool m_textureEnabled;
-    GfxTextureHandle m_boundTexture = 0;
+	u32 m_viewport[4];
+	f32 m_depthRange[2];
+	f32 m_clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	bool m_textureEnabled;
+	GfxTextureHandle m_boundTexture = 0;
 };
